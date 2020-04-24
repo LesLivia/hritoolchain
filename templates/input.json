@@ -1,0 +1,22 @@
+{
+  "humans": [
+    {
+      "upp_id": 1,
+      "vel": 8,
+      "pattern": 0,
+      "name": "alice"
+    },
+    {
+      "upp_id": 2,
+      "vel": 8,
+      "pattern": 1,
+      "name": "bob"
+    },
+    {
+      "upp_id": 3,
+      "vel": 8,
+      "pattern": 2,
+      "name": "carl"
+    }
+  ]
+}

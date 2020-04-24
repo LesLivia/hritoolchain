@@ -1,0 +1,2236 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE nta PUBLIC '-//Uppaal Team//DTD Flat System 1.1//EN' 'http://www.it.uu.se/research/group/darts/uppaal/flat-1_2.dtd'>
+<nta>
+	<declaration>/**
+*** CHANNELS
+**/
+// Human Channels
+broadcast chan pass_out;
+broadcast chan free_start;
+broadcast chan free_stop;
+broadcast chan start_h_action[int];
+broadcast chan stop_h_action;
+
+// Robot Controller Channels
+broadcast chan start_recharging[int]; 
+broadcast chan stop_recharging;
+broadcast chan start_r_action[int];
+broadcast chan stop_r_action;
+
+// Battery Channels
+broadcast chan dead_battery;
+urgent broadcast chan full_battery;
+
+/**
+*** CONSTANTS
+**/
+double pi = 3.1415926535;
+
+/**
+*** VARIABLES
+**/
+
+// Mission Mgmt
+bool fail = false;
+bool success;
+bool served[3] = {false, false, false};
+// 0: human follower, 1: human leader, 2: human recipient
+int patterns[3] = #PATTERNS#;
+//
+bool objectTaken[3] = {false, false, false};
+double destX[3] = {1300.0, 1300.0, 1300.0};
+double destY[3] = {300.0, 500.0, 100.0};
+
+// Robot Mgmt
+int currR = 1;
+
+// Human Mgmt
+int currH = 1;
+int hExe = 0;
+
+// Sensor Outputs
+double batteryCharge;
+double robPositionX;
+double robPositionY;
+
+double humanFatigue[3] = {0.0, 0.0, 0.0};
+double humanPositionX[3] = {0.0, 0.0, 0.0};
+double humanPositionY[3] = {0.0, 0.0, 0.0};
+double humTheta[3] = {0.0, 0.0, 0.0};
+
+// Robot direction Control
+double robTheta = 0.0;
+bool robTurned = true;
+
+/**
+*** FLOOR PLAN
+**/
+typedef double point[2];
+bool isInRectangle(point start, double dX, double dY, double length, double height) {
+    bool destXisIn, destYisIn;
+    if(fabs(length)&gt;fabs(height)) {
+        if(length&gt;0) {
+            destXisIn = dX &lt; start[0] + 0.95 * length &amp;&amp; dX &gt; start[0] - 0.05 * length;    
+        } else {
+            destXisIn = dX &lt; start[0] + 0.05 * -length &amp;&amp; dX &gt; start[0] - 0.95 * -length;            
+        }
+        destYisIn = dY &lt; start[1] + height / 2 &amp;&amp; dY &gt; start[1] - height / 2;
+    } else {
+        destXisIn = dX &lt; start[0] + length/2 &amp;&amp; dX &gt; start[0] - length/2;
+        if(height&gt;0) {
+            destYisIn = dY &lt; start[1] + 0.95*height &amp;&amp; dY &gt; start[1] - 0.005*height;
+        } else {
+            destYisIn = dY &lt; start[1] + 0.005*-height &amp;&amp; dY &gt; start[1] - 0.95*-height;        
+        }
+    }
+    return destXisIn &amp;&amp; destYisIn;
+}
+
+// Wall Corner Points
+point HALL1_1 = {200.0, 400.00};
+point HALL1_2 = {1200.00, 400.00};
+point HALL1_3 = {1200.00, 600.00};
+point HALL1_4 = {1400.00, 600.00};
+point HALL2_1 = {200.0, 200.00};
+point HALL2_2 = {1200.00, 200.00};
+point HALL2_3 = {1200.00, 0.0};
+point HALL2_4 = {1400.00, 0.0};
+
+point rechargeStation = {220.0, 300.00};
+</declaration>
+	<template>
+		<name>Human_Follower</name>
+		<parameter>int id, int v</parameter>
+		<declaration>clock h, t, F;
+clock updateTimer;
+clock freeWill;
+
+double lambda = 0.005, mi = 0.005;
+double MET = 60.0;
+double passout_th = 1.0;
+
+// Free Will Model
+int obey;
+int disobey;
+int freeWillRange;
+int freeWillTh;
+
+// Fatigue Sharing Parameters
+int timeF = 0;
+int pollTime = 2;
+double oldFatigue;
+
+// Position Sharing Parameters
+int timeP = 0;
+//bool changeDir = false;
+bool recovered = true;
+double oldPosX;
+double oldPosY;
+
+void updateF(double startingValue, double coeff, bool walking, bool reset) {
+    if(reset) {
+        timeF = 0;
+    } else {
+        timeF += pollTime;
+    }  
+  
+    if(walking) {
+        humanFatigue[id-1] = 1 + startingValue - exp(coeff*timeF);  
+    } else {
+        humanFatigue[id-1] = startingValue - 1 + exp(coeff*timeF);  
+    }
+
+    if(humanFatigue[id-1]&lt;0) {
+        humanFatigue[id-1] = 0;
+    }
+}
+
+bool destIsOnTheLeft, destIsOnTheRight, destIsAhead, destIsBehind;
+double allowanceFactor = 0.95;
+void changeDirection() {
+    double inverseValue, turnLeft, turnRight, length=2000.0, height=100.0;
+    double toCheck, humThF, humThB;   
+    point pos = {humanPositionX[id-1], humanPositionY[id-1]}, dest = {robPositionX, robPositionY};   
+    destIsOnTheLeft = false; destIsOnTheRight = false; destIsAhead = false; destIsBehind = false;
+
+    if(humTheta[id-1] == 0) {
+        inverseValue = -pi; turnLeft = pi/2; turnRight = -pi/2;
+        toCheck = humanPositionX[id-1];
+        humThF = allowanceFactor*HALL2_4[0];
+        humThB = HALL2_1[0]+(1-allowanceFactor)*HALL2_1[0];
+        destIsOnTheLeft = isInRectangle(pos, dest[0], dest[1], height, length);
+        destIsOnTheRight = isInRectangle(pos, dest[0], dest[1], height, -length);
+        destIsAhead = isInRectangle(pos, dest[0], dest[1], length, height);
+        destIsBehind = isInRectangle(pos, dest[0], dest[1], -length, height);
+    } else if (humTheta[id-1] == -pi) {
+        inverseValue = 0.0; turnLeft = -pi/2; turnRight = pi/2;
+        toCheck = humanPositionX[id-1];
+        humThF = allowanceFactor*HALL2_4[0];
+        humThB = HALL2_1[0]+(1-allowanceFactor)*HALL2_1[0];
+        destIsOnTheLeft = isInRectangle(pos, dest[0], dest[1], height, -length);
+        destIsOnTheRight = isInRectangle(pos, dest[0], dest[1], height, length);
+        destIsAhead = isInRectangle(pos, dest[0], dest[1], -length, height);
+        destIsBehind = isInRectangle(pos, dest[0], dest[1], length, height);
+    } else if (humTheta[id-1] == pi/2) {
+        inverseValue = -pi/2; turnLeft = -pi; turnRight = 0;
+        toCheck = humanPositionY[id-1];
+        humThF = allowanceFactor*HALL1_4[1];
+        humThB = HALL2_4[1]+(1-allowanceFactor);
+        destIsOnTheLeft = isInRectangle(pos, dest[0], dest[1], -length, height);
+        destIsOnTheRight = isInRectangle(pos, dest[0], dest[1], length, height);
+        destIsAhead = isInRectangle(pos, dest[0], dest[1], height, length);
+        destIsBehind = isInRectangle(pos, dest[0], dest[1], height, -length);
+    } else if (humTheta[id-1] == -pi/2) {
+        inverseValue = pi/2; turnLeft = 0; turnRight = -pi;      
+        toCheck = humanPositionY[id-1];
+        humThF = allowanceFactor*HALL1_4[1];
+        humThB = HALL2_4[1]+(1-allowanceFactor);
+        destIsOnTheLeft = isInRectangle(pos, dest[0], dest[1], length, height);
+        destIsOnTheRight = isInRectangle(pos, dest[0], dest[1], -length, height);
+        destIsAhead = isInRectangle(pos, dest[0], dest[1], height, -length);
+        destIsBehind = isInRectangle(pos, dest[0], dest[1], height, length);
+    }
+
+    // should change direction if wall is close, 
+    // or destination is not reachable with current direction
+    if(recovered) {
+        if(destIsAhead) {
+            return;
+        } else if(destIsBehind || toCheck &lt; humThB || toCheck &gt; humThF) { //should turn 180 deg
+            humTheta[id-1] = inverseValue;
+            timeP = 0;
+            recovered = false;
+            oldPosX = humanPositionX[id-1];
+            oldPosY = humanPositionY[id-1];   
+        } else if (destIsOnTheLeft) { //should turn left
+            humTheta[id-1] = turnLeft;
+            timeP = 0;
+            oldPosX = humanPositionX[id-1];
+            oldPosY = humanPositionY[id-1];   
+        } else if (destIsOnTheRight) { //should turn right
+            humTheta[id-1] = turnRight;
+            timeP = 0;
+            oldPosX = humanPositionX[id-1];
+            oldPosY = humanPositionY[id-1];   
+        } 
+    } else {
+        recovered = toCheck &gt; humThB &amp;&amp; toCheck &lt; humThF;
+    }
+}
+
+void updateP(double coeff) {
+    double h;
+    //!!!!!!!!!!! TODO: perchè senza currH &lt; 3 non funziona?
+    if(coeff&gt;0 &amp;&amp; currH&lt;=3) {
+        changeDirection();
+        timeP += pollTime;
+    }
+
+    h = coeff*timeP;
+
+    humanPositionX[id-1] = oldPosX + h*cos(humTheta[id-1]);
+    humanPositionY[id-1] = oldPosY + h*sin(humTheta[id-1]);
+}
+
+void updateFreeWill(){
+    if(currH==id) {
+        obey = 99;
+        disobey = 1;
+        freeWillRange = 100;
+        freeWillTh = 101;
+    } else {
+        obey = 100;
+        disobey = 1;
+        freeWill = 0;
+        freeWillRange = 10;
+        freeWillTh = 20;
+    }
+}
+
+void initHuman() {
+    F = 0; 
+    t = 0;
+    h = 0;
+    
+    updateTimer = 0;
+    oldFatigue = 0;
+    humanPositionX[id-1] = HALL1_1[0]+20;
+    humanPositionY[id-1] = HALL2_1[1] + (HALL1_1[1]-HALL2_1[1])/2 + 25;
+    oldPosX = humanPositionX[id-1];
+    oldPosY = humanPositionY[id-1];
+}</declaration>
+		<location id="id0" x="-399" y="-297">
+			<name x="-433" y="-323">idle</name>
+			<label kind="invariant" x="-518" y="-408">t' == 1 &amp;&amp; h' == 0 &amp;&amp; 
+freeWill'==0 &amp;&amp;
+F' == -mi*exp(-mi*t)
+&amp;&amp; updateTimer
+&lt;=pollTime</label>
+		</location>
+		<location id="id1" x="212" y="-297">
+			<name x="204" y="-331">busy</name>
+			<label kind="invariant" x="204" y="-416">t' == 1 &amp;&amp; h'  == v
+&amp;&amp; freeWill'==0
+&amp;&amp; F &lt;= passout_th &amp;&amp;
+F' == lambda*exp(-lambda*t)
+&amp;&amp; updateTimer&lt;=pollTime</label>
+		</location>
+		<location id="id2" x="-594" y="-296">
+			<name x="-637" y="-313">Init</name>
+			<committed/>
+		</location>
+		<location id="id3" x="365" y="-297">
+			<name x="382" y="-314">passed_out</name>
+			<label kind="invariant" x="382" y="-297">t' == 0 &amp;&amp;
+F' == 0 &amp;&amp;
+h' == 0 &amp;&amp;
+freeWill' == 0</label>
+			<label kind="exponentialrate" x="357" y="-280">1</label>
+		</location>
+		<location id="id4" x="-85" y="-391">
+			<committed/>
+		</location>
+		<location id="id5" x="-25" y="-153">
+			<committed/>
+		</location>
+		<branchpoint id="id6" x="-153" y="-153">
+		</branchpoint>
+		<branchpoint id="id7" x="-34" y="-391">
+		</branchpoint>
+		<init ref="id2"/>
+		<transition>
+			<source ref="id1"/>
+			<target ref="id0"/>
+			<label kind="guard" x="-34" y="-76">!served[id-1] &amp;&amp;
+freeWill&gt;=freeWillTh</label>
+			<label kind="synchronisation" x="-34" y="-42">free_stop!</label>
+			<label kind="assignment" x="-280" y="-76">t = 0, freeWill = 0, timeP = 0,
+oldFatigue=humanFatigue[id-1],
+oldPosX=humanPositionX[id-1],
+oldPosY=humanPositionY[id-1],
+updateF(oldFatigue, -lambda, 1, 1),
+updateTimer=0,
+updateFreeWill()</label>
+			<nail x="76" y="-76"/>
+			<nail x="-289" y="-76"/>
+		</transition>
+		<transition>
+			<source ref="id0"/>
+			<target ref="id1"/>
+			<label kind="guard" x="-314" y="-527">!served[id-1]
+&amp;&amp; freeWill&gt;=freeWillTh</label>
+			<label kind="synchronisation" x="-212" y="-493">free_start!</label>
+			<label kind="assignment" x="-110" y="-544">t = 0, oldFatigue=0,
+updateF(oldFatigue, -mi, 0, 1),
+updateTimer=0,
+freeWill = 0</label>
+			<nail x="-246" y="-476"/>
+			<nail x="42" y="-476"/>
+		</transition>
+		<transition>
+			<source ref="id7"/>
+			<target ref="id1"/>
+			<label kind="probability" x="34" y="-382">obey</label>
+		</transition>
+		<transition>
+			<source ref="id6"/>
+			<target ref="id1"/>
+			<label kind="probability" x="-153" y="-119">disobey</label>
+			<nail x="-153" y="-119"/>
+			<nail x="-25" y="-119"/>
+			<nail x="-25" y="-297"/>
+		</transition>
+		<transition>
+			<source ref="id6"/>
+			<target ref="id0"/>
+			<label kind="assignment" x="-280" y="-187">timeP = 0</label>
+			<label kind="probability" x="-280" y="-204">obey</label>
+		</transition>
+		<transition>
+			<source ref="id5"/>
+			<target ref="id6"/>
+		</transition>
+		<transition>
+			<source ref="id1"/>
+			<target ref="id5"/>
+			<label kind="synchronisation" x="-8" y="-297">stop_h_action?</label>
+			<label kind="assignment" x="-8" y="-280">t = 0,
+oldFatigue=humanFatigue[id-1],
+oldPosX=humanPositionX[id-1],
+oldPosY=humanPositionY[id-1],
+updateF(oldFatigue, -lambda, 1, 1),
+updateTimer=0,
+updateFreeWill()</label>
+			<nail x="-25" y="-297"/>
+		</transition>
+		<transition>
+			<source ref="id0"/>
+			<target ref="id4"/>
+			<label kind="guard" x="-314" y="-331">F&gt;0</label>
+			<label kind="synchronisation" x="-331" y="-314">start_h_action[id]?</label>
+			<label kind="assignment" x="-255" y="-297">t = 0,
+oldFatigue=humanFatigue[id-1],
+updateF(oldFatigue, -mi, 0, 1),
+updateTimer=0</label>
+			<nail x="-85" y="-297"/>
+		</transition>
+		<transition>
+			<source ref="id7"/>
+			<target ref="id0"/>
+			<label kind="probability" x="-93" y="-442">disobey</label>
+			<nail x="-34" y="-425"/>
+			<nail x="-212" y="-425"/>
+			<nail x="-212" y="-391"/>
+		</transition>
+		<transition>
+			<source ref="id4"/>
+			<target ref="id7"/>
+		</transition>
+		<transition>
+			<source ref="id0"/>
+			<target ref="id4"/>
+			<label kind="guard" x="-204" y="-408">F&lt;=0</label>
+			<label kind="synchronisation" x="-221" y="-391">start_h_action[id]?</label>
+			<label kind="assignment" x="-204" y="-374">F = 0, t = 0,
+oldFatigue=0,
+updateF(oldFatigue, -mi, 0, 1),
+updateTimer=0</label>
+			<nail x="-212" y="-391"/>
+		</transition>
+		<transition>
+			<source ref="id1"/>
+			<target ref="id1"/>
+			<label kind="guard" x="213" y="-195">updateTimer&gt;=pollTime</label>
+			<label kind="assignment" x="213" y="-178">updateP(v),
+updateF(oldFatigue, -lambda, 1, 0),
+updateTimer=0,
+freeWill = random(freeWillRange)</label>
+			<nail x="213" y="-195"/>
+			<nail x="264" y="-195"/>
+		</transition>
+		<transition>
+			<source ref="id0"/>
+			<target ref="id0"/>
+			<label kind="guard" x="-568" y="-194">updateTimer&gt;=pollTime</label>
+			<label kind="assignment" x="-569" y="-178">updateP(0),
+updateF(oldFatigue, -mi, 0, 0),
+updateTimer=0,
+freeWill = random(freeWillRange)</label>
+			<nail x="-398" y="-194"/>
+			<nail x="-449" y="-194"/>
+		</transition>
+		<transition>
+			<source ref="id1"/>
+			<target ref="id3"/>
+			<label kind="guard" x="230" y="-314">F &gt;= passout_th</label>
+			<label kind="synchronisation" x="255" y="-297">pass_out!</label>
+			<label kind="assignment" x="306" y="-280">t = 0</label>
+		</transition>
+		<transition>
+			<source ref="id3"/>
+			<target ref="id3"/>
+			<nail x="340" y="-246"/>
+			<nail x="382" y="-246"/>
+		</transition>
+		<transition>
+			<source ref="id2"/>
+			<target ref="id0"/>
+			<label kind="assignment" x="-552" y="-289">initHuman()</label>
+		</transition>
+	</template>
+	<template>
+		<name>Human_Leader</name>
+		<parameter>int id, int v</parameter>
+		<declaration>clock h, t, F;
+clock updateTimer;
+clock freeWill;
+
+double lambda = 0.005, mi = 0.005;
+double MET = 60.0;
+double passout_th = 1.0;
+
+//Free Will Model
+double freeWillTh = 100.0;
+double freeWillRange = 95.0;
+
+// Fatigue Sharing Parameters
+int timeF = 0;
+int pollTime = 1;
+double oldFatigue;
+
+// Position Sharing Parameters
+int timeP = 0;
+bool changeDir = false;
+bool recovered = true;
+double oldPosX;
+double oldPosY;
+
+void updateF(double startingValue, double coeff, bool walking, bool reset) {
+    if(reset) {
+        timeF = 0;
+    } else {
+        timeF += pollTime;
+    }  
+  
+    if(walking) {
+        humanFatigue[id-1] = 1 + startingValue - exp(coeff*timeF);  
+    } else {
+        humanFatigue[id-1] = startingValue - 1 + exp(coeff*timeF);  
+    }
+
+    if(humanFatigue[id-1]&lt;0) {
+        humanFatigue[id-1] = 0;
+    }
+}
+
+bool destIsOnTheLeft, destIsOnTheRight, destIsAhead, destIsBehind;
+double allowanceFactor = 0.95;
+void changeDirection() {
+    double inverseValue, turnLeft, turnRight, length=2000.0, height=100.0;
+    double toCheck, humThF, humThB;   
+    point pos = {humanPositionX[id-1], humanPositionY[id-1]}, dest = {destX[currH-1], destY[currH-1]};   
+    destIsOnTheLeft = false; destIsOnTheRight = false; destIsAhead = false; destIsBehind = false;
+
+if(humTheta[id-1] == 0) {
+        inverseValue = -pi; turnLeft = pi/2; turnRight = -pi/2;
+        toCheck = humanPositionX[id-1];
+        humThF = allowanceFactor*HALL2_4[0];
+        humThB = HALL2_1[0]+(1-allowanceFactor)*HALL2_1[0];
+        destIsOnTheLeft = isInRectangle(pos, dest[0], dest[1], height, length);
+        destIsOnTheRight = isInRectangle(pos, dest[0], dest[1], height, -length);
+        destIsAhead = isInRectangle(pos, dest[0], dest[1], length, height);
+        destIsBehind = isInRectangle(pos, dest[0], dest[1], -length, height);
+    } else if (humTheta[id-1] == -pi) {
+        inverseValue = 0.0; turnLeft = -pi/2; turnRight = pi/2;
+        toCheck = humanPositionX[id-1];
+        humThF = allowanceFactor*HALL2_4[0];
+        humThB = HALL2_1[0]+(1-allowanceFactor)*HALL2_1[0];
+        destIsOnTheLeft = isInRectangle(pos, dest[0], dest[1], height, -length);
+        destIsOnTheRight = isInRectangle(pos, dest[0], dest[1], height, length);
+        destIsAhead = isInRectangle(pos, dest[0], dest[1], -length, height);
+        destIsBehind = isInRectangle(pos, dest[0], dest[1], length, height);
+    } else if (humTheta[id-1] == pi/2) {
+        inverseValue = -pi/2; turnLeft = -pi; turnRight = 0;
+        toCheck = humanPositionY[id-1];
+        humThF = allowanceFactor*HALL1_4[1];
+        humThB = HALL2_4[1]+(1-allowanceFactor);
+        destIsOnTheLeft = isInRectangle(pos, dest[0], dest[1], -length, height);
+        destIsOnTheRight = isInRectangle(pos, dest[0], dest[1], length, height);
+        destIsAhead = isInRectangle(pos, dest[0], dest[1], height, length);
+        destIsBehind = isInRectangle(pos, dest[0], dest[1], height, -length);
+    } else if (humTheta[id-1] == -pi/2) {
+        inverseValue = pi/2; turnLeft = 0; turnRight = -pi;      
+        toCheck = humanPositionY[id-1];
+        humThF = allowanceFactor*HALL1_4[1];
+        humThB = HALL2_4[1]+(1-allowanceFactor);
+        destIsOnTheLeft = isInRectangle(pos, dest[0], dest[1], length, height);
+        destIsOnTheRight = isInRectangle(pos, dest[0], dest[1], -length, height);
+        destIsAhead = isInRectangle(pos, dest[0], dest[1], height, -length);
+        destIsBehind = isInRectangle(pos, dest[0], dest[1], height, length);
+    }
+
+    // should change direction if wall is close, 
+    // or destination is not reachable with current direction
+    if(recovered) {
+        if(destIsAhead) {
+            return;
+        } else if(destIsBehind || toCheck &lt; humThB || toCheck &gt; humThF) { //should turn 180 deg
+            humTheta[id-1] = inverseValue;
+            timeP = 0;
+            recovered = false;
+            oldPosX = humanPositionX[id-1];
+            oldPosY = humanPositionY[id-1];   
+        } else if (destIsOnTheLeft) { //should turn left
+            humTheta[id-1] = turnLeft;
+            timeP = 0;
+            oldPosX = humanPositionX[id-1];
+            oldPosY = humanPositionY[id-1];   
+        } else if (destIsOnTheRight) { //should turn right
+            humTheta[id-1] = turnRight;
+            timeP = 0;
+            oldPosX = humanPositionX[id-1];
+            oldPosY = humanPositionY[id-1];   
+        } 
+    } else {
+        recovered = toCheck &gt; humThB &amp;&amp; toCheck &lt; humThF;
+    }
+}
+
+void updateP(double coeff) {
+    double h;
+    if(coeff&gt;0) {
+        changeDirection();
+        timeP += pollTime;
+    }
+
+    h = coeff*timeP;
+
+    humanPositionX[id-1] = oldPosX + h*cos(humTheta[id-1]);
+    humanPositionY[id-1] = oldPosY + h*sin(humTheta[id-1]);
+}
+
+void checkSuccess() {
+    bool hXinDestInterval = humanPositionX[id-1] &gt;= destX[id-1]-50.0 &amp;&amp; humanPositionX[id-1] &lt;= destX[id-1]+50.0;
+    bool hYinDestInterval = humanPositionY[id-1] &gt;= destY[id-1]-50.0 &amp;&amp; humanPositionY[id-1] &lt;= destY[id-1]+50.0;
+    // when humans reach their destination, they can set themselves as "served"
+    if(hXinDestInterval &amp;&amp; hYinDestInterval) {
+        served[id-1] = true;
+    }
+}
+
+void initHuman() {
+    F = 0; 
+    t = 0;
+    h = 0;
+    
+    updateTimer = 0;
+    oldFatigue = 0;
+    humanPositionX[id-1] = HALL1_1[0]+20;
+    humanPositionY[id-1] = HALL2_1[1] + (HALL1_1[1]-HALL2_1[1])/2 + 25;
+    oldPosX = humanPositionX[id-1];
+    oldPosY = humanPositionY[id-1];
+}</declaration>
+		<location id="id8" x="-357" y="-221">
+			<name x="-391" y="-247">idle</name>
+			<label kind="invariant" x="-450" y="-331">t' == 1 &amp;&amp; h' == 0 &amp;&amp;
+F' == -mi*exp(-mi*t)
+&amp;&amp; freeWill' == 0
+&amp;&amp; updateTimer
+&lt;=pollTime</label>
+		</location>
+		<location id="id9" x="254" y="-221">
+			<name x="246" y="-255">busy</name>
+			<label kind="invariant" x="246" y="-340">t' == 1 &amp;&amp; h'  == v &amp;&amp; 
+F &lt;= passout_th &amp;&amp;
+freeWill' == 0 &amp;&amp;
+F' == lambda*exp(-lambda*t)
+&amp;&amp; updateTimer&lt;=pollTime</label>
+		</location>
+		<location id="id10" x="-552" y="-220">
+			<name x="-595" y="-237">Init</name>
+			<committed/>
+		</location>
+		<location id="id11" x="425" y="-221">
+			<name x="442" y="-238">passed_out</name>
+			<label kind="invariant" x="442" y="-221">t' == 0 &amp;&amp;
+F' == 0 &amp;&amp;
+h' == 0</label>
+			<label kind="exponentialrate" x="417" y="-204">1</label>
+		</location>
+		<location id="id12" x="246" y="-42">
+			<name x="229" y="-25">checking</name>
+			<urgent/>
+		</location>
+		<init ref="id10"/>
+		<transition>
+			<source ref="id9"/>
+			<target ref="id8"/>
+			<label kind="guard" x="-297" y="-195">!served[id-1] &amp;&amp;
+freeWill &gt;= freeWillTh</label>
+			<label kind="synchronisation" x="-255" y="-161">stop_h_action!</label>
+			<label kind="assignment" x="-144" y="-178">t = 0, hExe = 0,
+oldFatigue=humanFatigue[id-1],
+oldPosX=humanPositionX[id-1],
+oldPosY=humanPositionY[id-1],
+updateF(oldFatigue, -lambda, 1, 1),
+updateTimer=0</label>
+			<nail x="161" y="-161"/>
+			<nail x="-263" y="-161"/>
+		</transition>
+		<transition>
+			<source ref="id12"/>
+			<target ref="id8"/>
+			<label kind="guard" x="-255" y="-59">served[id-1]</label>
+			<label kind="synchronisation" x="-255" y="-42">stop_h_action!</label>
+			<label kind="assignment" x="-153" y="-59">t = 0, hExe = 0,
+oldFatigue=humanFatigue[id-1],
+oldPosX=humanPositionX[id-1],
+oldPosY=humanPositionY[id-1],
+updateF(oldFatigue, -lambda, 1, 1),
+updateTimer=0</label>
+			<nail x="-272" y="-42"/>
+		</transition>
+		<transition>
+			<source ref="id12"/>
+			<target ref="id9"/>
+			<label kind="guard" x="110" y="-144">!served[id-1]</label>
+			<label kind="assignment" x="110" y="-127">updateP(v),
+updateF(oldFatigue, -lambda, 1, 0),
+updateTimer=0,
+freeWill = random(freeWillRange)</label>
+			<nail x="204" y="-127"/>
+		</transition>
+		<transition>
+			<source ref="id9"/>
+			<target ref="id12"/>
+			<label kind="guard" x="297" y="-144">updateTimer&gt;=pollTime</label>
+			<label kind="assignment" x="297" y="-127">checkSuccess()</label>
+			<nail x="297" y="-127"/>
+		</transition>
+		<transition>
+			<source ref="id8"/>
+			<target ref="id9"/>
+			<label kind="guard" x="-238" y="-399">!served[id-1] 
+&amp;&amp; F&lt;=0
+&amp;&amp; currH == id</label>
+			<label kind="synchronisation" x="-238" y="-348">start_h_action[id]!</label>
+			<label kind="assignment" x="-76" y="-382">F = 0, t = 0, oldFatigue=0,
+updateF(oldFatigue, -mi, 0, 1),
+updateTimer=0, hExe = 1</label>
+			<nail x="-255" y="-331"/>
+			<nail x="161" y="-331"/>
+		</transition>
+		<transition>
+			<source ref="id8"/>
+			<target ref="id9"/>
+			<label kind="guard" x="-238" y="-323">!served[id-1] 
+&amp;&amp; F&gt;0
+&amp;&amp; currH == id</label>
+			<label kind="synchronisation" x="-238" y="-272">start_h_action[id]!</label>
+			<label kind="assignment" x="-76" y="-323">t = 0, hExe = 1,
+oldFatigue=humanFatigue[id-1],
+updateF(oldFatigue, -mi, 0, 1),
+updateTimer=0</label>
+			<nail x="-280" y="-255"/>
+			<nail x="170" y="-255"/>
+		</transition>
+		<transition>
+			<source ref="id8"/>
+			<target ref="id8"/>
+			<label kind="guard" x="-526" y="-118">updateTimer&gt;=pollTime</label>
+			<label kind="assignment" x="-527" y="-102">updateP(0),
+updateF(oldFatigue, -mi, 0, 0),
+updateTimer=0,
+freeWill = random(freeWillRange)</label>
+			<nail x="-356" y="-118"/>
+			<nail x="-407" y="-118"/>
+		</transition>
+		<transition>
+			<source ref="id9"/>
+			<target ref="id11"/>
+			<label kind="guard" x="272" y="-238">F &gt;= passout_th</label>
+			<label kind="synchronisation" x="289" y="-221">pass_out!</label>
+			<label kind="assignment" x="289" y="-204">t = 0, hExe = 0</label>
+		</transition>
+		<transition>
+			<source ref="id11"/>
+			<target ref="id11"/>
+			<nail x="400" y="-170"/>
+			<nail x="442" y="-170"/>
+		</transition>
+		<transition>
+			<source ref="id10"/>
+			<target ref="id8"/>
+			<label kind="assignment" x="-510" y="-221">initHuman()</label>
+		</transition>
+	</template>
+	<template>
+		<name>Human_Recipient</name>
+		<parameter>int id, int v</parameter>
+		<declaration>clock h, t, F;
+clock updateTimer;
+clock freeWill;
+
+double lambda = 0.005, mi = 0.005;
+double MET = 60.0;
+double passout_th = 1.0;
+
+// Free Will Model
+int obey;
+int disobey;
+int freeWillRange;
+int freeWillTh;
+
+// Fatigue Sharing Parameters
+int timeF = 0;
+int pollTime = 2;
+double oldFatigue;
+
+// Position Sharing Parameters
+int timeP = 0;
+//bool changeDir = false;
+bool recovered = true;
+double oldPosX;
+double oldPosY;
+
+void updateF(double startingValue, double coeff, bool walking, bool reset) {
+    if(reset) {
+        timeF = 0;
+    } else {
+        timeF += pollTime;
+    }  
+  
+    if(walking) {
+        humanFatigue[id-1] = 1 + startingValue - exp(coeff*timeF);  
+    } else {
+        humanFatigue[id-1] = startingValue - 1 + exp(coeff*timeF);  
+    }
+
+    if(humanFatigue[id-1]&lt;0) {
+        humanFatigue[id-1] = 0;
+    }
+}
+
+bool destIsOnTheLeft, destIsOnTheRight, destIsAhead, destIsBehind;
+double allowanceFactor = 0.95;
+void changeDirection() {
+    double inverseValue, turnLeft, turnRight, length=2000.0, height=100.0;
+    double toCheck, humThF, humThB;   
+    point pos = {humanPositionX[id-1], humanPositionY[id-1]}, dest = {destX[currH-1], destY[currH-1]};   
+    destIsOnTheLeft = false; destIsOnTheRight = false; destIsAhead = false; destIsBehind = false;
+
+    if(humTheta[id-1] == 0) {
+        inverseValue = -pi; turnLeft = pi/2; turnRight = -pi/2;
+        toCheck = humanPositionX[id-1];
+        humThF = allowanceFactor*HALL2_4[0];
+        humThB = HALL2_1[0]+(1-allowanceFactor)*HALL2_1[0];
+        destIsOnTheLeft = isInRectangle(pos, dest[0], dest[1], height, length);
+        destIsOnTheRight = isInRectangle(pos, dest[0], dest[1], height, -length);
+        destIsAhead = isInRectangle(pos, dest[0], dest[1], length, height);
+        destIsBehind = isInRectangle(pos, dest[0], dest[1], -length, height);
+    } else if (humTheta[id-1] == -pi) {
+        inverseValue = 0.0; turnLeft = -pi/2; turnRight = pi/2;
+        toCheck = humanPositionX[id-1];
+        humThF = allowanceFactor*HALL2_4[0];
+        humThB = HALL2_1[0]+(1-allowanceFactor)*HALL2_1[0];
+        destIsOnTheLeft = isInRectangle(pos, dest[0], dest[1], height, -length);
+        destIsOnTheRight = isInRectangle(pos, dest[0], dest[1], height, length);
+        destIsAhead = isInRectangle(pos, dest[0], dest[1], -length, height);
+        destIsBehind = isInRectangle(pos, dest[0], dest[1], length, height);
+    } else if (humTheta[id-1] == pi/2) {
+        inverseValue = -pi/2; turnLeft = -pi; turnRight = 0;
+        toCheck = humanPositionY[id-1];
+        humThF = allowanceFactor*HALL1_4[1];
+        humThB = HALL2_4[1]+(1-allowanceFactor);
+        destIsOnTheLeft = isInRectangle(pos, dest[0], dest[1], -length, height);
+        destIsOnTheRight = isInRectangle(pos, dest[0], dest[1], length, height);
+        destIsAhead = isInRectangle(pos, dest[0], dest[1], height, length);
+        destIsBehind = isInRectangle(pos, dest[0], dest[1], height, -length);
+    } else if (humTheta[id-1] == -pi/2) {
+        inverseValue = pi/2; turnLeft = 0; turnRight = -pi;      
+        toCheck = humanPositionY[id-1];
+        humThF = allowanceFactor*HALL1_4[1];
+        humThB = HALL2_4[1]+(1-allowanceFactor);
+        destIsOnTheLeft = isInRectangle(pos, dest[0], dest[1], length, height);
+        destIsOnTheRight = isInRectangle(pos, dest[0], dest[1], -length, height);
+        destIsAhead = isInRectangle(pos, dest[0], dest[1], height, -length);
+        destIsBehind = isInRectangle(pos, dest[0], dest[1], height, length);
+    }
+
+    // should change direction if wall is close, 
+    // or destination is not reachable with current direction
+    if(recovered) {
+        if(destIsAhead) {
+            return;
+        } else if(destIsBehind || toCheck &lt; humThB || toCheck &gt; humThF) { //should turn 180 deg
+            humTheta[id-1] = inverseValue;
+            timeP = 0;
+            recovered = false;
+            oldPosX = humanPositionX[id-1];
+            oldPosY = humanPositionY[id-1];   
+        } else if (destIsOnTheLeft) { //should turn left
+            humTheta[id-1] = turnLeft;
+            timeP = 0;
+            oldPosX = humanPositionX[id-1];
+            oldPosY = humanPositionY[id-1];   
+        } else if (destIsOnTheRight) { //should turn right
+            humTheta[id-1] = turnRight;
+            timeP = 0;
+            oldPosX = humanPositionX[id-1];
+            oldPosY = humanPositionY[id-1];   
+        } 
+    } else {
+        recovered = toCheck &gt; humThB &amp;&amp; toCheck &lt; humThF;
+    }
+}
+
+void updateP(double coeff) {
+    double h;
+    //!!!!!!!!!!! TODO: perchè senza currH &lt; 3 non funziona?
+    if(coeff&gt;0 &amp;&amp; currH&lt;=3) {
+        changeDirection();
+        timeP += pollTime;
+    }
+
+    h = coeff*timeP;
+
+    humanPositionX[id-1] = oldPosX + h*cos(humTheta[id-1]);
+    humanPositionY[id-1] = oldPosY + h*sin(humTheta[id-1]);
+}
+
+void updateFreeWill(){
+    if(currH==id) {
+        freeWillRange = 100;
+        freeWillTh = 99;
+    } else {
+        freeWill = 0;
+        freeWillRange = 10;
+        freeWillTh = 20;
+    }
+}
+
+void initHuman() {
+    F = 0; 
+    t = 0;
+    h = 0;
+    
+    updateTimer = 0;
+    oldFatigue = 0;
+    humanPositionX[id-1] = HALL1_1[0]+20;
+    humanPositionY[id-1] = HALL2_1[1] + (HALL1_1[1]-HALL2_1[1])/2 + 25;
+    oldPosX = humanPositionX[id-1];
+    oldPosY = humanPositionY[id-1];
+}</declaration>
+		<location id="id13" x="-399" y="-297">
+			<name x="-433" y="-323">idle</name>
+			<label kind="invariant" x="-518" y="-408">t' == 1 &amp;&amp; h' == 0 &amp;&amp; 
+freeWill'==0 &amp;&amp;
+F' == -mi*exp(-mi*t)
+&amp;&amp; updateTimer
+&lt;=pollTime</label>
+		</location>
+		<location id="id14" x="212" y="-297">
+			<name x="204" y="-331">busy_mov</name>
+			<label kind="invariant" x="204" y="-416">t' == 1 &amp;&amp; h'  == v
+&amp;&amp; freeWill'==0
+&amp;&amp; F &lt;= passout_th &amp;&amp;
+F' == lambda*exp(-lambda*t)
+&amp;&amp; updateTimer&lt;=pollTime</label>
+		</location>
+		<location id="id15" x="-594" y="-296">
+			<name x="-637" y="-313">Init</name>
+			<committed/>
+		</location>
+		<location id="id16" x="365" y="-297">
+			<name x="382" y="-314">passed_out</name>
+			<label kind="invariant" x="382" y="-297">t' == 0 &amp;&amp;
+F' == 0 &amp;&amp;
+h' == 0 &amp;&amp;
+freeWill' == 0</label>
+			<label kind="exponentialrate" x="357" y="-280">1</label>
+		</location>
+		<location id="id17" x="-102" y="-467">
+			<name x="-93" y="-459">busy_rec</name>
+			<label kind="invariant" x="-93" y="-569">t' == 1 &amp;&amp; h' == 0 &amp;&amp; 
+freeWill'==0 &amp;&amp;
+F' == -mi*exp(-mi*t)
+&amp;&amp; updateTimer
+&lt;=pollTime</label>
+		</location>
+		<init ref="id15"/>
+		<transition>
+			<source ref="id17"/>
+			<target ref="id17"/>
+			<label kind="guard" x="-221" y="-637">updateTimer&gt;=pollTime</label>
+			<label kind="assignment" x="-221" y="-705">updateP(0),
+updateF(oldFatigue, -mi, 0, 0),
+updateTimer=0,
+freeWill = random(freeWillRange)</label>
+			<nail x="-221" y="-612"/>
+			<nail x="-102" y="-612"/>
+		</transition>
+		<transition>
+			<source ref="id17"/>
+			<target ref="id13"/>
+			<label kind="synchronisation" x="-263" y="-484">stop_h_action?</label>
+			<label kind="assignment" x="-416" y="-578">t = 0, freeWill = 0, timeP = 0,
+oldFatigue=humanFatigue[id-1],
+oldPosX=humanPositionX[id-1],
+oldPosY=humanPositionY[id-1],
+updateF(oldFatigue, -lambda, 1, 1),
+updateTimer=0,
+updateFreeWill()</label>
+			<nail x="-263" y="-467"/>
+		</transition>
+		<transition>
+			<source ref="id14"/>
+			<target ref="id17"/>
+			<label kind="synchronisation" x="102" y="-578">start_h_action[id]?</label>
+			<label kind="assignment" x="102" y="-561">t = 0,
+oldFatigue=humanFatigue[id-1],
+oldPosX=humanPositionX[id-1],
+oldPosY=humanPositionY[id-1],
+updateF(oldFatigue, -lambda, 1, 1),
+updateTimer=0,
+updateFreeWill()</label>
+			<nail x="85" y="-467"/>
+		</transition>
+		<transition>
+			<source ref="id13"/>
+			<target ref="id17"/>
+			<label kind="synchronisation" x="-246" y="-442">start_h_action[id]?</label>
+			<label kind="assignment" x="-246" y="-425">F = 0, t = 0,
+oldFatigue=0,
+updateF(oldFatigue, -mi, 0, 1),
+updateTimer=0</label>
+			<nail x="-246" y="-442"/>
+		</transition>
+		<transition>
+			<source ref="id14"/>
+			<target ref="id13"/>
+			<label kind="guard" x="-42" y="-246">freeWill&gt;=freeWillTh</label>
+			<label kind="synchronisation" x="-42" y="-229">free_stop!</label>
+			<label kind="assignment" x="-288" y="-246">t = 0, freeWill = 0, timeP = 0,
+oldFatigue=humanFatigue[id-1],
+oldPosX=humanPositionX[id-1],
+oldPosY=humanPositionY[id-1],
+updateF(oldFatigue, -lambda, 1, 1),
+updateTimer=0,
+updateFreeWill()</label>
+			<nail x="93" y="-255"/>
+			<nail x="-289" y="-255"/>
+		</transition>
+		<transition>
+			<source ref="id13"/>
+			<target ref="id14"/>
+			<label kind="guard" x="-264" y="-340">freeWill&gt;=freeWillTh</label>
+			<label kind="synchronisation" x="-187" y="-323">free_start!</label>
+			<label kind="assignment" x="-102" y="-340">t = 0, oldFatigue=0,
+updateF(oldFatigue, -mi, 0, 1),
+updateTimer=0,
+freeWill = 0</label>
+			<nail x="-280" y="-340"/>
+			<nail x="93" y="-340"/>
+		</transition>
+		<transition>
+			<source ref="id14"/>
+			<target ref="id14"/>
+			<label kind="guard" x="213" y="-195">updateTimer&gt;=pollTime</label>
+			<label kind="assignment" x="213" y="-178">updateP(v),
+updateF(oldFatigue, -lambda, 1, 0),
+updateTimer=0,
+freeWill = random(freeWillRange)</label>
+			<nail x="213" y="-195"/>
+			<nail x="264" y="-195"/>
+		</transition>
+		<transition>
+			<source ref="id13"/>
+			<target ref="id13"/>
+			<label kind="guard" x="-568" y="-194">updateTimer&gt;=pollTime</label>
+			<label kind="assignment" x="-569" y="-178">updateP(0),
+updateF(oldFatigue, -mi, 0, 0),
+updateTimer=0,
+freeWill = random(freeWillRange)</label>
+			<nail x="-398" y="-194"/>
+			<nail x="-449" y="-194"/>
+		</transition>
+		<transition>
+			<source ref="id14"/>
+			<target ref="id16"/>
+			<label kind="guard" x="230" y="-314">F &gt;= passout_th</label>
+			<label kind="synchronisation" x="255" y="-297">pass_out!</label>
+			<label kind="assignment" x="306" y="-280">t = 0</label>
+		</transition>
+		<transition>
+			<source ref="id16"/>
+			<target ref="id16"/>
+			<nail x="340" y="-246"/>
+			<nail x="382" y="-246"/>
+		</transition>
+		<transition>
+			<source ref="id15"/>
+			<target ref="id13"/>
+			<label kind="assignment" x="-552" y="-289">initHuman()</label>
+		</transition>
+	</template>
+	<template>
+		<name>Robot</name>
+		<parameter>int id, int v_max, int a_max</parameter>
+		<declaration>clock V, r;
+clock updateTimer;
+
+// Position Sharing parameters
+int posCounter = 0;
+int pollTime = 1;
+double oldPosX;
+double oldPosY;
+
+void initRobot() {
+    V = 0;
+    r = 0;
+    robPositionX = HALL1_1[0]+20.0;
+    robPositionY = HALL2_1[1] + (HALL1_1[1]-HALL2_1[1])/2;
+    oldPosX = robPositionX;
+    oldPosY = robPositionY;
+    updateTimer=0;
+}
+
+void update(double coeff, bool reset) {
+    double r;
+    if(!robTurned) {
+        oldPosX = robPositionX;
+        oldPosY = robPositionY;
+    }
+
+    if(reset || !robTurned) {
+        posCounter = 0;
+    } else {
+        posCounter += pollTime;
+    }
+
+    if(coeff&lt;0){
+        r = coeff*(posCounter+0.5) + v_max; 
+    } else {
+        r = coeff*(posCounter+0.5); 
+    }
+
+    robPositionX = oldPosX + r*cos(robTheta);    
+    robPositionY = oldPosY + r*sin(robTheta);                   
+}
+
+void varsUpdate(double coeff, bool reset) {
+    oldPosX=robPositionX;
+    oldPosY=robPositionY;
+    update(coeff, reset);
+    updateTimer=0;
+}
+
+
+</declaration>
+		<location id="id18" x="-629" y="-348">
+			<name x="-672" y="-365">idle</name>
+			<label kind="invariant" x="-791" y="-348">V' == 0 &amp;&amp; r' == 0 &amp;&amp;
+updateTimer'==0</label>
+		</location>
+		<location id="id19" x="-424" y="-144">
+			<name x="-492" y="-136">stopping</name>
+			<label kind="invariant" x="-543" y="-119">V' == -a_max 
+&amp;&amp; r' == V 
+&amp;&amp; V &gt;=0
+&amp;&amp; updateTimer
+&lt;=pollTime</label>
+		</location>
+		<location id="id20" x="-425" y="-348">
+			<name x="-408" y="-366">starting</name>
+			<label kind="invariant" x="-331" y="-433">V' == a_max 
+&amp;&amp; V &lt;= v_max 
+&amp;&amp; r' == V
+&amp;&amp; updateTimer
+&lt;=pollTime</label>
+		</location>
+		<location id="id21" x="-161" y="-246">
+			<name x="-229" y="-263">moving</name>
+			<label kind="invariant" x="-254" y="-246">V' == 0 &amp;&amp; 
+r' == V &amp;&amp; 
+updateTimer&lt;=pollTime</label>
+		</location>
+		<location id="id22" x="-629" y="-527">
+			<name x="-639" y="-561">Init</name>
+			<committed/>
+		</location>
+		<location id="id23" x="-850" y="-459">
+			<name x="-952" y="-467">recharging</name>
+			<label kind="invariant" x="-1003" y="-450">V'==0 &amp;&amp; r' == 0 &amp;&amp;
+updateTimer'==0</label>
+		</location>
+		<init ref="id22"/>
+		<transition>
+			<source ref="id19"/>
+			<target ref="id20"/>
+			<label kind="guard" x="-416" y="-306">V&gt;0</label>
+			<label kind="synchronisation" x="-416" y="-289">start_r_action[id]?</label>
+			<label kind="assignment" x="-416" y="-272">varsUpdate(v_max, 1)</label>
+		</transition>
+		<transition>
+			<source ref="id20"/>
+			<target ref="id19"/>
+			<label kind="guard" x="-527" y="-306">V&lt;v_max</label>
+			<label kind="synchronisation" x="-561" y="-289">stop_r_action?</label>
+			<label kind="assignment" x="-612" y="-272">varsUpdate(v_max, 1)</label>
+			<nail x="-459" y="-323"/>
+			<nail x="-459" y="-161"/>
+		</transition>
+		<transition>
+			<source ref="id19"/>
+			<target ref="id19"/>
+			<label kind="guard" x="-424" y="-42">updateTimer&gt;=pollTime
+&amp;&amp;V&lt;v_max</label>
+			<label kind="assignment" x="-424" y="-8">varsUpdate(-a_max, 0)</label>
+			<nail x="-424" y="-42"/>
+			<nail x="-381" y="-42"/>
+		</transition>
+		<transition>
+			<source ref="id21"/>
+			<target ref="id21"/>
+			<label kind="guard" x="-60" y="-280">updateTimer&gt;=pollTime</label>
+			<label kind="assignment" x="-59" y="-263">update(v_max, 0),
+updateTimer=0</label>
+			<nail x="-68" y="-271"/>
+			<nail x="-68" y="-229"/>
+		</transition>
+		<transition>
+			<source ref="id20"/>
+			<target ref="id20"/>
+			<label kind="guard" x="-424" y="-501">updateTimer&gt;=pollTime
+&amp;&amp;V&lt;v_max</label>
+			<label kind="assignment" x="-424" y="-467">varsUpdate(a_max, 0)</label>
+			<nail x="-425" y="-442"/>
+			<nail x="-391" y="-442"/>
+		</transition>
+		<transition>
+			<source ref="id23"/>
+			<target ref="id18"/>
+			<label kind="synchronisation" x="-816" y="-493">stop_recharging?</label>
+			<label kind="assignment" x="-816" y="-476">updateTimer=0</label>
+			<nail x="-629" y="-459"/>
+		</transition>
+		<transition>
+			<source ref="id18"/>
+			<target ref="id23"/>
+			<label kind="synchronisation" x="-842" y="-416">start_recharging[id]?</label>
+			<nail x="-850" y="-348"/>
+		</transition>
+		<transition>
+			<source ref="id19"/>
+			<target ref="id18"/>
+			<label kind="guard" x="-688" y="-238">V &lt;= 0</label>
+			<label kind="assignment" x="-790" y="-221">varsUpdate(-a_max, 1)</label>
+			<nail x="-628" y="-144"/>
+		</transition>
+		<transition>
+			<source ref="id21"/>
+			<target ref="id19"/>
+			<label kind="synchronisation" x="-331" y="-144">stop_r_action?</label>
+			<label kind="assignment" x="-330" y="-127">varsUpdate(v_max, 1)</label>
+			<nail x="-160" y="-144"/>
+		</transition>
+		<transition>
+			<source ref="id20"/>
+			<target ref="id21"/>
+			<label kind="guard" x="-153" y="-348">V &gt;= v_max</label>
+			<label kind="assignment" x="-153" y="-331">varsUpdate(a_max, 1)</label>
+			<nail x="-161" y="-348"/>
+		</transition>
+		<transition>
+			<source ref="id18"/>
+			<target ref="id20"/>
+			<label kind="synchronisation" x="-595" y="-374">start_r_action[id]?</label>
+		</transition>
+		<transition>
+			<source ref="id22"/>
+			<target ref="id18"/>
+			<label kind="assignment" x="-621" y="-484">initRobot()</label>
+		</transition>
+	</template>
+	<template>
+		<name>Battery</name>
+		<parameter>int id, int Cstart</parameter>
+		<declaration>clock C, updateTimer;
+
+// Discharge tresholds
+int C_100 = 100;
+int C_80 = 80;
+int C_20 = 20;
+
+// Charge/Discharge rates
+double r_1 = 0.035;
+double r_2 = 0.008;
+double r_3 = 0.055;
+double cheatFactor = 10.0;
+
+// BatteryStatus Sharing parameters
+int chargeCounter = 0;
+int pollTime = 10;
+double oldCharge;
+
+void update(double startingValue, double coeff, bool reset) {
+    if(reset) {
+        chargeCounter = 0;
+    } else {
+        chargeCounter += pollTime;
+    }
+
+    batteryCharge = startingValue + (chargeCounter*coeff);
+}
+
+void initBattery() {
+    C = Cstart;
+    updateTimer = 0;
+    update(Cstart, -1, 1);
+    oldCharge = Cstart;
+}</declaration>
+		<location id="id24" x="-1147" y="-816">
+			<name x="-1173" y="-850">Init</name>
+			<label kind="exponentialrate" x="-1172" y="-833">1</label>
+			<committed/>
+		</location>
+		<location id="id25" x="382" y="-663">
+			<name x="399" y="-688">empty</name>
+			<label kind="invariant" x="399" y="-671">C'==0</label>
+			<label kind="exponentialrate" x="399" y="-705">1</label>
+		</location>
+		<location id="id26" x="-289" y="-663">
+			<name x="-280" y="-697">eighty_to_twenty</name>
+			<label kind="invariant" x="-280" y="-748">C' == -r_2 &amp;&amp; 
+C &gt;= C_20 &amp;&amp;
+updateTimer &lt;= pollTime</label>
+		</location>
+		<location id="id27" x="161" y="-663">
+			<name x="169" y="-697">twenty_to_empty</name>
+			<label kind="invariant" x="169" y="-748">C' == -r_3 &amp;&amp; 
+C&gt;=0 &amp;&amp;
+updateTimer &lt;= pollTime</label>
+		</location>
+		<location id="id28" x="-773" y="-663">
+			<name x="-765" y="-697">full_to_eighty</name>
+			<label kind="invariant" x="-765" y="-748">C'== -r_1 &amp;&amp; 
+C &gt;= C_80 &amp;&amp;
+updateTimer &lt;= pollTime</label>
+		</location>
+		<location id="id29" x="-289" y="-442">
+			<name x="-280" y="-399">recharging_upto80</name>
+			<label kind="invariant" x="-280" y="-382">C' == r_1*cheatFactor &amp;&amp; 
+C &lt;= C_80 &amp;&amp;
+updateTimer &lt;= pollTime</label>
+		</location>
+		<location id="id30" x="161" y="-442">
+			<name x="170" y="-399">recharging_upto20</name>
+			<label kind="invariant" x="170" y="-382">C' == r_3*cheatFactor &amp;&amp; 
+C &lt;= C_20 &amp;&amp;
+updateTimer &lt;= pollTime</label>
+		</location>
+		<location id="id31" x="-773" y="-442">
+			<name x="-764" y="-399">recharging_upto100</name>
+			<label kind="invariant" x="-764" y="-382">C' == r_2*cheatFactor &amp;&amp; 
+C &lt;= C_100 &amp;&amp;
+updateTimer &lt;= pollTime</label>
+		</location>
+		<location id="id32" x="-1249" y="-442">
+			<name x="-1343" y="-425">recharging_full</name>
+			<label kind="invariant" x="-1292" y="-408">C'==0</label>
+		</location>
+		<location id="id33" x="-1011" y="-816">
+			<committed/>
+		</location>
+		<init ref="id24"/>
+		<transition>
+			<source ref="id33"/>
+			<target ref="id27"/>
+			<label kind="guard" x="-884" y="-901">C&lt;=C_20 &amp;&amp; C&gt;0</label>
+			<nail x="-918" y="-875"/>
+			<nail x="-34" y="-875"/>
+		</transition>
+		<transition>
+			<source ref="id33"/>
+			<target ref="id26"/>
+			<label kind="guard" x="-884" y="-841">C&lt;C_80 &amp;&amp; C&gt;=C_20</label>
+			<nail x="-459" y="-816"/>
+		</transition>
+		<transition>
+			<source ref="id33"/>
+			<target ref="id28"/>
+			<label kind="guard" x="-969" y="-748">C&gt;=C_80</label>
+		</transition>
+		<transition>
+			<source ref="id24"/>
+			<target ref="id33"/>
+			<label kind="assignment" x="-1129" y="-816">initBattery()</label>
+		</transition>
+		<transition>
+			<source ref="id30"/>
+			<target ref="id27"/>
+			<label kind="guard" x="68" y="-620">C&lt;C_20 &amp;&amp;
+updateTimer
+&lt;pollTime</label>
+			<label kind="synchronisation" x="8" y="-569">stop_recharging?</label>
+			<label kind="assignment" x="-34" y="-552">oldCharge = batteryCharge,
+update(oldCharge, r_3, 1),
+updateTimer = 0</label>
+		</transition>
+		<transition>
+			<source ref="id29"/>
+			<target ref="id26"/>
+			<label kind="guard" x="-382" y="-620">C&lt;C_80 &amp;&amp;
+updateTimer
+&lt;pollTime</label>
+			<label kind="synchronisation" x="-442" y="-569">stop_recharging?</label>
+			<label kind="assignment" x="-493" y="-552">oldCharge = batteryCharge,
+update(oldCharge, r_1, 1),
+updateTimer = 0</label>
+		</transition>
+		<transition>
+			<source ref="id31"/>
+			<target ref="id28"/>
+			<label kind="guard" x="-867" y="-612">C&lt;C_100 &amp;&amp;
+updateTimer
+&lt;pollTime</label>
+			<label kind="synchronisation" x="-935" y="-561">stop_recharging?</label>
+			<label kind="assignment" x="-969" y="-544">oldCharge = batteryCharge,
+update(oldCharge, r_2, 1),
+updateTimer = 0</label>
+		</transition>
+		<transition>
+			<source ref="id30"/>
+			<target ref="id30"/>
+			<label kind="guard" x="85" y="-306">updateTimer &gt;= pollTime &amp;&amp; C &lt; C_20</label>
+			<label kind="assignment" x="85" y="-289">update(oldCharge, r_3*cheatFactor, 0),
+updateTimer = 0</label>
+			<nail x="110" y="-306"/>
+			<nail x="161" y="-306"/>
+		</transition>
+		<transition>
+			<source ref="id29"/>
+			<target ref="id29"/>
+			<label kind="guard" x="-433" y="-306">updateTimer &gt;= pollTime &amp;&amp; C &lt; C_80</label>
+			<label kind="assignment" x="-399" y="-289">update(oldCharge, r_1*cheatFactor, 0),
+updateTimer = 0</label>
+			<nail x="-340" y="-306"/>
+			<nail x="-289" y="-306"/>
+		</transition>
+		<transition>
+			<source ref="id31"/>
+			<target ref="id31"/>
+			<label kind="guard" x="-968" y="-306">updateTimer &gt;= pollTime &amp;&amp; C &lt; C_100</label>
+			<label kind="assignment" x="-926" y="-289">update(oldCharge, r_2*cheatFactor, 0),
+updateTimer = 0</label>
+			<nail x="-824" y="-306"/>
+			<nail x="-773" y="-306"/>
+		</transition>
+		<transition>
+			<source ref="id27"/>
+			<target ref="id27"/>
+			<label kind="guard" x="68" y="-816">updateTimer &gt;= pollTime &amp;&amp; C &gt; 0</label>
+			<label kind="assignment" x="118" y="-799">update(oldCharge, -r_3, 0),
+updateTimer = 0</label>
+			<nail x="110" y="-756"/>
+			<nail x="161" y="-756"/>
+		</transition>
+		<transition>
+			<source ref="id26"/>
+			<target ref="id26"/>
+			<label kind="guard" x="-340" y="-816">updateTimer &gt;= pollTime &amp;&amp; C &gt; C_20</label>
+			<label kind="assignment" x="-340" y="-799">update(oldCharge, -r_2, 0),
+updateTimer = 0</label>
+			<nail x="-340" y="-756"/>
+			<nail x="-289" y="-756"/>
+		</transition>
+		<transition>
+			<source ref="id28"/>
+			<target ref="id28"/>
+			<label kind="guard" x="-816" y="-816">updateTimer &gt;= pollTime &amp;&amp; C &gt; C_80</label>
+			<label kind="assignment" x="-816" y="-799">update(oldCharge, -r_1, 0),
+updateTimer = 0</label>
+			<nail x="-824" y="-756"/>
+			<nail x="-773" y="-756"/>
+		</transition>
+		<transition>
+			<source ref="id28"/>
+			<target ref="id32"/>
+			<label kind="guard" x="-1011" y="-620">C == C_100</label>
+			<label kind="synchronisation" x="-1011" y="-637">start_recharging[id]?</label>
+			<label kind="assignment" x="-1181" y="-637">update(C_100, -r_1, 1),
+updateTimer = 0</label>
+			<nail x="-799" y="-637"/>
+			<nail x="-1190" y="-637"/>
+		</transition>
+		<transition>
+			<source ref="id32"/>
+			<target ref="id28"/>
+			<label kind="synchronisation" x="-1241" y="-688">full_battery!</label>
+			<nail x="-1249" y="-663"/>
+		</transition>
+		<transition>
+			<source ref="id31"/>
+			<target ref="id32"/>
+			<label kind="guard" x="-1224" y="-459">C&gt;=C_100</label>
+			<label kind="assignment" x="-1224" y="-442">update(C_100, r_2*cheatFactor, 1),
+updateTimer = 0, oldCharge = C_100</label>
+		</transition>
+		<transition>
+			<source ref="id27"/>
+			<target ref="id30"/>
+			<label kind="synchronisation" x="195" y="-595">start_recharging[id]?</label>
+			<label kind="assignment" x="195" y="-578">oldCharge = batteryCharge,
+update(oldCharge, -r_3, 1),
+updateTimer = 0</label>
+			<nail x="187" y="-561"/>
+		</transition>
+		<transition>
+			<source ref="id26"/>
+			<target ref="id29"/>
+			<label kind="synchronisation" x="-255" y="-586">start_recharging[id]?</label>
+			<label kind="assignment" x="-255" y="-569">oldCharge = batteryCharge,
+update(oldCharge, -r_2, 1),
+updateTimer = 0</label>
+			<nail x="-263" y="-552"/>
+		</transition>
+		<transition>
+			<source ref="id28"/>
+			<target ref="id31"/>
+			<label kind="guard" x="-731" y="-595">C&lt;C_100</label>
+			<label kind="synchronisation" x="-731" y="-578">start_recharging[id]?</label>
+			<label kind="assignment" x="-731" y="-561">oldCharge = batteryCharge,
+update(oldCharge, -r_1, 1),
+updateTimer = 0</label>
+			<nail x="-739" y="-552"/>
+		</transition>
+		<transition>
+			<source ref="id29"/>
+			<target ref="id31"/>
+			<label kind="guard" x="-629" y="-459">C&gt;=C_80</label>
+			<label kind="assignment" x="-544" y="-459">update(C_80, r_1*cheatFactor, 1),
+updateTimer = 0, 
+oldCharge = C_80</label>
+		</transition>
+		<transition>
+			<source ref="id25"/>
+			<target ref="id25"/>
+			<nail x="399" y="-620"/>
+			<nail x="425" y="-637"/>
+		</transition>
+		<transition>
+			<source ref="id30"/>
+			<target ref="id29"/>
+			<label kind="guard" x="-170" y="-459">C &gt;= C_20</label>
+			<label kind="assignment" x="-85" y="-459">update(C_20, r_3*cheatFactor, 1),
+updateTimer = 0, 
+oldCharge = C_20</label>
+		</transition>
+		<transition>
+			<source ref="id28"/>
+			<target ref="id26"/>
+			<label kind="guard" x="-620" y="-680">C &lt;= C_80</label>
+			<label kind="assignment" x="-535" y="-714">update(C_80, -r_1, 1),
+updateTimer=0,
+oldCharge=C_80</label>
+		</transition>
+		<transition>
+			<source ref="id27"/>
+			<target ref="id25"/>
+			<label kind="guard" x="323" y="-697">C&lt;=0</label>
+			<label kind="synchronisation" x="246" y="-680">dead_battery!</label>
+		</transition>
+		<transition>
+			<source ref="id26"/>
+			<target ref="id27"/>
+			<label kind="guard" x="-110" y="-680">C&lt;=C_20</label>
+			<label kind="assignment" x="-34" y="-714">update(C_20, -r_2, 1),
+updateTimer=0,
+oldCharge=C_20</label>
+		</transition>
+	</template>
+	<template>
+		<name>Orchestrator</name>
+		<parameter>int humansToServe</parameter>
+		<declaration>clock actionTimer;
+
+//Decision-Making Parameters
+int timerInterval = 5;
+int processingTime = 1;
+
+//Moving Policy Parameters
+bool aStart = false;
+bool aStop = false;
+
+//Recharging Policy Parameters
+bool recharge = false;
+bool stopRecharge = false;
+double rechargingTh = 10.0;
+double stopRechargingTh = 90.0;
+double failBattery = 1.0;
+
+//Fatigue-Monitoring Parameters
+double failFatigue = 0.99;
+double stopFatigue = 0.9;
+double resumeFatigue = 0.1;
+
+double allowanceFactor = 0.95, humanRobotDist;
+bool destIsOnTheLeft, destIsOnTheRight, destIsAhead, destIsBehind;
+bool humanCanStart = false;
+double dX, dY;
+void changeDirection() {
+    double inverseValue, turnLeft, turnRight, length=2000.0, height=100.0;
+    double toCheck, robThF, robThB;   
+    point pos = {robPositionX, robPositionY}; 
+
+    if(patterns[currH-1]==1 || (patterns[currH-1]==0 &amp;&amp; !humanCanStart)) {
+        dX = humanPositionX[currH-1];
+        dY = humanPositionY[currH-1];
+    } else if(aStart &amp;&amp; recharge) {
+        dX = rechargeStation[0];
+        dY = rechargeStation[1];
+    } else {
+        dX = destX[currH-1];
+        dY = destY[currH-1];
+    }
+
+    destIsOnTheLeft = false; destIsOnTheRight = false; destIsAhead = false; destIsBehind = false;
+    if(robTheta == 0) {
+        inverseValue = -pi; turnLeft = pi/2; turnRight = -pi/2;
+        toCheck = robPositionX;
+        robThF = allowanceFactor*HALL2_4[0];
+        if(robPositionX &gt; HALL1_3[0] &amp;&amp; (robPositionY &gt; HALL1_2[1] || robPositionY &lt; HALL2_2[1])) {
+            robThB = HALL1_3[0]+(1-allowanceFactor)*HALL1_3[0];
+        } else {
+            robThB = HALL2_1[0]+(1-allowanceFactor)*HALL2_1[0];        
+        }
+        destIsOnTheLeft = isInRectangle(pos, dX, dY, height, length);
+        destIsOnTheRight = isInRectangle(pos, dX, dY, height, -length);
+        destIsAhead = isInRectangle(pos, dX, dY, length, height);
+        destIsBehind = isInRectangle(pos, dX, dY, -length, height);
+    } else if (robTheta == -pi) {
+        inverseValue = 0.0; turnLeft = -pi/2; turnRight = pi/2;
+        toCheck = robPositionX;
+        robThF = allowanceFactor*HALL2_4[0];
+        if(robPositionX &gt; HALL1_3[0] &amp;&amp; (robPositionY &gt; HALL1_2[1] || robPositionY &lt; HALL2_2[1])) {
+            robThB = HALL1_3[0]+(1-allowanceFactor)*HALL1_3[0];
+        } else {
+            robThB = HALL2_1[0]+(1-allowanceFactor)*HALL2_1[0];        
+        }
+        destIsOnTheLeft = isInRectangle(pos, dX, dY, height, -length);
+        destIsOnTheRight = isInRectangle(pos, dX, dY, height, length);
+        destIsAhead = isInRectangle(pos, dX, dY, -length, height);
+        destIsBehind = isInRectangle(pos, dX, dY, length, height);
+    } else if (robTheta == pi/2) {
+        inverseValue = -pi/2; turnLeft = -pi; turnRight = 0;
+        toCheck = robPositionY;
+        if(robPositionX &gt; HALL2_2[0]) {
+            robThF = allowanceFactor*HALL1_4[1];
+            robThB = HALL2_4[1]+(1-allowanceFactor);
+        } else {
+            robThF = allowanceFactor*HALL1_2[1];
+            robThB = HALL2_2[1]+(1-allowanceFactor);
+        }
+        destIsOnTheLeft = isInRectangle(pos, dX, dY, -length, height);
+        destIsOnTheRight = isInRectangle(pos, dX, dY, length, height);
+        destIsAhead = isInRectangle(pos, dX, dY, height, length);
+        destIsBehind = isInRectangle(pos, dX, dY, height, -length);
+    } else if (robTheta == -pi/2) {
+        inverseValue = pi/2; turnLeft = 0; turnRight = -pi;      
+        toCheck = robPositionY;
+        if(robPositionX &gt; HALL2_2[0]) {
+            robThF = allowanceFactor*HALL1_4[1];
+            robThB = HALL2_4[1]+(1-allowanceFactor);
+        } else {
+            robThF = allowanceFactor*HALL1_2[1];
+            robThB = HALL2_2[1]+(1-allowanceFactor);
+        }
+        destIsOnTheLeft = isInRectangle(pos, dX, dY, length, height);
+        destIsOnTheRight = isInRectangle(pos, dX, dY, -length, height);
+        destIsAhead = isInRectangle(pos, dX, dY, height, -length);
+        destIsBehind = isInRectangle(pos, dX, dY, height, length);
+    }
+
+    // should change direction if wall is close, 
+    // or destination is not reachable with current direction
+    if(robTurned) {
+        if(destIsAhead) {
+            return;
+        } else if(destIsBehind || toCheck &lt; robThB || toCheck &gt; robThF) { //should turn 180 deg
+            robTheta = inverseValue;
+            robTurned = false;
+        } else if (destIsOnTheLeft) { //should turn left
+            robTheta = turnLeft;
+            robTurned = false;
+        } else if (destIsOnTheRight) { //should turn right
+            robTheta = turnRight;
+            robTurned = false;
+        } 
+    } else {
+       robTurned = toCheck &gt; robThB &amp;&amp; toCheck &lt; robThF;     
+    }
+}
+
+double calculateDistance() {
+    double xdifference = pow(robPositionX-humanPositionX[currH-1], 2);
+    double ydifference = pow(robPositionY-humanPositionY[currH-1], 2);
+    double distance = sqrt(xdifference + ydifference)/100;
+    if(distance&lt;0) {
+        return -distance;
+    } else {
+        return distance;
+    }
+}
+
+void checkSuccess() {
+    bool robXinDestInterval = robPositionX &gt;= destX[currH-1]-25.0 &amp;&amp; robPositionX &lt;= destX[currH-1]+25.0;
+    bool robYinDestInterval = robPositionY &gt;= destY[currH-1]-25.0 &amp;&amp; robPositionY &lt;= destY[currH-1]+25.0;
+    humanRobotDist = calculateDistance();
+
+    if(robXinDestInterval &amp;&amp; robYinDestInterval) {
+        // If human currently served is not leading,
+        // the robot controller can determine when
+        // he/she is served
+        if(humanRobotDist &lt; 1 &amp;&amp; patterns[currH-1]==0) {
+            humanCanStart = false;
+            served[currH-1] = true;
+            currH++; 
+        } else if (humanRobotDist &lt; 1 &amp;&amp; patterns[currH-1] == 1 &amp;&amp; served[currH-1] == true) {
+            currH++;            
+        } else if (patterns[currH-1] == 2 &amp;&amp; !objectTaken[currH-1]) {
+            humanCanStart = true;
+            objectTaken[currH-1] = true;
+            destX[currH-1] = humanPositionX[currH-1];
+            destY[currH-1] = humanPositionY[currH-1];
+        } else if (patterns[currH-1] == 2 &amp;&amp; objectTaken[currH-1]) {
+            humanCanStart = false;
+            served[currH-1] = true;
+            currH++;
+        }
+    }
+    // If all humans have been served, 
+    // mission is accomplished
+    if(served[humansToServe-1]) {
+       success = true;
+    }
+}
+
+void checkActions() {
+    bool robXinDestInterval , robYinDestInterval;
+
+    checkSuccess();
+    if(!success &amp;&amp; currH &lt;= humansToServe) {
+        // distance between human and robot [m]
+        humanRobotDist = calculateDistance();
+        // determines when to change direction, 
+        // based on curr position and floor plan
+        changeDirection();
+    
+        if(!recharge &amp;&amp; batteryCharge&lt;=rechargingTh 
+                &amp;&amp; ((!aStart &amp;&amp; patterns[currH-1]==1)|| patterns[currH-1]!=1)) { // when to move to recharge station
+            recharge = true;
+            stopRecharge = false;
+            aStart = true;
+            aStop = false;
+        } else if(aStart &amp;&amp; recharge) { // when to stop because recharge station has been reached
+            robXinDestInterval = robPositionX &gt;= rechargeStation[0]-50.0 &amp;&amp; robPositionX &lt;= rechargeStation[0]+50.0;
+            robYinDestInterval = robPositionY &gt;= rechargeStation[1]-50.0 &amp;&amp; robPositionY &lt;= rechargeStation[1]+50.0;
+            if(robXinDestInterval &amp;&amp; robYinDestInterval) {
+                aStart = false;
+                aStop = true;
+            }            
+        } else if(recharge &amp;&amp; batteryCharge&gt;=stopRechargingTh) { // when to stop recharging
+            recharge = false;
+            stopRecharge = true;
+        } else if(!recharge &amp;&amp; aStart &amp;&amp; (batteryCharge&lt;=rechargingTh || humanFatigue[currH-1]&gt;=stopFatigue)) { // stop action due to internal reasons
+            aStart = false;
+            aStop = true; 
+        } else if(aStart &amp;&amp; (!humanCanStart || humanRobotDist &gt; 2)) { // stop due to excessive human-robot distance
+            if(!humanCanStart &amp;&amp; humanRobotDist &lt; 2) {
+                humanCanStart = patterns[currH-1] == 0;
+            } else {
+                aStart = false;
+                aStop = true;
+            }        
+        } else if(!recharge &amp;&amp; !aStart &amp;&amp; humanFatigue[currH-1]&lt;=resumeFatigue) { // when to start action
+            aStart = true;
+            aStop = false;
+            if(humanRobotDist &lt; 2) {
+                humanCanStart = patterns[currH-1] == 0;
+            }
+        } else if(batteryCharge&lt;=failBattery || humanFatigue[currH-1]&gt;=failFatigue) { // when mission fails
+            fail = true;
+        }
+    }
+}
+
+void resetActions() {
+    recharge = false;
+    stopRecharge = false;
+    aStart = false;
+    aStop = false;
+}</declaration>
+		<location id="id34" x="-952" y="-552">
+			<name x="-986" y="-654">idle</name>
+			<label kind="invariant" x="-1003" y="-637">!aStart &amp;&amp; 
+!recharge &amp;&amp;
+actionTimer 
+&lt;= timerInterval</label>
+		</location>
+		<location id="id35" x="-577" y="-552">
+			<name x="-560" y="-569">exe_1</name>
+			<label kind="invariant" x="-560" y="-552">!aStop &amp;&amp;
+actionTimer 
+&lt;= timerInterval</label>
+		</location>
+		<location id="id36" x="-1207" y="-552">
+			<name x="-1343" y="-569">busy_recharging</name>
+			<label kind="invariant" x="-1343" y="-552">!stopRecharge &amp;&amp;
+actionTimer 
+&lt;= timerInterval</label>
+		</location>
+		<location id="id37" x="-952" y="-391">
+			<name x="-943" y="-382">actions_check_0</name>
+			<label kind="invariant" x="-943" y="-365">actionTimer &lt;= 
+processingTime</label>
+		</location>
+		<location id="id38" x="-1317" y="-654">
+			<name x="-1436" y="-688">actions_check_1</name>
+			<label kind="invariant" x="-1547" y="-671">actionTimer&lt;=processingTime</label>
+		</location>
+		<location id="id39" x="-458" y="-654">
+			<name x="-450" y="-697">actions_check_2</name>
+			<label kind="invariant" x="-450" y="-680">actionTimer &lt;= processingTime</label>
+		</location>
+		<location id="id40" x="-101" y="-748">
+			<name x="-245" y="-782">mission_accomplished</name>
+			<label kind="invariant" x="-246" y="-765">actionTimer'==0</label>
+			<label kind="exponentialrate" x="-84" y="-773">1</label>
+		</location>
+		<location id="id41" x="-127" y="-374">
+			<name x="-59" y="-399">mission_failed</name>
+			<label kind="invariant" x="-59" y="-382">actionTimer'==0</label>
+			<label kind="exponentialrate" x="-119" y="-365">1</label>
+		</location>
+		<location id="id42" x="-382" y="-374">
+			<name x="-467" y="-365">forced_stop</name>
+			<committed/>
+		</location>
+		<location id="id43" x="-646" y="-391">
+			<name x="-654" y="-374">h_start</name>
+			<committed/>
+		</location>
+		<location id="id44" x="-841" y="-748">
+			<name x="-884" y="-782">h_stop</name>
+			<committed/>
+		</location>
+		<location id="id45" x="-340" y="-748">
+			<committed/>
+		</location>
+		<location id="id46" x="-127" y="-535">
+			<name x="-178" y="-552">fail_2</name>
+			<committed/>
+		</location>
+		<location id="id47" x="-552" y="-25">
+			<name x="-535" y="-42">exe_2</name>
+			<label kind="invariant" x="-535" y="-25">actionTimer 
+&lt;= timerInterval</label>
+		</location>
+		<location id="id48" x="-433" y="-127">
+			<name x="-425" y="-170">actions_check_3</name>
+			<label kind="invariant" x="-425" y="-153">actionTimer &lt;= processingTime</label>
+		</location>
+		<location id="id49" x="-280" y="85">
+			<name x="-365" y="94">forced_stop_2</name>
+			<committed/>
+		</location>
+		<location id="id50" x="-195" y="-8">
+			<name x="-229" y="0">fail_1</name>
+			<committed/>
+		</location>
+		<location id="id51" x="-1207" y="-314">
+			<name x="-1173" y="-357">mov_to_station</name>
+			<label kind="invariant" x="-1173" y="-340">!aStop &amp;&amp;
+actionTimer 
+&lt;= timerInterval</label>
+		</location>
+		<location id="id52" x="-1428" y="-314">
+			<name x="-1555" y="-322">actions_check_4</name>
+			<label kind="invariant" x="-1649" y="-305">actionTimer&lt;=processingTime</label>
+		</location>
+		<location id="id53" x="-1317" y="-433">
+			<name x="-1360" y="-493">stopping</name>
+			<label kind="invariant" x="-1360" y="-476">actionTimer 
+&lt;= timerInterval</label>
+		</location>
+		<init ref="id34"/>
+		<transition>
+			<source ref="id52"/>
+			<target ref="id50"/>
+			<label kind="guard" x="-1547" y="-102">!aStop &amp;&amp; fail &amp;&amp;
+actionTimer&gt;=
+processingTime</label>
+			<label kind="synchronisation" x="-1547" y="-51">stop_r_action!</label>
+			<label kind="assignment" x="-1547" y="-34">actionTimer = 0</label>
+			<nail x="-1428" y="42"/>
+			<nail x="-374" y="42"/>
+		</transition>
+		<transition>
+			<source ref="id51"/>
+			<target ref="id49"/>
+			<label kind="synchronisation" x="-1189" y="68">dead_battery?</label>
+			<nail x="-1207" y="85"/>
+		</transition>
+		<transition>
+			<source ref="id52"/>
+			<target ref="id53"/>
+			<label kind="guard" x="-1547" y="-450">aStop &amp;&amp;
+actionTimer&gt;=
+processingTime</label>
+			<label kind="synchronisation" x="-1547" y="-399">stop_r_action!</label>
+			<label kind="assignment" x="-1547" y="-382">actionTimer = 0</label>
+			<nail x="-1428" y="-433"/>
+		</transition>
+		<transition>
+			<source ref="id53"/>
+			<target ref="id36"/>
+			<label kind="guard" x="-1300" y="-433">actionTimer 
+&gt;= timerInterval</label>
+			<label kind="synchronisation" x="-1300" y="-399">start_recharging[currR]!</label>
+			<label kind="assignment" x="-1300" y="-382">actionTimer = 0</label>
+			<nail x="-1207" y="-433"/>
+		</transition>
+		<transition>
+			<source ref="id52"/>
+			<target ref="id51"/>
+			<label kind="guard" x="-1394" y="-365">!aStop &amp;&amp; !fail &amp;&amp;
+actionTimer&gt;=
+processingTime</label>
+		</transition>
+		<transition>
+			<source ref="id51"/>
+			<target ref="id52"/>
+			<label kind="guard" x="-1419" y="-254">actionTimer&gt;=timerInterval</label>
+			<label kind="assignment" x="-1419" y="-238">checkActions(),
+actionTimer = 0</label>
+			<nail x="-1207" y="-254"/>
+			<nail x="-1428" y="-254"/>
+		</transition>
+		<transition>
+			<source ref="id37"/>
+			<target ref="id51"/>
+			<label kind="guard" x="-1173" y="-272">recharge &amp;&amp; !hExe &amp;&amp;
+actionTimer &gt;= processingTime</label>
+			<label kind="synchronisation" x="-1173" y="-238">start_r_action[currR]!</label>
+			<label kind="assignment" x="-1173" y="-221">actionTimer = 0</label>
+			<nail x="-986" y="-272"/>
+			<nail x="-1156" y="-272"/>
+		</transition>
+		<transition>
+			<source ref="id39"/>
+			<target ref="id35"/>
+			<label kind="guard" x="-824" y="-731">!aStop &amp;&amp; humanCanStart
+&amp;&amp; !success &amp;&amp; !fail
+&amp;&amp; actionTimer
+&gt;=processingTime</label>
+			<label kind="synchronisation" x="-824" y="-663">start_h_action[currH]!</label>
+			<label kind="assignment" x="-824" y="-646">actionTimer=0</label>
+			<nail x="-527" y="-714"/>
+			<nail x="-688" y="-714"/>
+			<nail x="-688" y="-552"/>
+		</transition>
+		<transition>
+			<source ref="id43"/>
+			<target ref="id35"/>
+			<label kind="guard" x="-714" y="-518">humanCanStart</label>
+			<label kind="synchronisation" x="-731" y="-501">start_h_action[currH]!</label>
+			<nail x="-646" y="-552"/>
+		</transition>
+		<transition>
+			<source ref="id48"/>
+			<target ref="id40"/>
+			<label kind="guard" x="-425" y="-263">!hExe &amp;&amp; success &amp;&amp;
+actionTimer&gt;=processingTime</label>
+			<label kind="synchronisation" x="-425" y="-229">stop_r_action!</label>
+			<label kind="assignment" x="-323" y="-229">actionTimer = 0</label>
+			<nail x="-433" y="-204"/>
+			<nail x="34" y="-204"/>
+			<nail x="34" y="-748"/>
+		</transition>
+		<transition>
+			<source ref="id48"/>
+			<target ref="id34"/>
+			<label kind="guard" x="-603" y="-331">!hExe &amp;&amp; !success &amp;&amp; !fail
+&amp;&amp; actionTimer&gt;= processingTime</label>
+			<label kind="synchronisation" x="-602" y="-297">stop_r_action!</label>
+			<label kind="assignment" x="-602" y="-280">actionTimer = 0,
+resetActions()</label>
+			<nail x="-620" y="-433"/>
+			<nail x="-756" y="-433"/>
+			<nail x="-782" y="-552"/>
+		</transition>
+		<transition>
+			<source ref="id37"/>
+			<target ref="id47"/>
+			<label kind="guard" x="-943" y="-212">hExe &amp;&amp;
+actionTimer &gt;= processingTime</label>
+			<label kind="synchronisation" x="-986" y="-178">start_r_action[currR]!</label>
+			<label kind="assignment" x="-943" y="-161">actionTimer = 0</label>
+			<nail x="-952" y="-25"/>
+		</transition>
+		<transition>
+			<source ref="id50"/>
+			<target ref="id41"/>
+			<nail x="-127" y="-8"/>
+		</transition>
+		<transition>
+			<source ref="id49"/>
+			<target ref="id41"/>
+			<label kind="synchronisation" x="-238" y="59">stop_r_action!</label>
+			<nail x="-127" y="85"/>
+		</transition>
+		<transition>
+			<source ref="id42"/>
+			<target ref="id41"/>
+			<label kind="synchronisation" x="-314" y="-450">stop_r_action!</label>
+			<label kind="assignment" x="-314" y="-433">actionTimer = 0,
+resetActions(),
+fail = true</label>
+		</transition>
+		<transition>
+			<source ref="id46"/>
+			<target ref="id41"/>
+			<label kind="synchronisation" x="-119" y="-518">stop_h_action!</label>
+		</transition>
+		<transition>
+			<source ref="id39"/>
+			<target ref="id46"/>
+			<label kind="guard" x="-119" y="-646">fail &amp;&amp;
+actionTimer&gt;=
+processingTime</label>
+			<label kind="synchronisation" x="-119" y="-595">stop_r_action!</label>
+			<label kind="assignment" x="-119" y="-578">actionTimer=0</label>
+			<nail x="-127" y="-654"/>
+		</transition>
+		<transition>
+			<source ref="id45"/>
+			<target ref="id40"/>
+			<label kind="synchronisation" x="-323" y="-748">stop_h_action!</label>
+		</transition>
+		<transition>
+			<source ref="id39"/>
+			<target ref="id45"/>
+			<label kind="guard" x="-459" y="-824">success &amp;&amp;
+actionTimer&gt;=processingTime</label>
+			<label kind="synchronisation" x="-459" y="-790">stop_r_action!</label>
+			<label kind="assignment" x="-459" y="-773">actionTimer=0</label>
+			<nail x="-459" y="-748"/>
+		</transition>
+		<transition>
+			<source ref="id43"/>
+			<target ref="id35"/>
+			<label kind="guard" x="-637" y="-467">!humanCanStart</label>
+			<nail x="-577" y="-391"/>
+		</transition>
+		<transition>
+			<source ref="id37"/>
+			<target ref="id43"/>
+			<label kind="guard" x="-934" y="-425">aStart &amp;&amp; !hExe &amp;&amp;
+actionTimer &gt;= processingTime</label>
+			<label kind="synchronisation" x="-807" y="-391">start_r_action[currR]!</label>
+			<label kind="assignment" x="-807" y="-374">actionTimer = 0</label>
+		</transition>
+		<transition>
+			<source ref="id44"/>
+			<target ref="id34"/>
+			<label kind="synchronisation" x="-943" y="-714">stop_h_action!</label>
+			<nail x="-841" y="-552"/>
+		</transition>
+		<transition>
+			<source ref="id39"/>
+			<target ref="id44"/>
+			<label kind="guard" x="-799" y="-824">aStop &amp;&amp;
+!success &amp;&amp; !fail
+&amp;&amp; actionTimer&gt;=
+processingTime</label>
+			<label kind="synchronisation" x="-663" y="-807">stop_r_action!</label>
+			<label kind="assignment" x="-663" y="-790">actionTimer = 0,
+resetActions()</label>
+			<nail x="-501" y="-748"/>
+		</transition>
+		<transition>
+			<source ref="id35"/>
+			<target ref="id42"/>
+			<label kind="synchronisation" x="-501" y="-459">pass_out?</label>
+			<nail x="-535" y="-442"/>
+			<nail x="-382" y="-442"/>
+		</transition>
+		<transition>
+			<source ref="id35"/>
+			<target ref="id42"/>
+			<label kind="synchronisation" x="-501" y="-442">dead_battery?</label>
+			<nail x="-535" y="-442"/>
+			<nail x="-382" y="-442"/>
+		</transition>
+		<transition>
+			<source ref="id40"/>
+			<target ref="id40"/>
+			<nail x="-152" y="-748"/>
+			<nail x="-152" y="-731"/>
+		</transition>
+		<transition>
+			<source ref="id41"/>
+			<target ref="id41"/>
+			<nail x="-68" y="-399"/>
+			<nail x="-68" y="-374"/>
+		</transition>
+		<transition>
+			<source ref="id38"/>
+			<target ref="id34"/>
+			<label kind="guard" x="-1300" y="-714">stopRecharge &amp;&amp;
+actionTimer&gt;=
+processingTime</label>
+			<label kind="synchronisation" x="-1173" y="-714">stop_recharging!</label>
+			<label kind="assignment" x="-1173" y="-697">actionTimer = 0,
+resetActions()</label>
+			<nail x="-1071" y="-654"/>
+			<nail x="-1011" y="-569"/>
+		</transition>
+		<transition>
+			<source ref="id35"/>
+			<target ref="id39"/>
+			<label kind="guard" x="-450" y="-612">actionTimer&gt;=timerInterval</label>
+			<label kind="assignment" x="-450" y="-595">checkActions(),
+actionTimer = 0</label>
+			<nail x="-459" y="-552"/>
+		</transition>
+		<transition>
+			<source ref="id39"/>
+			<target ref="id35"/>
+			<label kind="guard" x="-671" y="-688">!aStop &amp;&amp; !humanCanStart
+&amp;&amp; !success &amp;&amp; !fail
+&amp;&amp; actionTimer
+&gt;=processingTime</label>
+			<label kind="assignment" x="-671" y="-620">actionTimer=0</label>
+			<nail x="-578" y="-594"/>
+		</transition>
+		<transition>
+			<source ref="id38"/>
+			<target ref="id36"/>
+			<label kind="guard" x="-1198" y="-646">!stopRecharge &amp;&amp;
+actionTimer&gt;=
+processingTime</label>
+			<label kind="assignment" x="-1198" y="-595">actionTimer=0</label>
+			<nail x="-1207" y="-654"/>
+		</transition>
+		<transition>
+			<source ref="id36"/>
+			<target ref="id38"/>
+			<label kind="guard" x="-1521" y="-637">actionTimer&gt;=timerInterval</label>
+			<label kind="assignment" x="-1428" y="-620">checkActions(),
+actionTimer = 0</label>
+			<nail x="-1232" y="-603"/>
+			<nail x="-1317" y="-603"/>
+		</transition>
+		<transition>
+			<source ref="id37"/>
+			<target ref="id34"/>
+			<label kind="guard" x="-1096" y="-501">!aStart &amp;&amp;
+!recharge &amp;&amp;
+actionTimer &gt;= 
+processingTime</label>
+			<label kind="assignment" x="-1096" y="-518">actionTimer = 0</label>
+			<nail x="-986" y="-475"/>
+		</transition>
+		<transition>
+			<source ref="id34"/>
+			<target ref="id37"/>
+			<label kind="guard" x="-918" y="-518">actionTimer 
+&gt;= timerInterval</label>
+			<label kind="assignment" x="-918" y="-484">checkActions(),
+actionTimer = 0</label>
+			<nail x="-918" y="-476"/>
+		</transition>
+		<transition>
+			<source ref="id48"/>
+			<target ref="id50"/>
+			<label kind="guard" x="-187" y="-119">!hExe &amp;&amp; fail &amp;&amp;
+actionTimer&gt;=
+processingTime</label>
+			<label kind="synchronisation" x="-187" y="-68">stop_r_action!</label>
+			<label kind="assignment" x="-187" y="-51">actionTimer=0</label>
+			<nail x="-195" y="-127"/>
+		</transition>
+		<transition>
+			<source ref="id47"/>
+			<target ref="id49"/>
+			<label kind="synchronisation" x="-476" y="68">pass_out?</label>
+			<nail x="-510" y="85"/>
+		</transition>
+		<transition>
+			<source ref="id47"/>
+			<target ref="id49"/>
+			<label kind="synchronisation" x="-476" y="85">dead_battery?</label>
+			<nail x="-510" y="85"/>
+		</transition>
+		<transition>
+			<source ref="id47"/>
+			<target ref="id48"/>
+			<label kind="guard" x="-425" y="-102">actionTimer&gt;=timerInterval</label>
+			<label kind="assignment" x="-425" y="-85">actionTimer = 0,
+changeDirection(),
+checkSuccess()</label>
+			<nail x="-527" y="-68"/>
+			<nail x="-433" y="-68"/>
+		</transition>
+		<transition>
+			<source ref="id48"/>
+			<target ref="id47"/>
+			<label kind="guard" x="-671" y="-178">hExe &amp;&amp; !success &amp;&amp; !fail
+&amp;&amp; actionTimer
+&gt;=processingTime</label>
+			<label kind="assignment" x="-663" y="-127">actionTimer=0</label>
+			<nail x="-552" y="-127"/>
+		</transition>
+	</template>
+	<system>// Robot Instances
+rob = Robot(1, 20, 5);
+b = Battery(1, 50);
+
+// Human Instances
+#HINSTANCES#
+//alice = Human_Follower(1, 8);
+//bob = Human_Leader(2, 10);
+//carl = Human_Leader(3, 15);
+
+// Controller Instances
+o = Orchestrator(1);
+
+system 
+rob, b,
+#HSYSTEM#
+//alice,
+//bob,
+//carl,
+o
+;
+    </system>
+	<queries>
+		<query>
+			<formula>simulate[&lt;=700]{robPositionX, robPositionY, humanPositionX[0], humanPositionY[0], o.mission_accomplished, served[0], robTheta, o.exe_1, o.exe_2}</formula>
+			<comment>2 vrep</comment>
+		</query>
+		<query>
+			<formula>simulate[&lt;=800]{b.C/100, o.exe_1, o.exe_2, rob.recharging, alice.busy*0.5, bob.busy*0.5, carl.busy*0.5, humanFatigue[0], humanFatigue[1], humanFatigue[2]}</formula>
+			<comment>agents energy</comment>
+		</query>
+		<query>
+			<formula>simulate[&lt;=800]{robTheta*10, robPositionX, robPositionY, 
+o.exe_1*-100, o.exe_2*-100, 
+o.destIsOnTheRight*100, o.destIsOnTheLeft*100, o.destIsAhead*100, o.destIsBehind*100, 
+served[0]*200, served[1]*200, served[2]*200}</formula>
+			<comment>robot navigation</comment>
+		</query>
+		<query>
+			<formula>simulate[&lt;=510]{o.humanCanStart*150, rob.recharging*150, o.exe_1*-100, o.exe_2*-100, served[0]*200, served[1]*200, served[2]*200, alice.busy*100, bob.busy*100, carl.busy_mov*100, carl.busy_rec*100}</formula>
+			<comment>states</comment>
+		</query>
+		<query>
+			<formula>simulate[&lt;=800]{batteryCharge*10,
+o.mov_to_station*100, o.busy_recharging*50, o.exe_1*50, 
+o.recharge*120, o.stopRecharge*120, o.aStop*120, o.aStart*120, fail*120, o.dX, o.dY,
+rob.stopping*50, rob.moving*50, rob.recharging*75, robPositionX, robPositionY}</formula>
+			<comment></comment>
+		</query>
+		<query>
+			<formula>simulate[&lt;=900]{batteryCharge, robPositionX, robPositionY, humanFatigue[0],
+humanPositionX[0], humanPositionX[1], humanPositionX[2], humanPositionY[0], humanPositionY[1], humanPositionY[2], 
+o.mission_accomplished*200, o.mission_failed*150, served[0]*100, served[1]*100, served[2]*100}</formula>
+			<comment>full simulation</comment>
+		</query>
+		<query>
+			<formula>Pr[&lt;=100](&lt;&gt; o.mission_failed)</formula>
+			<comment></comment>
+		</query>
+		<query>
+			<formula>Pr[&lt;=200](&lt;&gt; o.mission_failed)</formula>
+			<comment></comment>
+		</query>
+		<query>
+			<formula>Pr[&lt;=218](&lt;&gt; o.mission_failed)</formula>
+			<comment></comment>
+		</query>
+		<query>
+			<formula>Pr[&lt;=500](&lt;&gt; o.mission_accomplished)</formula>
+			<comment></comment>
+		</query>
+		<query>
+			<formula>Pr[&lt;=800](&lt;&gt; o.mission_accomplished)</formula>
+			<comment></comment>
+		</query>
+		<query>
+			<formula>E&lt;&gt; (o.mission_accomplished)</formula>
+			<comment></comment>
+		</query>
+	</queries>
+</nta>
