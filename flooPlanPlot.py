@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import math
 from typing import List
 
-SIM_FILE_PATH = "sims/exp1/exp1success.txt"
+SIM_FILE_PATH = "resources/sims/exp1/exp1success.txt"
 ROB_X_VAR_NAME = "robPositionX"
 ROB_Y_VAR_NAME = "robPositionY"
 HUM_X_VAR_NAME = "humanPositionX"

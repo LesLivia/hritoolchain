@@ -12,7 +12,7 @@ broadcast chan start_h_action[int];
 broadcast chan stop_h_action;
 
 // Robot Controller Channels
-broadcast chan start_recharging[int]; 
+broadcast chan start_recharging[int];
 broadcast chan stop_recharging;
 broadcast chan start_r_action[int];
 broadcast chan stop_r_action;
@@ -32,14 +32,13 @@ double pi = 3.1415926535;
 
 // Mission Mgmt
 bool fail = false;
-bool success;
-bool served[3] = {false, false, false};
+bool success = false;
+bool served[#NHUMS#] = #NFALSE#;
 // 0: human follower, 1: human leader, 2: human recipient
-int patterns[3] = #PATTERNS#;
+int patterns[#NHUMS#] = #PATTERNS#;
 //
-bool objectTaken[3] = {false, false, false};
-double destX[3] = {1300.0, 1300.0, 1300.0};
-double destY[3] = {300.0, 500.0, 100.0};
+bool objectTaken[#NHUMS#] = #NFALSE#;
+#HDESTINATIONS#
 
 // Robot Mgmt
 int currR = 1;
@@ -53,10 +52,10 @@ double batteryCharge;
 double robPositionX;
 double robPositionY;
 
-double humanFatigue[3] = {0.0, 0.0, 0.0};
-double humanPositionX[3] = {0.0, 0.0, 0.0};
-double humanPositionY[3] = {0.0, 0.0, 0.0};
-double humTheta[3] = {0.0, 0.0, 0.0};
+double humanFatigue[#NHUMS#] = #NZEROES#;
+double humanPositionX[#NHUMS#] = #NZEROES#;
+double humanPositionY[#NHUMS#] = #NZEROES#;
+double humTheta[#NHUMS#] = #NZEROES#;
 
 // Robot direction Control
 double robTheta = 0.0;
@@ -70,9 +69,9 @@ bool isInRectangle(point start, double dX, double dY, double length, double heig
     bool destXisIn, destYisIn;
     if(fabs(length)&gt;fabs(height)) {
         if(length&gt;0) {
-            destXisIn = dX &lt; start[0] + 0.95 * length &amp;&amp; dX &gt; start[0] - 0.05 * length;    
+            destXisIn = dX &lt; start[0] + 0.95 * length &amp;&amp; dX &gt; start[0] - 0.05 * length;
         } else {
-            destXisIn = dX &lt; start[0] + 0.05 * -length &amp;&amp; dX &gt; start[0] - 0.95 * -length;            
+            destXisIn = dX &lt; start[0] + 0.05 * -length &amp;&amp; dX &gt; start[0] - 0.95 * -length;
         }
         destYisIn = dY &lt; start[1] + height / 2 &amp;&amp; dY &gt; start[1] - height / 2;
     } else {
@@ -80,23 +79,25 @@ bool isInRectangle(point start, double dX, double dY, double length, double heig
         if(height&gt;0) {
             destYisIn = dY &lt; start[1] + 0.95*height &amp;&amp; dY &gt; start[1] - 0.005*height;
         } else {
-            destYisIn = dY &lt; start[1] + 0.005*-height &amp;&amp; dY &gt; start[1] - 0.95*-height;        
+            destYisIn = dY &lt; start[1] + 0.005*-height &amp;&amp; dY &gt; start[1] - 0.95*-height;
         }
     }
     return destXisIn &amp;&amp; destYisIn;
 }
 
-// Wall Corner Points
-point HALL1_1 = {200.0, 400.00};
-point HALL1_2 = {1200.00, 400.00};
-point HALL1_3 = {1200.00, 600.00};
-point HALL1_4 = {1400.00, 600.00};
-point HALL2_1 = {200.0, 200.00};
-point HALL2_2 = {1200.00, 200.00};
-point HALL2_3 = {1200.00, 0.0};
-point HALL2_4 = {1400.00, 0.0};
+double calculateDistance() {
+    double xdifference = pow(robPositionX-humanPositionX[currH-1], 2);
+    double ydifference = pow(robPositionY-humanPositionY[currH-1], 2);
+    double distance = sqrt(xdifference + ydifference)/100;
+    if(distance&lt;0) {
+        return -distance;
+    } else {
+        return distance;
+    }
+}
 
-point rechargeStation = {220.0, 300.00};
+// Wall Corner Points
+#FLOORPLAN#
 </declaration>
 	<template>
 		<name>Human_Follower</name>
@@ -237,7 +238,7 @@ void updateFreeWill(){
         obey = 99;
         disobey = 1;
         freeWillRange = 100;
-        freeWillTh = 101;
+        freeWillTh = 99;
     } else {
         obey = 100;
         disobey = 1;
@@ -450,8 +451,8 @@ double MET = 60.0;
 double passout_th = 1.0;
 
 //Free Will Model
-double freeWillTh = 100.0;
-double freeWillRange = 95.0;
+int freeWillTh = 100;
+int freeWillRange = 100;
 
 // Fatigue Sharing Parameters
 int timeF = 0;
@@ -572,8 +573,9 @@ void updateP(double coeff) {
 void checkSuccess() {
     bool hXinDestInterval = humanPositionX[id-1] &gt;= destX[id-1]-50.0 &amp;&amp; humanPositionX[id-1] &lt;= destX[id-1]+50.0;
     bool hYinDestInterval = humanPositionY[id-1] &gt;= destY[id-1]-50.0 &amp;&amp; humanPositionY[id-1] &lt;= destY[id-1]+50.0;
+    double humanRobotDist = calculateDistance();
     // when humans reach their destination, they can set themselves as "served"
-    if(hXinDestInterval &amp;&amp; hYinDestInterval) {
+    if(hXinDestInterval &amp;&amp; hYinDestInterval &amp;&amp; humanRobotDist &lt; 1.5) {
         served[id-1] = true;
     }
 }
@@ -1530,8 +1532,8 @@ double stopRechargingTh = 90.0;
 double failBattery = 1.0;
 
 //Fatigue-Monitoring Parameters
-double failFatigue = 0.99;
-double stopFatigue = 0.9;
+double failFatigue = 0.97;
+double stopFatigue = 1.7;
 double resumeFatigue = 0.1;
 
 double allowanceFactor = 0.95, humanRobotDist;
@@ -1631,32 +1633,23 @@ void changeDirection() {
     }
 }
 
-double calculateDistance() {
-    double xdifference = pow(robPositionX-humanPositionX[currH-1], 2);
-    double ydifference = pow(robPositionY-humanPositionY[currH-1], 2);
-    double distance = sqrt(xdifference + ydifference)/100;
-    if(distance&lt;0) {
-        return -distance;
-    } else {
-        return distance;
-    }
-}
-
 void checkSuccess() {
-    bool robXinDestInterval = robPositionX &gt;= destX[currH-1]-25.0 &amp;&amp; robPositionX &lt;= destX[currH-1]+25.0;
-    bool robYinDestInterval = robPositionY &gt;= destY[currH-1]-25.0 &amp;&amp; robPositionY &lt;= destY[currH-1]+25.0;
+    bool robXinDestInterval = robPositionX &gt;= destX[currH-1]-50.0 &amp;&amp; robPositionX &lt;= destX[currH-1]+50.0;
+    bool robYinDestInterval = robPositionY &gt;= destY[currH-1]-50.0 &amp;&amp; robPositionY &lt;= destY[currH-1]+50.0;
     humanRobotDist = calculateDistance();
+
+    if (patterns[currH-1] == 1 &amp;&amp; served[currH-1] == true) {
+            currH++; 
+    }
 
     if(robXinDestInterval &amp;&amp; robYinDestInterval) {
         // If human currently served is not leading,
         // the robot controller can determine when
         // he/she is served
-        if(humanRobotDist &lt; 1 &amp;&amp; patterns[currH-1]==0) {
+        if(humanRobotDist &lt; 1.5 &amp;&amp; patterns[currH-1]==0) {
             humanCanStart = false;
             served[currH-1] = true;
             currH++; 
-        } else if (humanRobotDist &lt; 1 &amp;&amp; patterns[currH-1] == 1 &amp;&amp; served[currH-1] == true) {
-            currH++;            
         } else if (patterns[currH-1] == 2 &amp;&amp; !objectTaken[currH-1]) {
             humanCanStart = true;
             objectTaken[currH-1] = true;
@@ -2152,85 +2145,21 @@ checkSuccess()</label>
 			<label kind="assignment" x="-663" y="-127">actionTimer=0</label>
 			<nail x="-552" y="-127"/>
 		</transition>
-	</template>
-	<system>// Robot Instances
-rob = Robot(1, 20, 5);
-b = Battery(1, 50);
+	</template><system>// Robot Instances
+#RINSTANCES#
 
 // Human Instances
 #HINSTANCES#
-//alice = Human_Follower(1, 8);
-//bob = Human_Leader(2, 10);
-//carl = Human_Leader(3, 15);
 
 // Controller Instances
-o = Orchestrator(1);
+o = Orchestrator(#NHUMS#);
 
-system 
-rob, b,
+system
+#RSYSTEM#
 #HSYSTEM#
-//alice,
-//bob,
-//carl,
 o
 ;
     </system>
 	<queries>
-		<query>
-			<formula>simulate[&lt;=700]{robPositionX, robPositionY, humanPositionX[0], humanPositionY[0], o.mission_accomplished, served[0], robTheta, o.exe_1, o.exe_2}</formula>
-			<comment>2 vrep</comment>
-		</query>
-		<query>
-			<formula>simulate[&lt;=800]{b.C/100, o.exe_1, o.exe_2, rob.recharging, alice.busy*0.5, bob.busy*0.5, carl.busy*0.5, humanFatigue[0], humanFatigue[1], humanFatigue[2]}</formula>
-			<comment>agents energy</comment>
-		</query>
-		<query>
-			<formula>simulate[&lt;=800]{robTheta*10, robPositionX, robPositionY, 
-o.exe_1*-100, o.exe_2*-100, 
-o.destIsOnTheRight*100, o.destIsOnTheLeft*100, o.destIsAhead*100, o.destIsBehind*100, 
-served[0]*200, served[1]*200, served[2]*200}</formula>
-			<comment>robot navigation</comment>
-		</query>
-		<query>
-			<formula>simulate[&lt;=510]{o.humanCanStart*150, rob.recharging*150, o.exe_1*-100, o.exe_2*-100, served[0]*200, served[1]*200, served[2]*200, alice.busy*100, bob.busy*100, carl.busy_mov*100, carl.busy_rec*100}</formula>
-			<comment>states</comment>
-		</query>
-		<query>
-			<formula>simulate[&lt;=800]{batteryCharge*10,
-o.mov_to_station*100, o.busy_recharging*50, o.exe_1*50, 
-o.recharge*120, o.stopRecharge*120, o.aStop*120, o.aStart*120, fail*120, o.dX, o.dY,
-rob.stopping*50, rob.moving*50, rob.recharging*75, robPositionX, robPositionY}</formula>
-			<comment></comment>
-		</query>
-		<query>
-			<formula>simulate[&lt;=900]{batteryCharge, robPositionX, robPositionY, humanFatigue[0],
-humanPositionX[0], humanPositionX[1], humanPositionX[2], humanPositionY[0], humanPositionY[1], humanPositionY[2], 
-o.mission_accomplished*200, o.mission_failed*150, served[0]*100, served[1]*100, served[2]*100}</formula>
-			<comment>full simulation</comment>
-		</query>
-		<query>
-			<formula>Pr[&lt;=100](&lt;&gt; o.mission_failed)</formula>
-			<comment></comment>
-		</query>
-		<query>
-			<formula>Pr[&lt;=200](&lt;&gt; o.mission_failed)</formula>
-			<comment></comment>
-		</query>
-		<query>
-			<formula>Pr[&lt;=218](&lt;&gt; o.mission_failed)</formula>
-			<comment></comment>
-		</query>
-		<query>
-			<formula>Pr[&lt;=500](&lt;&gt; o.mission_accomplished)</formula>
-			<comment></comment>
-		</query>
-		<query>
-			<formula>Pr[&lt;=800](&lt;&gt; o.mission_accomplished)</formula>
-			<comment></comment>
-		</query>
-		<query>
-			<formula>E&lt;&gt; (o.mission_accomplished)</formula>
-			<comment></comment>
-		</query>
 	</queries>
 </nta>
