@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import math
 from typing import List
 
-SIM_FILE_PATH = "resources/sims/exp1/exp1success.txt"
+SIM_FILE_PATH = "resources/sims/exp2/exp2success.txt"
 ROB_X_VAR_NAME = "robPositionX"
 ROB_Y_VAR_NAME = "robPositionY"
 HUM_X_VAR_NAME = "humanPositionX"
@@ -79,12 +79,12 @@ def getFieldPoints(header1: str, header2: str, startTime, stopTime):
     return getPointList(points_x, points_y, startTime, stopTime)
 
 
-img = plt.imread("sims/exp1/fph1.png", format='png')
+img = plt.imread("resources/sims/exp2/fpexp2.png", format='png')
 fig, ax = plt.subplots()
 ax.imshow(img, extent=[90, 1420, 0, 660], interpolation='none')
 
 # ROBOT DATA
-points_robot = getFieldPoints(ROB_X_VAR_NAME, ROB_Y_VAR_NAME, 240, 285)
+points_robot = getFieldPoints(ROB_X_VAR_NAME, ROB_Y_VAR_NAME, 130, 200)
 
 ax.plot(list(map(lambda i: points_robot[i].x, range(len(points_robot)))),
         list(map(lambda i: points_robot[i].y, range(len(points_robot)))),
@@ -94,7 +94,7 @@ ax.plot(points_robot[0].x, points_robot[0].y, 'o',
 ax.plot(points_robot[len(points_robot) - 1].x, points_robot[len(points_robot) - 1].y, 'o',
         linewidth=10, color='firebrick')
 
-points_robot_b = getFieldPoints(ROB_X_VAR_NAME, ROB_Y_VAR_NAME, 300, 400)
+points_robot_b = getFieldPoints(ROB_X_VAR_NAME, ROB_Y_VAR_NAME, 200, 320)
 
 ax.plot(list(map(lambda i: points_robot_b[i].x, range(len(points_robot_b)))),
         list(map(lambda i: points_robot_b[i].y, range(len(points_robot_b)))),
@@ -103,7 +103,7 @@ ax.plot(points_robot_b[len(points_robot_b) - 1].x, points_robot_b[len(points_rob
         linewidth=10, color='firebrick')
 
 # HUMAN DATA
-# points_human: List[Point] = getFieldPoints(HUM_X_VAR_NAME + '[0]', HUM_Y_VAR_NAME + '[0]', 0, 90)
+# points_human: List[Point] = getFieldPoints(HUM_X_VAR_NAME + '[0]', HUM_Y_VAR_NAME + '[0]', 0, 15)
 #
 # ax.plot(list(map(lambda i: points_human[i].x, range(len(points_human)))),
 #         list(map(lambda i: points_human[i].y, range(len(points_human)))),
@@ -113,7 +113,7 @@ ax.plot(points_robot_b[len(points_robot_b) - 1].x, points_robot_b[len(points_rob
 # ax.plot(points_human[len(points_human) - 1].x, points_human[len(points_human) - 1].y, 'o',
 #         linewidth=10, color='green')
 #
-# points_human_b: List[Point] = getFieldPoints(HUM_X_VAR_NAME + '[0]', HUM_Y_VAR_NAME + '[0]', 90, 240)
+# points_human_b: List[Point] = getFieldPoints(HUM_X_VAR_NAME + '[0]', HUM_Y_VAR_NAME + '[0]', 0, 35)
 #
 # ax.plot(list(map(lambda i: points_human_b[i].x, range(len(points_human_b)))),
 #         list(map(lambda i: points_human_b[i].y, range(len(points_human_b)))),
@@ -121,7 +121,7 @@ ax.plot(points_robot_b[len(points_robot_b) - 1].x, points_robot_b[len(points_rob
 # ax.plot(points_human_b[len(points_human_b) - 1].x, points_human_b[len(points_human_b) - 1].y, 'o',
 #         linewidth=10, color='green')
 
-points_human2 = getFieldPoints(HUM_X_VAR_NAME + '[1]', HUM_Y_VAR_NAME + '[1]', 0, 285)
+points_human2 = getFieldPoints(HUM_X_VAR_NAME + '[1]', HUM_Y_VAR_NAME + '[1]', 0, 360)
 
 ax.plot(list(map(lambda i: points_human2[i].x, range(len(points_human2)))),
         list(map(lambda i: points_human2[i].y, range(len(points_human2)))),
@@ -131,7 +131,7 @@ ax.plot(points_human2[0].x, points_human2[0].y, 'x',
 ax.plot(points_human2[len(points_human2) - 1].x, points_human2[len(points_human2) - 1].y, 'o',
         linewidth=10, color='blue')
 
-points_human2_b = getFieldPoints(HUM_X_VAR_NAME + '[1]', HUM_Y_VAR_NAME + '[1]', 285, 400)
+points_human2_b = getFieldPoints(HUM_X_VAR_NAME + '[1]', HUM_Y_VAR_NAME + '[1]', 0, 360)
 
 ax.plot(list(map(lambda i: points_human2_b[i].x, range(len(points_human2_b)))),
         list(map(lambda i: points_human2_b[i].y, range(len(points_human2_b)))),
@@ -145,4 +145,4 @@ ax.plot(points_human2_b[len(points_human2_b) - 1].x, points_human2_b[len(points_
 #         list(map(lambda i: points_human3[i].y, range(len(points_human3)))),
 #         '--', linewidth=0, color='orange')
 
-plt.savefig('sims/exp1/h2scs.png', dpi=600)
+plt.savefig('resources/sims/exp2/h2scs.png', dpi=600)
