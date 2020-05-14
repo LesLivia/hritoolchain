@@ -2,11 +2,12 @@ import matplotlib.pyplot as plt
 import math
 from typing import List
 
-SIM_FILE_PATH = "resources/sims/exp2/exp2success.txt"
+SIM_FILE_PATH = "resources/sims/sefm/exp1/exp1a.txt"
 ROB_X_VAR_NAME = "robPositionX"
 ROB_Y_VAR_NAME = "robPositionY"
 HUM_X_VAR_NAME = "humanPositionX"
 HUM_Y_VAR_NAME = "humanPositionY"
+HUM_FATIGUE = "humanFatigue"
 
 
 class TimedPoint:
@@ -79,12 +80,12 @@ def getFieldPoints(header1: str, header2: str, startTime, stopTime):
     return getPointList(points_x, points_y, startTime, stopTime)
 
 
-img = plt.imread("resources/sims/exp2/fpexp2.png", format='png')
+img = plt.imread("resources/sims/sefm/exp1/fph.png", format='png')
 fig, ax = plt.subplots()
 ax.imshow(img, extent=[90, 1420, 0, 660], interpolation='none')
 
 # ROBOT DATA
-points_robot = getFieldPoints(ROB_X_VAR_NAME, ROB_Y_VAR_NAME, 130, 200)
+points_robot = getFieldPoints(ROB_X_VAR_NAME, ROB_Y_VAR_NAME, 0, 50)
 
 ax.plot(list(map(lambda i: points_robot[i].x, range(len(points_robot)))),
         list(map(lambda i: points_robot[i].y, range(len(points_robot)))),
@@ -94,7 +95,7 @@ ax.plot(points_robot[0].x, points_robot[0].y, 'o',
 ax.plot(points_robot[len(points_robot) - 1].x, points_robot[len(points_robot) - 1].y, 'o',
         linewidth=10, color='firebrick')
 
-points_robot_b = getFieldPoints(ROB_X_VAR_NAME, ROB_Y_VAR_NAME, 200, 320)
+points_robot_b = getFieldPoints(ROB_X_VAR_NAME, ROB_Y_VAR_NAME, 0, 2000)
 
 ax.plot(list(map(lambda i: points_robot_b[i].x, range(len(points_robot_b)))),
         list(map(lambda i: points_robot_b[i].y, range(len(points_robot_b)))),
@@ -103,41 +104,41 @@ ax.plot(points_robot_b[len(points_robot_b) - 1].x, points_robot_b[len(points_rob
         linewidth=10, color='firebrick')
 
 # HUMAN DATA
-# points_human: List[Point] = getFieldPoints(HUM_X_VAR_NAME + '[0]', HUM_Y_VAR_NAME + '[0]', 0, 15)
+points_human: List[Point] = getFieldPoints(HUM_X_VAR_NAME + '[0]', HUM_Y_VAR_NAME + '[0]', 0, 50)
+
+ax.plot(list(map(lambda i: points_human[i].x, range(len(points_human)))),
+        list(map(lambda i: points_human[i].y, range(len(points_human)))),
+        '--', linewidth=1, color='green')
+ax.plot(points_human[0].x, points_human[0].y, 'x',
+        linewidth=10, color='green')
+ax.plot(points_human[len(points_human) - 1].x, points_human[len(points_human) - 1].y, 'o',
+        linewidth=10, color='green')
+
+points_human_b: List[Point] = getFieldPoints(HUM_X_VAR_NAME + '[0]', HUM_Y_VAR_NAME + '[0]', 0, 2000)
+
+ax.plot(list(map(lambda i: points_human_b[i].x, range(len(points_human_b)))),
+        list(map(lambda i: points_human_b[i].y, range(len(points_human_b)))),
+        '--', linewidth=1, color='green')
+ax.plot(points_human_b[len(points_human_b) - 1].x, points_human_b[len(points_human_b) - 1].y, 'o',
+        linewidth=10, color='green')
+
+# points_human2 = getFieldPoints(HUM_X_VAR_NAME + '[1]', HUM_Y_VAR_NAME + '[1]', 0, 360)
 #
-# ax.plot(list(map(lambda i: points_human[i].x, range(len(points_human)))),
-#         list(map(lambda i: points_human[i].y, range(len(points_human)))),
-#         '--', linewidth=1, color='green')
-# ax.plot(points_human[0].x, points_human[0].y, 'x',
-#         linewidth=10, color='green')
-# ax.plot(points_human[len(points_human) - 1].x, points_human[len(points_human) - 1].y, 'o',
-#         linewidth=10, color='green')
+# ax.plot(list(map(lambda i: points_human2[i].x, range(len(points_human2)))),
+#         list(map(lambda i: points_human2[i].y, range(len(points_human2)))),
+#         '--', linewidth=1, color='blue')
+# ax.plot(points_human2[0].x, points_human2[0].y, 'x',
+#         linewidth=10, color='blue')
+# ax.plot(points_human2[len(points_human2) - 1].x, points_human2[len(points_human2) - 1].y, 'o',
+#         linewidth=10, color='blue')
 #
-# points_human_b: List[Point] = getFieldPoints(HUM_X_VAR_NAME + '[0]', HUM_Y_VAR_NAME + '[0]', 0, 35)
+# points_human2_b = getFieldPoints(HUM_X_VAR_NAME + '[1]', HUM_Y_VAR_NAME + '[1]', 0, 360)
 #
-# ax.plot(list(map(lambda i: points_human_b[i].x, range(len(points_human_b)))),
-#         list(map(lambda i: points_human_b[i].y, range(len(points_human_b)))),
-#         '--', linewidth=1, color='green')
-# ax.plot(points_human_b[len(points_human_b) - 1].x, points_human_b[len(points_human_b) - 1].y, 'o',
-#         linewidth=10, color='green')
-
-points_human2 = getFieldPoints(HUM_X_VAR_NAME + '[1]', HUM_Y_VAR_NAME + '[1]', 0, 360)
-
-ax.plot(list(map(lambda i: points_human2[i].x, range(len(points_human2)))),
-        list(map(lambda i: points_human2[i].y, range(len(points_human2)))),
-        '--', linewidth=1, color='blue')
-ax.plot(points_human2[0].x, points_human2[0].y, 'x',
-        linewidth=10, color='blue')
-ax.plot(points_human2[len(points_human2) - 1].x, points_human2[len(points_human2) - 1].y, 'o',
-        linewidth=10, color='blue')
-
-points_human2_b = getFieldPoints(HUM_X_VAR_NAME + '[1]', HUM_Y_VAR_NAME + '[1]', 0, 360)
-
-ax.plot(list(map(lambda i: points_human2_b[i].x, range(len(points_human2_b)))),
-        list(map(lambda i: points_human2_b[i].y, range(len(points_human2_b)))),
-        '--', linewidth=1, color='blue')
-ax.plot(points_human2_b[len(points_human2_b) - 1].x, points_human2_b[len(points_human2_b) - 1].y, 'o',
-        linewidth=10, color='blue')
+# ax.plot(list(map(lambda i: points_human2_b[i].x, range(len(points_human2_b)))),
+#         list(map(lambda i: points_human2_b[i].y, range(len(points_human2_b)))),
+#         '--', linewidth=1, color='blue')
+# ax.plot(points_human2_b[len(points_human2_b) - 1].x, points_human2_b[len(points_human2_b) - 1].y, 'o',
+#         linewidth=10, color='blue')
 
 # points_human3 = getFieldPoints(HUM_X_VAR_NAME + '[2]', HUM_Y_VAR_NAME + '[2]', 1000, 1000)
 #
@@ -145,4 +146,20 @@ ax.plot(points_human2_b[len(points_human2_b) - 1].x, points_human2_b[len(points_
 #         list(map(lambda i: points_human3[i].y, range(len(points_human3)))),
 #         '--', linewidth=0, color='orange')
 
-plt.savefig('resources/sims/exp2/h2scs.png', dpi=600)
+# plt.savefig('resources/sims/sefm/exp1/h1a.png', dpi=600)
+
+# Fatigue plot
+ftgPts = read_data_from_file(SIM_FILE_PATH, HUM_FATIGUE + '[0]*1000', 1, 0, 2000)
+fig, ax = plt.subplots()
+ax.plot(list(map(lambda i: ftgPts[i].time, range(len(ftgPts)))),
+        list(map(lambda i: ftgPts[i].x, range(len(ftgPts)))),
+        '-', linewidth=1, color='green')
+
+advancement = read_data_from_file(SIM_FILE_PATH, HUM_X_VAR_NAME + '[0]', 1, 0, 2000)
+for p in advancement:
+    print(str(p.time) + ' ' + str(p.x))
+ax.plot(list(map(lambda i: advancement[i].time, range(len(advancement)))),
+        list(map(lambda i: advancement[i].x / 1300 * 1000, range(len(advancement)))),
+        '-', linewidth=1, color='firebrick')
+
+plt.savefig('resources/sims/sefm/exp1/h1aftg.png', dpi=600)
