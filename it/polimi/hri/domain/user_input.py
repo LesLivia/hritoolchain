@@ -29,11 +29,13 @@ def getPattStr(value):
 
 
 class Human:
-    def __init__(self, name, upp_id, vel, pattern):
+    def __init__(self, name, upp_id, vel, pattern, p_f, p_fw):
         self.name = name
         self.upp_id = upp_id
         self.vel = vel
         self.pattern = pattern
+        self.p_f = p_f
+        self.p_fw = p_fw
 
 
 class Experiment:
@@ -43,9 +45,10 @@ class Experiment:
 
 
 class Robot:
-    def __init__(self, name, upp_id, vel, acc, bcharge):
+    def __init__(self, name, upp_id, vel, acc, bcharge, hToServe):
         self.name = name
         self.upp_id = upp_id
         self.vel = vel
         self.acc = acc
         self.bcharge = bcharge
+        self.hToServe = hToServe

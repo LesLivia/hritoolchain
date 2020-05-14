@@ -18,13 +18,13 @@ def read_data_from_file(file_name):
 templatePath = './resources/templates/hriTemplate.xml'
 
 # Model Instances
-jsonData = read_data_from_file('resources/templates/' + str(sys.argv[1]) + str(sys.argv[2]) + '.json')
+jsonData = read_data_from_file('resources/templates/sefm_exp/' + str(sys.argv[1]) + str(sys.argv[2]) + '.json')
 loadedJson: object = json.loads(jsonData)
 
 # Humans Instances
 humansInModel = []
 for h in loadedJson['humans']:
-    humansInModel.append(dom.Human(h['name'], h['upp_id'], h['vel'], h['pattern']))
+    humansInModel.append(dom.Human(h['name'], h['upp_id'], h['vel'], h['pattern'], h['p_f'], h['p_fw']))
 
 template = read_data_from_file(templatePath)
 
@@ -41,7 +41,8 @@ for h in humansInModel:
         pStr += ', '
         falsesStr += ', '
         zeroesStr += ', '
-    instStr += h.name + ' = Human_' + dom.getPattStr(h.pattern) + '(' + str(h.upp_id) + ', ' + str(h.vel) + ');\n'
+    instStr += h.name + ' = Human_' + dom.getPattStr(h.pattern) + '(' + str(h.upp_id) + ', ' + str(
+        h.vel) + ', ' + str(h.p_f) + ', ' + str(h.p_fw) + ');\n'
     sysStr += str(h.name) + ', '
 pStr += '}'
 falsesStr += '}'
@@ -89,7 +90,7 @@ template = template.replace(const.FLOORPLAN, fpStr)
 # ROBOTS
 robotsInModel = []
 for r in loadedJson['robots']:
-    robotsInModel.append(dom.Robot(r['name'], r['upp_id'], r['vel'], r['acc'], r['bcharge']))
+    robotsInModel.append(dom.Robot(r['name'], r['upp_id'], r['vel'], r['acc'], r['bcharge'], r['hToServe']))
 
 rInstStr = ''
 rSysStr = ''
@@ -101,6 +102,7 @@ for r in robotsInModel:
 
 template = template.replace(const.RINSTANCES, rInstStr)
 template = template.replace(const.RSYSTEM, rSysStr)
+template = template.replace(const.NHUMSTOSERVE, str(robotsInModel[0].hToServe))
 
 print(template)
 
@@ -114,13 +116,16 @@ newExp = ''
 for e in exp:
     if e.type == 's':
         newExp = const.simQuery + '\n'
+        hFatg = ''
         hPosX = ''
         hPosY = ''
         hServed = ''
         for h in humansInModel:
+            hFatg += 'humanFatigue[' + str(h.upp_id - 1) + ']*1000, '
             hPosX += 'humanPositionX[' + str(h.upp_id - 1) + '], '
             hPosY += 'humanPositionY[' + str(h.upp_id - 1) + '], '
             hServed += 'served[' + str(h.upp_id - 1) + ']*100, '
+        newExp = newExp.replace(const.Q_HFATG, hFatg)
         newExp = newExp.replace(const.Q_HPOS, hPosX + hPosY)
         newExp = newExp.replace(const.Q_HSERVED, hServed)
     elif e.type == 'pfail':

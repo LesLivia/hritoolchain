@@ -1,0 +1,103 @@
+{
+  "experiments": [
+    {
+      "type": "pscs",
+      "tb": 150
+    },
+    {
+      "type": "pscs",
+      "tb": 220
+    },
+    {
+      "type": "s",
+      "tb": 300
+    }
+  ],
+  "humans":[
+    {
+      "upp_id": 1,
+      "vel": 18,
+      "pattern": 0,
+      "name": "alice",
+      "p_f": 1,
+      "p_fw": 2
+    },
+    {
+      "upp_id": 2,
+      "vel": 18,
+      "pattern": 0,
+      "name": "bob",
+      "p_f": 1,
+      "p_fw": 2
+    }
+  ],
+  "destinations": [
+    {
+      "h_id": 1,
+      "x": 2200.00,
+      "y": 500.00
+    },
+    {
+      "h_id": 1,
+      "x": 1300.00,
+      "y": 100.00
+    }
+  ],
+  "robots": [
+    {
+      "upp_id": 1,
+      "name": "rob",
+      "vel": 20,
+      "acc": 5,
+      "bcharge": 100,
+      "hToServe": 1
+    }
+  ],
+  "floorPlan": [
+    {
+      "name": "HALL1_1",
+      "x": 200.0,
+      "y": 400.00
+    },
+    {
+      "name": "HALL1_2",
+      "x": 2000.00,
+      "y": 400.00
+    },
+    {
+      "name": "HALL1_3",
+      "x": 2000.00,
+      "y": 600.00
+    },
+    {
+      "name": "HALL1_4",
+      "x": 2400.00,
+      "y": 600.00
+    },
+    {
+      "name": "HALL2_1",
+      "x": 200.0,
+      "y": 200.00
+    },
+    {
+      "name": "HALL2_2",
+      "x": 2200.00,
+      "y": 200.00
+    },
+    {
+      "name": "HALL2_3",
+      "x": 2200.00,
+      "y": 0.0
+    },
+    {
+      "name": "HALL2_4",
+      "x": 2400.00,
+      "y": 0.0
+    },
+    {
+      "name": "rechargeStation",
+      "x": 220.00,
+      "y": 300.0
+    }
+  ]
+}
