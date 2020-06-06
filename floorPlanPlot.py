@@ -4,7 +4,7 @@ from typing import List
 
 import numpy as np
 
-SIM_FILE_PATH = "resources/sims/sefm/exp1/exp1a.txt"
+SIM_FILE_PATH = "resources/sims/sefm/exp2/exp2a.txt"
 ROB_X_VAR_NAME = "robPositionX"
 ROB_Y_VAR_NAME = "robPositionY"
 HUM_X_VAR_NAME = "humanPositionX"
@@ -151,40 +151,38 @@ def getFieldPoints(header1: str, header2: str, startTime, stopTime):
 # plt.savefig('resources/sims/sefm/exp1/h1a.png', dpi=600)
 
 # Fatigue plot
-ftgPts = read_data_from_file(SIM_FILE_PATH, HUM_FATIGUE + '[0]*1000', 1, 0, 2200)
+def getTime(elem):
+    return elem.time
+
+
+ftgPts = read_data_from_file(SIM_FILE_PATH, ROB_Y_VAR_NAME, 1, 0, 265)
+ftgPts.sort(key=getTime)
 fig, ax = plt.subplots()
 line, = ax.plot(list(map(lambda i: ftgPts[i].time, range(len(ftgPts)))),
-        list(map(lambda i: ftgPts[i].x, range(len(ftgPts)))),
-        '-', linewidth=1.5, color='yellowgreen')
-line.set_label('healthy adult')
+                list(map(lambda i: ftgPts[i].x, range(len(ftgPts)))),
+                '-', linewidth=1.5, color='firebrick')
+line.set_label('R_pos_y')
 ax.legend(loc='upper right')
 
-# advancement = read_data_from_file(SIM_FILE_PATH, HUM_X_VAR_NAME + '[0]', 1, 0, 2000)
-# for p in advancement:
-#     print(str(p.time) + ' ' + str(p.x))
-# ax.plot(list(map(lambda i: advancement[i].time, range(len(advancement)))),
-#         list(map(lambda i: advancement[i].x / 1300 * 1000, range(len(advancement)))),
-#         '-', linewidth=1, color='firebrick')
+ftgPts2 = read_data_from_file(SIM_FILE_PATH, HUM_Y_VAR_NAME+'[0]', 1, 0, 500)
+ftgPts2.sort(key=getTime)
+line2, = ax.plot(list(map(lambda i: ftgPts2[i].time, range(len(ftgPts2)))),
+                list(map(lambda i: ftgPts2[i].x, range(len(ftgPts2)))),
+                '-', linewidth=1.5, color='blue')
+line2.set_label('H1_pos_y')
+ax.legend(loc='upper right')
 
-# SIM_FILE_PATH = "resources/sims/sefm/exp1/exp1b.txt"
-# ftgPts = read_data_from_file(SIM_FILE_PATH, HUM_FATIGUE + '[0]*1000', 1, 0, 2200)
-# line2, = ax.plot(list(map(lambda i: ftgPts[i].time, range(len(ftgPts)))),
-#         list(map(lambda i: ftgPts[i].x, range(len(ftgPts)))),
-#         '-', linewidth=1.5, color='limegreen')
-# line2.set_label('healthy elder')
-# ax.legend(loc='upper right')
-#
-#
-# SIM_FILE_PATH = "resources/sims/sefm/exp1/exp1c.txt"
-# ftgPts = read_data_from_file(SIM_FILE_PATH, HUM_FATIGUE + '[0]*1000', 1, 0, 2200)
-# line3, = ax.plot(list(map(lambda i: ftgPts[i].time, range(len(ftgPts)))),
-#         list(map(lambda i: ftgPts[i].x, range(len(ftgPts)))),
-#         '-', linewidth=1.5, color='darkolivegreen')
-# line3.set_label('SARS patient')
-# ax.legend(loc='upper right')
+ftgPts3 = read_data_from_file(SIM_FILE_PATH, HUM_Y_VAR_NAME+'[1]', 1, 0, 500)
+ftgPts3.sort(key=getTime)
+line2, = ax.plot(list(map(lambda i: ftgPts3[i].time, range(len(ftgPts3)))),
+                list(map(lambda i: ftgPts3[i].x, range(len(ftgPts3)))),
+                '-', linewidth=1.5, color='green')
+line2.set_label('H2_pos_y')
+ax.legend(loc='upper right')
+
 
 plt.xlabel('t [s]')
-plt.ylabel('F [‰]')
-plt.yticks(np.arange(0, 1100, step=100))
-plt.xticks(np.arange(0, 2200, step=200))
-plt.savefig('resources/sims/sefm/exp1/exp1aftg.png', dpi=600, figsize=(3, 6))
+plt.ylabel('pos_y [cm]')
+plt.yticks(np.arange(0, 1400, step=100))
+plt.xticks(np.arange(0, 500, step=200))
+plt.savefig('resources/sims/sefm/exp2/exp2aY.png', dpi=600, figsize=(3, 6))
