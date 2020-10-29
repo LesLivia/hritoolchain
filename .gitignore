@@ -1,0 +1,8 @@
+.idea/hritoolchain.iml
+.idea/misc.xml
+.idea/modules.xml
+.idea/vcs.xml
+.idea/inspectionProfiles/profiles_settings.xml
+it/polimi/hri/domain/__pycache__/hri_constants.cpython-37.pyc
+it/polimi/hri/domain/__pycache__/user_input.cpython-37.pyc
+/resources/
