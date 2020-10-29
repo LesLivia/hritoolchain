@@ -11,7 +11,7 @@ def scale(v, max_v, min_v):
     return v
 
 
-PLOT_TYPE = "pos"
+PLOT_TYPE = "en"
 
 # LOG CONSTANTS
 LOG_PATH = "resources/sim_logs/"
@@ -38,7 +38,7 @@ else:
 VREP_X_OFFSET = +8.15
 VREP_Y_OFFSET = +3.425
 
-fig = plt.figure(figsize=(30, 7))
+fig = plt.figure(figsize=(15, 7))
 plt.xlabel('t [s]', fontsize=24)
 if PLOT_TYPE == 'en':
     plt.ylabel('[%]', fontsize=24)
@@ -98,5 +98,5 @@ for i in range(0, len(VAR_ID)):
         plt.plot(x, y_y, linestyle='-.', color=COLORS[i], label=VAR_ID[i] + 'Y' + ID[i])
 
 plt.legend(prop={'size': 20})
-plt.savefig(SAVE_PATH + EXP_ID + PLOT_TYPE + '.pdf', figsize=(30, 7))
+plt.savefig(SAVE_PATH + EXP_ID + PLOT_TYPE + '.pdf', figsize=(15, 7))
 plt.show()

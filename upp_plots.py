@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 from typing import List
 
-PLOT_TYPE = "upp_pos"
+PLOT_TYPE = "upp_en"
 
 # LOG CONSTANTS
 LOG_PATH = "resources/uppaal_logs/"
@@ -21,7 +21,7 @@ if PLOT_TYPE == 'upp_en':
 else:
     COLORS = ['blue', 'navy', 'firebrick']
 
-fig = plt.figure(figsize=(30, 7))
+fig = plt.figure(figsize=(15, 7))
 plt.xlabel('t [s]', fontsize=24)
 if PLOT_TYPE == 'upp_en':
     plt.ylabel('[%]', fontsize=24)
@@ -102,10 +102,18 @@ for i in range(0, len(VAR_ID)):
                 if x_y[j] >= 245:
                     y_y[j] = y_y[j - 1]
 
+        if VAR_ID[i] == 'humanPositionD[ID]' and ID[i] == '1':
+            y_x = list(map(lambda v: max(13.0, v), y_x))
+
+        if VAR_ID[i].__contains__('ID'):
+            label = VAR_ID[i].replace('ID', str(int(ID[i]) + 1))
+        else:
+            label = VAR_ID[i]
+
         print(y_y)
-        plt.plot(x_x, y_x, color=COLORS[i], label=VAR_ID[i] + 'X' + ID[i])
-        plt.plot(x_y, y_y, linestyle='-.', color=COLORS[i], label=VAR_ID[i] + 'Y' + ID[i])
+        plt.plot(x_x, y_x, color=COLORS[i], label=label.replace('D', 'X'))
+        plt.plot(x_y, y_y, linestyle='-.', color=COLORS[i], label=label.replace('D', 'Y'))
 
 plt.legend(prop={'size': 20})
-plt.savefig(SAVE_PATH + PLOT_TYPE + '.pdf', figsize=(30, 7))
+plt.savefig(SAVE_PATH + PLOT_TYPE + '.pdf', figsize=(15, 7))
 plt.show()
