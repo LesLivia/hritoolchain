@@ -1,33 +1,34 @@
-from typing import List
 from enum import Enum
+from typing import List
 
 
-class SignalPoint:
-    def __init__(self, t: float, humId: int, val: float):
-        self.timestamp = t
-        self.humId = humId
-        self.value = val
-        self.notes: List[str] = []
-
-    def __str__(self):
-        return '(hum {}) {}: {}'.format(self.humId, self.timestamp, self.value)
+class LocLabels(Enum):
+    IDLE = 'idle'
+    BUSY = 'busy'
 
 
-class TimeInterval:
-    def __init__(self, t_min: float, t_max: float):
-        self.t_min = t_min
-        self.t_max = t_max
+class Location:
+    def __init__(self, name: str):
+        self.name = name
 
 
-class Labels(Enum):
-    STARTED = 'walk'
-    STOPPED = 'stop'
+LOCATIONS: List[Location] = [Location(LocLabels.IDLE.value), Location(LocLabels.BUSY.value)]
 
 
-class ChangePoint:
-    def __init__(self, t: TimeInterval, label: Labels):
-        self.dt = t
-        self.event = label
+class Edge:
+    def __init__(self, start: Location, dest: Location, guard: str):
+        self.start = start
+        self.dest = dest
+        self.guard = guard
 
-    def __str__(self):
-        return '({}, {}) -> {}'.format(self.dt.t_min, self.dt.t_max, self.event)
+
+class HybridAutomaton:
+    def __init__(self, loc: List[Location], edges: List[Edge]):
+        self.locations = loc
+        self.edges = edges
+
+    def set_locations(self, loc: List[Location]):
+        self.locations = loc
+
+    def set_edges(self, edges: List[Edge]):
+        self.edges = edges

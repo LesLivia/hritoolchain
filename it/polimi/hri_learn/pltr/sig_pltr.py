@@ -2,7 +2,7 @@ from typing import List
 
 import matplotlib.pyplot as plt
 
-from domain.hafeatures import SignalPoint, ChangePoint, Labels
+from domain.sigfeatures import SignalPoint, ChangePoint, Labels
 
 
 def plot_sig(entries: List[SignalPoint], chg_pts: List[ChangePoint]):

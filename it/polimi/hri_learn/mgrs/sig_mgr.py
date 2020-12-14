@@ -1,6 +1,6 @@
 from typing import List
 
-from domain.hafeatures import SignalPoint, ChangePoint, TimeInterval, Labels
+from domain.sigfeatures import SignalPoint, ChangePoint, TimeInterval, Labels
 
 
 def identify_change_pts(entries: List[SignalPoint]):

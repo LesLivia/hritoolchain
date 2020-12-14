@@ -1,0 +1,11 @@
+digraph hybrid_automaton {
+	rankdir=LR size="8,5"
+	node [shape=circle]
+	idle
+	busy
+	idle -> busy [label="14.0 <= t <= 16.0"]
+	busy -> idle [label="72.0 <= t <= 74.0"]
+	idle -> busy [label="96.0 <= t <= 98.0"]
+	busy -> idle [label="264.0 <= t <= 266.0"]
+	idle -> busy [label="322.0 <= t <= 324.0"]
+}
