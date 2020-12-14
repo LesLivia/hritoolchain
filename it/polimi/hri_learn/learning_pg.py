@@ -1,19 +1,9 @@
 from typing import List
-from graphviz import Digraph
 
+from domain.hafeatures import SignalPoint, ChangePoint
 
-class Entry:
-    def __init__(self, t: int, humId: int, val: float):
-        self.timestamp = t
-        self.humId = humId
-        self.value = val
-        self.notes: List[str] = []
-
-
-
-    def print(self):
-        print('(hum {}) {}: {}'.format(self.humId, self.timestamp, self.value))
-
+import mgrs.sig_mgr as sig_mgr
+import pltr.sig_pltr as sig_pltr
 
 LOG_PATH = "resources/sim_logs/humanFatigue.log"
 HUM_ID = 1
@@ -23,10 +13,17 @@ lines = f.readlines()
 lines = list(filter(lambda l: len(l) > 2, lines))
 lines = list(filter(lambda l: l.split('#')[1] == 'hum' + str(HUM_ID), lines))
 
-entries: List[Entry] = []
+entries: List[SignalPoint] = []
 for line in lines:
     fields = line.split('#')
-    entries.append(Entry(int(fields[0]), int(fields[1].replace('hum', '')), float(fields[2])))
+    entries.append(SignalPoint(float(fields[0]), int(fields[1].replace('hum', '')), float(fields[2])))
+
+change_pts: List[ChangePoint] = sig_mgr.identify_change_pts(entries)
 
 for entry in entries:
-    entry.print()
+    print(entry)
+    change_pt = list(filter(lambda pt: pt.dt.t_min == entry.timestamp, change_pts))
+    if len(change_pt) > 0:
+        print(change_pt[0])
+
+sig_pltr.plot_sig(entries, change_pts)
