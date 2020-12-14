@@ -34,4 +34,4 @@ HUM_HA: HybridAutomaton = HybridAutomaton(LOCATIONS, [])
 edges: List[Edge] = ha_mgr.identify_edges(change_pts)
 HUM_HA.set_edges(edges)
 
-ha_pltr.plot_ha(HUM_HA)
+ha_pltr.plot_ha(HUM_HA, 'ha_1')
