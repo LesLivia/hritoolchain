@@ -5,7 +5,7 @@ from domain.hafeatures import HybridAutomaton
 SAVE_PATH = 'resources/learned_ha/'
 
 
-def plot_ha(ha: HybridAutomaton, name: str):
+def plot_ha(ha: HybridAutomaton, name: str, view=False):
     f = Digraph('hybrid_automaton', filename=SAVE_PATH + name)
     f.attr(rankdir='LR', size='8,5')
     f.attr('node', shape='circle')
@@ -19,4 +19,5 @@ def plot_ha(ha: HybridAutomaton, name: str):
     for edge in edges:
         f.edge(edge.start.name, edge.dest.name, label=edge.guard)
 
-    f.view()
+    if view:
+        f.view()

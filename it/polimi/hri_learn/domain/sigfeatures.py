@@ -1,9 +1,23 @@
-from typing import List
 from enum import Enum
+from typing import List
+
+
+class Position:
+    def __init__(self, x: float, y: float):
+        self.x = x
+        self.y = y
+
+    def __str__(self):
+        return '({}, {})'.format(self.x, self.y)
+
+    @staticmethod
+    def parse_pos(s: str):
+        fields = s.split('#')
+        return Position(float(fields[0]), float(fields[1]))
 
 
 class SignalPoint:
-    def __init__(self, t: float, humId: int, val: float):
+    def __init__(self, t: float, humId: int, val):
         self.timestamp = t
         self.humId = humId
         self.value = val
@@ -11,6 +25,11 @@ class SignalPoint:
 
     def __str__(self):
         return '(hum {}) {}: {}'.format(self.humId, self.timestamp, self.value)
+
+
+class SignalType(Enum):
+    NUMERIC = 'float'
+    POSITION = 'pos'
 
 
 class TimeInterval:
