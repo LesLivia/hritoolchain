@@ -15,7 +15,7 @@ PLOT_TYPE = "en"
 
 # LOG CONSTANTS
 LOG_PATH = "resources/sim_logs/"
-EXP_ID = "exp4/"
+EXP_ID = "exp1b/"
 if PLOT_TYPE == 'en':
     VAR_ID = ["humanFatigue", "humanFatigue", "robotBattery"]
 else:
@@ -30,11 +30,11 @@ ID = ['1', '2', '']
 if PLOT_TYPE == 'en':
     COLORS = ['limegreen', 'green', 'orangered']
     MULT_FACTOR = [13.75, 10, 0.1]
-    Tpoll = [4, 4, 4]
+    Tpoll = [2, 2, 2]
 else:
     COLORS = ['blue', 'navy', 'firebrick']
     MULT_FACTOR = [1, 1, 1]
-    Tpoll = [2, 2, 2]
+    Tpoll = [1, 1, 1]
 VREP_X_OFFSET = +8.15
 VREP_Y_OFFSET = +3.425
 
