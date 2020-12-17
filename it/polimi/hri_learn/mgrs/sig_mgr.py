@@ -56,15 +56,16 @@ def identify_change_pts(entries: List[SignalPoint]):
 def n_predictions(sig: List[SignalPoint], dt: TimeInterval, n: int):
     y_full = list(filter(lambda pt: dt.t_min <= pt.timestamp <= dt.t_max, sig))
     y = list(map(lambda pt: pt.value, y_full))
-    model: ar.AutoReg = ar.AutoReg(y, lags=1)
+    model: ar.AutoReg = ar.AutoReg(y, lags=[1])
     res = model.fit()
-    print('{:.4f} {:.4f}'.format(res.params[0], res.params[1]))
+    # print('{:.6f} {:.6f}'.format(res.params[0], res.params[1]))
     forecasts = res.forecast(n)
     for (index, prediction) in enumerate(forecasts):
         try:
-            explicit = res.params[0] + res.params[1] * forecasts[index - 1]
-            print('{} {}'.format(explicit, prediction))
+            explicit = 1 - math.exp(-0.0005 * (index + dt.t_max - dt.t_min))
+            # print('{:.4f} {:.4f} {:.4f}'.format((prediction - explicit) / explicit * 100, prediction, explicit))
         except IndexError:
             pass
     x_fore = np.arange(dt.t_max, dt.t_max + n)
-    return x_fore, forecasts
+    lambda_est = -math.log(res.params[1])
+    return lambda_est, x_fore, forecasts

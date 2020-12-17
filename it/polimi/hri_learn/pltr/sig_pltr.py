@@ -1,12 +1,13 @@
 from typing import List
 
 import matplotlib.pyplot as plt
+
 import mgrs.sig_mgr as sig_mgr
 from domain.sigfeatures import SignalPoint, ChangePoint, Labels, TimeInterval
 
 
 def plot_sig(entries: List[SignalPoint], chg_pts: List[ChangePoint], with_pred=False):
-    fig = plt.figure(figsize=(20, 10))
+    plt.figure(figsize=(20, 10))
     plt.xlabel('t [s]', fontsize=24)
     plt.ylabel('F [%]', fontsize=24)
     plt.xticks(fontsize=23)
@@ -16,7 +17,7 @@ def plot_sig(entries: List[SignalPoint], chg_pts: List[ChangePoint], with_pred=F
     y_max = list(map(lambda e: e.value, entries))
     y_min = [0] * len(y_max)
     plt.plot(x, y_max, 'k.', label='sensor readings')
-    plt.vlines(x, y_min, y_max, 'gray')
+    plt.vlines(x, y_min, y_max, 'lightgray')
 
     colors = ['turquoise', 'tomato']
     labels = []
@@ -26,15 +27,16 @@ def plot_sig(entries: List[SignalPoint], chg_pts: List[ChangePoint], with_pred=F
         x = list(map(lambda i: i.timestamp, items))
         y = list(map(lambda i: i.value, items))
         if pt.event not in labels:
-            plt.vlines(x, [0] * len(y), [1.0] * len(y), color=color, label=pt.event)
+            plt.vlines(x, [0] * len(y), [max(y)] * len(y), color=color, label=pt.event)
             labels.append(pt.event)
         else:
-            plt.vlines(x, [0] * len(y), [1.0] * len(y), color=color)
+            plt.vlines(x, [0] * len(y), [max(y)] * len(y), color=color)
 
-        if index != 0 and with_pred:
+        if index != 0 and with_pred and pt.event == Labels.STOPPED:
             dt: TimeInterval = TimeInterval(chg_pts[index - 1].dt.t_max, pt.dt.t_min)
             try:
-                x_fore, forecasts = sig_mgr.n_predictions(entries, dt, 5)
+                lambda_est, x_fore, forecasts = sig_mgr.n_predictions(entries, dt, 50)
+                print('{:.5f}'.format(lambda_est))
                 plt.plot(x_fore, forecasts, 'silver')
             except (ValueError, ZeroDivisionError):
                 print('predictions could not be computed')

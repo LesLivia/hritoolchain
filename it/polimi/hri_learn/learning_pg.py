@@ -1,6 +1,11 @@
+import math
 import os
 import warnings
 from typing import List
+
+import matplotlib.pyplot as plt
+import numpy as np
+import statsmodels.tsa.ar_model as ar
 
 import mgrs.ha_mgr as ha_mgr
 import mgrs.sig_mgr as sig_mgr
@@ -19,6 +24,9 @@ HUM_ID = 1
 ROB_ID = 1
 
 SIM_ID = 1
+
+LAMBDA_REAL = 0.0005
+MU_REAL = 0.0005
 
 
 def read_file(path: str, is_hum=True):
