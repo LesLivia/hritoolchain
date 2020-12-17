@@ -1,6 +1,9 @@
 import math
 from typing import List
 
+import numpy as np
+import statsmodels.tsa.ar_model as ar
+
 from domain.sigfeatures import SignalPoint, ChangePoint, TimeInterval, Labels, SignalType, Position
 
 
@@ -48,3 +51,20 @@ def identify_change_pts(entries: List[SignalPoint]):
             change_pts.append(ChangePoint(TimeInterval(entries[index - 1].timestamp, entry.timestamp), label))
 
     return change_pts
+
+
+def n_predictions(sig: List[SignalPoint], dt: TimeInterval, n: int):
+    y_full = list(filter(lambda pt: dt.t_min <= pt.timestamp <= dt.t_max, sig))
+    y = list(map(lambda pt: pt.value, y_full))
+    model: ar.AutoReg = ar.AutoReg(y, lags=1)
+    res = model.fit()
+    print('{:.4f} {:.4f}'.format(res.params[0], res.params[1]))
+    forecasts = res.forecast(n)
+    for (index, prediction) in enumerate(forecasts):
+        try:
+            explicit = res.params[0] + res.params[1] * forecasts[index - 1]
+            print('{} {}'.format(explicit, prediction))
+        except IndexError:
+            pass
+    x_fore = np.arange(dt.t_max, dt.t_max + n)
+    return x_fore, forecasts
