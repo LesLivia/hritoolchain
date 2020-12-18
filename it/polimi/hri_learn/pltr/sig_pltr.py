@@ -31,15 +31,5 @@ def plot_sig(entries: List[SignalPoint], chg_pts: List[ChangePoint], with_pred=F
             labels.append(pt.event)
         else:
             plt.vlines(x, [0] * len(y), [max(y)] * len(y), color=color)
-
-        if index != 0 and with_pred and pt.event == Labels.STOPPED:
-            dt: TimeInterval = TimeInterval(chg_pts[index - 1].dt.t_max, pt.dt.t_min)
-            try:
-                lambda_est, x_fore, forecasts = sig_mgr.n_predictions(entries, dt, 50)
-                print('{:.5f}'.format(lambda_est))
-                plt.plot(x_fore, forecasts, 'silver')
-            except (ValueError, ZeroDivisionError):
-                print('predictions could not be computed')
-
     plt.legend(fontsize=15)
     plt.show()

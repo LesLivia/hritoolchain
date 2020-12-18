@@ -1,17 +1,12 @@
-import math
 import os
 import warnings
 from typing import List
-
-import matplotlib.pyplot as plt
-import numpy as np
-import statsmodels.tsa.ar_model as ar
 
 import mgrs.ha_mgr as ha_mgr
 import mgrs.sig_mgr as sig_mgr
 import pltr.sig_pltr as sig_pltr
 from domain.hafeatures import HybridAutomaton, LOCATIONS, Edge
-from domain.sigfeatures import SignalPoint, ChangePoint, SignalType
+from domain.sigfeatures import SignalPoint, ChangePoint, SignalType, Labels, TimeInterval
 
 warnings.filterwarnings('ignore')
 
@@ -39,12 +34,27 @@ def read_file(path: str, is_hum=True):
     return lines
 
 
+estimated_lambdas = []
+estimated_mus = []
 while os.path.isdir(LOG_PATH.format(SIM_ID)):
     print('-> SIM {}'.format(SIM_ID))
     ftg_lines = read_file(LOG_PATH.format(SIM_ID) + '/' + FTG_LOG)
     ftg_sig: List[SignalPoint] = sig_mgr.read_signal(ftg_lines, SignalType.NUMERIC)
 
     change_pts: List[ChangePoint] = sig_mgr.identify_change_pts(ftg_sig)
+    # PREDICT FUTURE VALUES
+    for (index, pt) in enumerate(change_pts):
+        if index != 0:
+            dt: TimeInterval = TimeInterval(change_pts[index - 1].dt.t_max, pt.dt.t_min)
+            try:
+                param_est, x_fore, forecasts = sig_mgr.n_predictions(ftg_sig, dt, 50)
+                if pt.event == Labels.STOPPED:
+                    estimated_lambdas.append(param_est)
+                else:
+                    estimated_mus.append(param_est)
+            except (ValueError, ZeroDivisionError):
+                pass
+
     sig_pltr.plot_sig(ftg_sig, change_pts, with_pred=True)
 
     # HA with t-guards
@@ -73,3 +83,13 @@ while os.path.isdir(LOG_PATH.format(SIM_ID)):
     # ha_pltr.plot_ha(HUM_HA, 'ha_{}'.format(SIM_ID), view=False)
 
     SIM_ID += 1
+
+print(estimated_lambdas)
+mean_error = sum(list(map(lambda i: (i - LAMBDA_REAL) / LAMBDA_REAL * 100, estimated_lambdas))) / len(
+    estimated_lambdas)
+print('Mean Estimation Error for LAMBDA: {:.4f}%'.format(mean_error))
+
+print(estimated_mus)
+mean_error = sum(list(map(lambda i: (i - MU_REAL) / MU_REAL * 100, estimated_lambdas))) / len(
+    estimated_mus)
+print('Mean Estimation Error for MU: {:.4f}%'.format(mean_error))
