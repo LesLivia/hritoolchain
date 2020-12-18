@@ -2,8 +2,8 @@ import os
 import warnings
 from typing import List
 
-import mgrs.ha_mgr as ha_mgr
 import mgrs.sig_mgr as sig_mgr
+import pltr.ha_pltr as ha_pltr
 import pltr.sig_pltr as sig_pltr
 from domain.hafeatures import HybridAutomaton, LOCATIONS, Edge
 from domain.sigfeatures import SignalPoint, ChangePoint, SignalType, Labels, TimeInterval
@@ -22,6 +22,8 @@ SIM_ID = 1
 
 LAMBDA_REAL = 0.0005
 MU_REAL = 0.0005
+LAMBA_EST: float
+MU_EST: float
 
 
 def read_file(path: str, is_hum=True):
@@ -57,12 +59,6 @@ while os.path.isdir(LOG_PATH.format(SIM_ID)):
 
     sig_pltr.plot_sig(ftg_sig, change_pts, with_pred=True)
 
-    # HA with t-guards
-    HUM_HA: HybridAutomaton = HybridAutomaton(LOCATIONS, [])
-    edges: List[Edge] = ha_mgr.identify_edges(change_pts)
-    HUM_HA.set_edges(edges)
-    # ha_pltr.plot_ha(HUM_HA, 'ha_{}'.format(SIM_ID), view=False)
-
     pos_lines = read_file(LOG_PATH.format(SIM_ID) + '/' + POS_LOG)
     pos_sig: List[SignalPoint] = sig_mgr.read_signal(pos_lines, SignalType.POSITION)
 
@@ -75,21 +71,33 @@ while os.path.isdir(LOG_PATH.format(SIM_ID)):
         if len(rob_pos) > 0:
             dist_sig.append(SignalPoint(pt.timestamp, HUM_ID, sig_mgr.pt_dist(pt.value, rob_pos[0].value)))
     # sig_mgr.print_signal(dist_sig)
-
     # sig_pltr.plot_sig(dist_sig, change_pts)
-
-    edges: List[Edge] = ha_mgr.identify_edges(change_pts, 'dist', dist_sig)
-    HUM_HA.set_edges(edges)
-    # ha_pltr.plot_ha(HUM_HA, 'ha_{}'.format(SIM_ID), view=False)
 
     SIM_ID += 1
 
 print(estimated_lambdas)
-mean_error = sum(list(map(lambda i: (i - LAMBDA_REAL) / LAMBDA_REAL * 100, estimated_lambdas))) / len(
-    estimated_lambdas)
-print('Mean Estimation Error for LAMBDA: {:.4f}%'.format(mean_error))
+try:
+    LAMBDA_EST = sum(estimated_lambdas) / len(estimated_lambdas)
+    mean_error = sum(list(map(lambda i: (i - LAMBDA_REAL) / LAMBDA_REAL * 100, estimated_lambdas))) / len(
+        estimated_lambdas)
+
+    print('Mean Estimation Error for LAMBDA: {:.4f}%'.format(mean_error))
+except ZeroDivisionError:
+    print('No value of LAMBDA could be estimated')
 
 print(estimated_mus)
-mean_error = sum(list(map(lambda i: (i - MU_REAL) / MU_REAL * 100, estimated_lambdas))) / len(
-    estimated_mus)
-print('Mean Estimation Error for MU: {:.4f}%'.format(mean_error))
+try:
+    MU_EST = sum(estimated_mus) / len(estimated_mus)
+    mean_error = sum(list(map(lambda i: (i - MU_REAL) / MU_REAL * 100, estimated_lambdas))) / len(
+        estimated_mus)
+    print('Mean Estimation Error for MU: {:.4f}%'.format(mean_error))
+except ZeroDivisionError:
+    print('No value of MU could be estimated')
+
+# HA with t-guards
+LOCATIONS[0].set_flow_cond('F\' == -Fp*{:.4f}*exp(-{:.4f}*t)'.format(MU_EST, MU_EST))
+LOCATIONS[1].set_flow_cond('F\' == Fp*{:.4f}*exp(-{:.4f}*t)'.format(LAMBDA_EST, LAMBDA_EST))
+HUM_HA: HybridAutomaton = HybridAutomaton(LOCATIONS, [])
+edges: List[Edge] = [Edge(LOCATIONS[0], LOCATIONS[1], 'START?'), Edge(LOCATIONS[1], LOCATIONS[0], 'STOP?')]
+HUM_HA.set_edges(edges)
+ha_pltr.plot_ha(HUM_HA, 'HUM_HA', view=True)

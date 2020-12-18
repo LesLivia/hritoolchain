@@ -8,11 +8,15 @@ class LocLabels(Enum):
 
 
 class Location:
-    def __init__(self, name: str):
+    def __init__(self, name: str, flow_cond: str):
         self.name = name
+        self.flow_cond = flow_cond
+
+    def set_flow_cond(self, flow_cond: str):
+        self.flow_cond = flow_cond
 
 
-LOCATIONS: List[Location] = [Location(LocLabels.IDLE.value), Location(LocLabels.BUSY.value)]
+LOCATIONS: List[Location] = [Location(LocLabels.IDLE.value, None), Location(LocLabels.BUSY.value, None)]
 
 
 class Edge:
