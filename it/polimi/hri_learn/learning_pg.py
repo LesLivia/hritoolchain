@@ -20,9 +20,8 @@ ROB_ID = 1
 
 SIM_ID = 1
 
-LAMBDA_REAL = 0.0005
-MU_REAL = 0.0005
-LAMBA_EST: float
+REAL_PROFILES = [(0.0005, 0.0005), (0.01, 0.004), (0.008, 0.0035)]
+LAMBDA_EST: float
 MU_EST: float
 
 
@@ -36,10 +35,11 @@ def read_file(path: str, is_hum=True):
     return lines
 
 
-estimated_lambdas = []
-estimated_mus = []
 while os.path.isdir(LOG_PATH.format(SIM_ID)):
     print('-> SIM {}'.format(SIM_ID))
+    estimated_lambdas = []
+    estimated_mus = []
+
     ftg_lines = read_file(LOG_PATH.format(SIM_ID) + '/' + FTG_LOG)
     ftg_sig: List[SignalPoint] = sig_mgr.read_signal(ftg_lines, SignalType.NUMERIC)
 
@@ -56,6 +56,41 @@ while os.path.isdir(LOG_PATH.format(SIM_ID)):
                     estimated_mus.append(param_est)
             except (ValueError, ZeroDivisionError):
                 pass
+
+    print(estimated_lambdas)
+    try:
+        LAMBDA_EST = sum(estimated_lambdas) / len(estimated_lambdas)
+        errors = []
+        for (lambda_real, mu_real) in REAL_PROFILES:
+            mean_error = sum(list(map(lambda i: abs(i - lambda_real) / lambda_real * 100, estimated_lambdas))) / len(
+                estimated_lambdas)
+            errors.append(mean_error)
+
+        print('Mean Estimated LAMBDA: {:.6f}'.format(LAMBDA_EST))
+        print('Minimum LAMBDA Estimation Error: {:.6f}%'.format(min(errors)))
+    except ZeroDivisionError:
+        print('No value of LAMBDA could be estimated')
+
+    print(estimated_mus)
+    try:
+        MU_EST = sum(estimated_mus) / len(estimated_mus)
+        errors = []
+        for (lambda_real, mu_real) in REAL_PROFILES:
+            mean_error = sum(list(map(lambda i: abs(i - mu_real) / mu_real * 100, estimated_mus))) / len(estimated_mus)
+            errors.append(mean_error)
+
+        print('Mean Estimated MU: {:.6f}'.format(MU_EST))
+        print('Minimum MU Estimation Error: {:.6f}%'.format(min(errors)))
+    except ZeroDivisionError:
+        print('No value of MU could be estimated')
+
+    # HA with t-guards
+    LOCATIONS[0].set_flow_cond('F\' == -Fp*{:.4f}*exp(-{:.4f}*t)'.format(MU_EST, MU_EST))
+    LOCATIONS[1].set_flow_cond('F\' == Fp*{:.4f}*exp(-{:.4f}*t)'.format(LAMBDA_EST, LAMBDA_EST))
+    HUM_HA: HybridAutomaton = HybridAutomaton(LOCATIONS, [])
+    edges: List[Edge] = [Edge(LOCATIONS[0], LOCATIONS[1], 'START?'), Edge(LOCATIONS[1], LOCATIONS[0], 'STOP?')]
+    HUM_HA.set_edges(edges)
+    ha_pltr.plot_ha(HUM_HA, 'HUM_HA', view=False)
 
     sig_pltr.plot_sig(ftg_sig, change_pts, with_pred=True)
 
@@ -74,30 +109,3 @@ while os.path.isdir(LOG_PATH.format(SIM_ID)):
     # sig_pltr.plot_sig(dist_sig, change_pts)
 
     SIM_ID += 1
-
-print(estimated_lambdas)
-try:
-    LAMBDA_EST = sum(estimated_lambdas) / len(estimated_lambdas)
-    mean_error = sum(list(map(lambda i: (i - LAMBDA_REAL) / LAMBDA_REAL * 100, estimated_lambdas))) / len(
-        estimated_lambdas)
-
-    print('Mean Estimation Error for LAMBDA: {:.4f}%'.format(mean_error))
-except ZeroDivisionError:
-    print('No value of LAMBDA could be estimated')
-
-print(estimated_mus)
-try:
-    MU_EST = sum(estimated_mus) / len(estimated_mus)
-    mean_error = sum(list(map(lambda i: (i - MU_REAL) / MU_REAL * 100, estimated_lambdas))) / len(
-        estimated_mus)
-    print('Mean Estimation Error for MU: {:.4f}%'.format(mean_error))
-except ZeroDivisionError:
-    print('No value of MU could be estimated')
-
-# HA with t-guards
-LOCATIONS[0].set_flow_cond('F\' == -Fp*{:.4f}*exp(-{:.4f}*t)'.format(MU_EST, MU_EST))
-LOCATIONS[1].set_flow_cond('F\' == Fp*{:.4f}*exp(-{:.4f}*t)'.format(LAMBDA_EST, LAMBDA_EST))
-HUM_HA: HybridAutomaton = HybridAutomaton(LOCATIONS, [])
-edges: List[Edge] = [Edge(LOCATIONS[0], LOCATIONS[1], 'START?'), Edge(LOCATIONS[1], LOCATIONS[0], 'STOP?')]
-HUM_HA.set_edges(edges)
-ha_pltr.plot_ha(HUM_HA, 'HUM_HA', view=True)
