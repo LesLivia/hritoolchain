@@ -53,12 +53,15 @@ def identify_change_pts(entries: List[SignalPoint]):
     return change_pts
 
 
-def n_predictions(sig: List[SignalPoint], dt: TimeInterval, n: int):
+def n_predictions(sig: List[SignalPoint], dt: TimeInterval, n: int, order=1):
     y_full = list(filter(lambda pt: dt.t_min <= pt.timestamp <= dt.t_max, sig))
     y = list(map(lambda pt: pt.value, y_full))
-    model: ar.AutoReg = ar.AutoReg(y, lags=[1])
+    model: ar.AutoReg = ar.AutoReg(y, lags=order)
     res = model.fit()
     forecasts = res.forecast(n)
     x_fore = np.arange(dt.t_max, dt.t_max + n)
-    param_est = -math.log(res.params[1])
+    try:
+        param_est = -math.log(res.params[1])
+    except ValueError:
+        param_est = 0
     return param_est, x_fore, forecasts

@@ -6,7 +6,7 @@ import mgrs.sig_mgr as sig_mgr
 from domain.sigfeatures import SignalPoint, ChangePoint, Labels, TimeInterval
 
 
-def plot_sig(entries: List[SignalPoint], chg_pts: List[ChangePoint], with_pred=False):
+def plot_sig(entries: List[SignalPoint], chg_pts: List[ChangePoint], with_pred=False, n_pred=0):
     plt.figure(figsize=(20, 10))
     plt.xlabel('t [s]', fontsize=24)
     plt.ylabel('F [%]', fontsize=24)
@@ -23,13 +23,26 @@ def plot_sig(entries: List[SignalPoint], chg_pts: List[ChangePoint], with_pred=F
     labels = []
     for (index, pt) in enumerate(chg_pts):
         color = colors[0] if pt.event == Labels.STARTED else colors[1]
-        items = list(filter(lambda e: pt.dt.t_min <= e.timestamp <= pt.dt.t_max, entries))
+        items = list(filter(lambda e: pt.dt.t_min <= e.timestamp <= pt.dt.t_min, entries))
         x = list(map(lambda i: i.timestamp, items))
         y = list(map(lambda i: i.value, items))
         if pt.event not in labels:
-            plt.vlines(x, [0] * len(y), [max(y)] * len(y), color=color, label=pt.event)
+            plt.vlines(x, [0] * len(y), y, color=color, label=pt.event)
             labels.append(pt.event)
         else:
-            plt.vlines(x, [0] * len(y), [max(y)] * len(y), color=color)
+            plt.vlines(x, [0] * len(y), y, color=color)
+
+        if with_pred:
+            try:
+                dt = TimeInterval(pt.dt.t_min, chg_pts[index + 1].dt.t_min)
+            except IndexError:
+                entries_ts = [entry.timestamp for entry in entries]
+                dt = TimeInterval(pt.dt.t_min, max(entries_ts))
+            param_est, x_fore, forecasts = sig_mgr.n_predictions(entries, dt, n_pred, order=4)
+            step = entries[len(entries) - 1].timestamp - entries[len(entries) - 2].timestamp
+            x_fore = [(ts_fore - x_fore[0]) * step + ts_fore for ts_fore in x_fore]
+            plt.plot(x_fore, forecasts, 'b.', label='predictions')
+            plt.vlines(x_fore, [0] * n_pred, forecasts, 'blue')
+
     plt.legend(fontsize=15)
     plt.show()

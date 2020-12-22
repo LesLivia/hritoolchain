@@ -1,7 +1,9 @@
+import math
 import os
 import warnings
 from typing import List
 
+import mgrs.hrv_mgr as hrv_mgr
 import mgrs.sig_mgr as sig_mgr
 import pltr.ha_pltr as ha_pltr
 import pltr.sig_pltr as sig_pltr
@@ -35,7 +37,7 @@ def read_file(path: str, is_hum=True):
     return lines
 
 
-while os.path.isdir(LOG_PATH.format(SIM_ID)):
+while os.path.isdir(LOG_PATH.format(SIM_ID)) and True:
     print('-> SIM {}'.format(SIM_ID))
     estimated_lambdas = []
     estimated_mus = []
@@ -92,7 +94,7 @@ while os.path.isdir(LOG_PATH.format(SIM_ID)):
     HUM_HA.set_edges(edges)
     ha_pltr.plot_ha(HUM_HA, 'HUM_HA', view=False)
 
-    sig_pltr.plot_sig(ftg_sig, change_pts, with_pred=True)
+    sig_pltr.plot_sig(ftg_sig, change_pts, with_pred=False)
 
     pos_lines = read_file(LOG_PATH.format(SIM_ID) + '/' + POS_LOG)
     pos_sig: List[SignalPoint] = sig_mgr.read_signal(pos_lines, SignalType.POSITION)
@@ -109,3 +111,43 @@ while os.path.isdir(LOG_PATH.format(SIM_ID)):
     # sig_pltr.plot_sig(dist_sig, change_pts)
 
     SIM_ID += 1
+
+# PLAYGROUND with ECG signal
+print('-----------------------------')
+# index = 0
+# ecg_sig: List[SignalPoint] = []
+# while os.path.isfile('resources/hrv_pg/100m ({}).mat'.format(index)):
+#     mat = sio.loadmat('resources/hrv_pg/100m ({}).mat'.format(index))
+#     start_i = len(ecg_sig)
+#     ecg_data = mat['val'][0]
+#     ecg_data = [SignalPoint((i + start_i) / 360, 1, value / 200) for (i, value) in enumerate(ecg_data)]
+#     ecg_sig += ecg_data
+#     index += 1
+# print(len(ecg_sig))
+# sdnns: List[SignalPoint] = []
+# for i in range(0, len(ecg_sig) - 3600, 3600):
+#     segment = ecg_sig[i:i + 3600]
+#     peaks, res = hrv_mgr.get_hrv_data(segment)
+#     sdnns.append(SignalPoint((i + 3600)/3600, 1, res['hr_mean']))
+# sig_pltr.plot_sig(ecg_sig, [])
+# sig_pltr.plot_sig(sdnns, [])
+
+with open('resources/hrv_pg/S2_respiban.txt') as f:
+    all_lines = f.readlines()
+    all_lines = list(filter(lambda l: not l.startswith('#'), all_lines))
+    sdnns = []
+    sampling_rate = 700
+    window = 60 * sampling_rate
+    end = math.ceil(len(all_lines) / 2) - window
+    for i in range(0, end, window):
+        lines = all_lines[i:window + i]
+        ecg_pts = list(
+            map(lambda l: SignalPoint(float(l.split('	')[0], ) * 1 / sampling_rate, 1, float(l.split('	')[2])),
+                lines))
+        # sig_pltr.plot_sig(ecg_pts, [])
+        peaks, res = hrv_mgr.get_hrv_data(ecg_pts, show=False)
+        sdnns.append(SignalPoint(i, 1, res['sdnn']))
+        print('{:.1f}% completed'.format(i / end * 100))
+    chg_pts = [ChangePoint(TimeInterval(0, 297360), Labels.STOPPED),
+               ChangePoint(TimeInterval(1105440, 1661100), Labels.STARTED)]
+    sig_pltr.plot_sig(sdnns, chg_pts, with_pred=True, n_pred=10)
