@@ -53,17 +53,18 @@ def identify_change_pts(entries: List[SignalPoint]):
     return change_pts
 
 
-def n_predictions(sig: List[SignalPoint], dt: TimeInterval, n: int, order=1):
+def n_predictions(sig: List[SignalPoint], dt: TimeInterval, n: int, order=1, show_formula=False):
     y_full = list(filter(lambda pt: dt.t_min <= pt.timestamp <= dt.t_max, sig))
     y = list(map(lambda pt: pt.value, y_full))
     model: ar.AutoReg = ar.AutoReg(y, lags=order)
     res = model.fit()
-    model_formula = 'x(t) = '
-    for (index, i) in enumerate(res.params):
-        model_formula += '{:.4f}'.format(i)
-        model_formula += 'x(t-{})'.format(index) if index > 0 else ''
-        model_formula += ' + ' if index < len(res.params) - 1 else ''
-    print(model_formula)
+    if show_formula:
+        model_formula = 'x(t) = '
+        for (index, i) in enumerate(res.params):
+            model_formula += '{:.4f}'.format(i)
+            model_formula += '*x(t-{})'.format(index) if index > 0 else ''
+            model_formula += ' + ' if index < len(res.params) - 1 else ''
+        print(model_formula)
     forecasts = res.forecast(n)
     x_fore = np.arange(dt.t_max, dt.t_max + n)
     try:
