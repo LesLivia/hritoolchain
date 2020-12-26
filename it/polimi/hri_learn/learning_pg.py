@@ -1,9 +1,13 @@
-import math
 import os
 import warnings
 from typing import List
 
-import mgrs.hrv_mgr as hrv_mgr
+import biosignalsnotebooks as bsnb
+import matplotlib.pyplot as plt
+from numpy import where
+from scipy.integrate import cumtrapz
+from scipy.signal import periodogram
+
 import mgrs.sig_mgr as sig_mgr
 import pltr.ha_pltr as ha_pltr
 import pltr.sig_pltr as sig_pltr
@@ -37,7 +41,7 @@ def read_file(path: str, is_hum=True):
     return lines
 
 
-while os.path.isdir(LOG_PATH.format(SIM_ID)) and True:
+while os.path.isdir(LOG_PATH.format(SIM_ID)) and False:
     print('-> SIM {}'.format(SIM_ID))
     estimated_lambdas = []
     estimated_mus = []
@@ -114,40 +118,56 @@ while os.path.isdir(LOG_PATH.format(SIM_ID)) and True:
 
 # PLAYGROUND with ECG signal
 print('-----------------------------')
-# index = 0
-# ecg_sig: List[SignalPoint] = []
-# while os.path.isfile('resources/hrv_pg/100m ({}).mat'.format(index)):
-#     mat = sio.loadmat('resources/hrv_pg/100m ({}).mat'.format(index))
-#     start_i = len(ecg_sig)
-#     ecg_data = mat['val'][0]
-#     ecg_data = [SignalPoint((i + start_i) / 360, 1, value / 200) for (i, value) in enumerate(ecg_data)]
-#     ecg_sig += ecg_data
-#     index += 1
-# print(len(ecg_sig))
-# sdnns: List[SignalPoint] = []
-# for i in range(0, len(ecg_sig) - 3600, 3600):
-#     segment = ecg_sig[i:i + 3600]
-#     peaks, res = hrv_mgr.get_hrv_data(segment)
-#     sdnns.append(SignalPoint((i + 3600)/3600, 1, res['hr_mean']))
-# sig_pltr.plot_sig(ecg_sig, [])
-# sig_pltr.plot_sig(sdnns, [])
 
-with open('resources/hrv_pg/S2_respiban.txt') as f:
-    all_lines = f.readlines()
-    all_lines = list(filter(lambda l: not l.startswith('#'), all_lines))
-    sdnns = []
+
+def line_to_emg(line: str):
     sampling_rate = 700
-    window = 60 * sampling_rate
-    end = math.ceil(len(all_lines) / 2) - window
-    for i in range(0, end, window):
-        lines = all_lines[i:window + i]
-        ecg_pts = list(
-            map(lambda l: SignalPoint(float(l.split('	')[0], ) * 1 / sampling_rate, 1, float(l.split('	')[2])),
-                lines))
-        # sig_pltr.plot_sig(ecg_pts, [])
-        peaks, res = hrv_mgr.get_hrv_data(ecg_pts, show=False)
-        sdnns.append(SignalPoint(i, 1, res['sdnn']))
-        print('{:.1f}% completed'.format(i / end * 100))
-    chg_pts = [ChangePoint(TimeInterval(0, 297360), Labels.STOPPED),
-               ChangePoint(TimeInterval(1105440, 1661100), Labels.STARTED)]
-    sig_pltr.plot_sig(sdnns, chg_pts, with_pred=True, n_pred=10)
+    fields = line.split('	')
+    timestamp = float(fields[0], ) * 1 / sampling_rate
+    # ((signal/chan_bit-0.5)*vcc)
+    emg = (float(fields[4]) / 2 ** 16 - 0.5) * 3
+    return SignalPoint(timestamp, 1, emg)
+
+
+data, header = bsnb.load_signal('emg_fatigue', get_header=True)
+mac = "00:07:80:79:6F:DB"  # Mac-address
+channel = "CH" + str(header["channels"][0])
+sr = header["sampling rate"]
+resolution = 16  # Resolution (number of available bits)
+signal_mv = data[channel]
+vcc = 3000  # mV
+gain = 1000
+time = bsnb.generate_time(signal_mv, sr)
+
+plt.figure(figsize=(30, 5))
+plt.plot(time, signal_mv)
+
+emg_data = []
+for (index, val) in enumerate(signal_mv):
+    emg_data.append(SignalPoint(time[index], 1, val))
+
+print(len(emg_data))
+activation_begin, activation_end = bsnb.detect_emg_activations([point.value for point in emg_data], sr)[
+                                   :2]
+median_freq_data = []
+mean_freq_data = [100]
+for (index, start) in enumerate(activation_begin):
+    emg_pts = emg_data[start: activation_end[index]]
+    freqs, power = periodogram([point.value for point in emg_pts], fs=sr)
+    area_freq = cumtrapz(power, freqs, initial=0)
+    total_power = area_freq[-1]
+    # MDF
+    median_freq_data += [freqs[where(area_freq >= total_power / 2)[0][0]]]
+    # MNF
+    mnf = sum(freqs * power) / sum(power)
+    mean_freq_data.append(1 - mnf / mean_freq_data[0])
+
+bursts = [0] + [x/sr for x in activation_end]
+print(bursts)
+param_est, x_fore, forecasts = sig_mgr.n_predictions(
+    [SignalPoint(bursts[index], 1, f) for (index, f) in enumerate(mean_freq_data)],
+    TimeInterval(0, bursts[-1]), 200, order=1,
+    show_formula=True)
+plt.figure()
+plt.plot(bursts, mean_freq_data, 'b', x_fore, forecasts, 'r')
+plt.show()

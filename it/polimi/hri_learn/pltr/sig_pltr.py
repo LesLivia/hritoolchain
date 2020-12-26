@@ -9,7 +9,7 @@ from domain.sigfeatures import SignalPoint, ChangePoint, Labels, TimeInterval
 
 
 def plot_sig(entries: List[SignalPoint], chg_pts: List[ChangePoint], with_pred=False, n_pred=0):
-    plt.figure(figsize=(20, 10))
+    plt.figure(figsize=(30, 10))
     plt.xlabel('t [s]', fontsize=24)
     plt.ylabel('F [%]', fontsize=24)
     plt.xticks(fontsize=23)
@@ -40,7 +40,7 @@ def plot_sig(entries: List[SignalPoint], chg_pts: List[ChangePoint], with_pred=F
             except IndexError:
                 entries_ts = [entry.timestamp for entry in entries]
                 dt = TimeInterval(pt.dt.t_min, max(entries_ts))
-            param_est, x_fore, forecasts = sig_mgr.n_predictions(entries, dt, n_pred, order=5, show_formula=True)
+            param_est, x_fore, forecasts = sig_mgr.n_predictions(entries, dt, n_pred, order=4, show_formula=True)
             step = entries[len(entries) - 1].timestamp - entries[len(entries) - 2].timestamp
             x_fore = [(ts_fore - x_fore[0]) * step + ts_fore for ts_fore in x_fore]
             plt.plot(x_fore, forecasts, 'b.', label='predictions')
