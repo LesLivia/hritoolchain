@@ -69,6 +69,6 @@ def n_predictions(sig: List[SignalPoint], dt: TimeInterval, n: int, order=1, sho
     x_fore = np.arange(dt.t_max, dt.t_max + n)
     try:
         param_est = -math.log(res.params[1])
-    except ValueError:
+    except (ValueError, IndexError):
         param_est = 0
-    return param_est, x_fore, forecasts
+    return res.params, x_fore, forecasts

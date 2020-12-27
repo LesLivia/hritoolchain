@@ -1,12 +1,15 @@
+import math
 import os
 import warnings
 from typing import List
 
 import biosignalsnotebooks as bsnb
 import matplotlib.pyplot as plt
+import numpy as np
 from numpy import where
 from scipy.integrate import cumtrapz
 from scipy.signal import periodogram
+from sklearn.linear_model import LinearRegression
 
 import mgrs.sig_mgr as sig_mgr
 import pltr.ha_pltr as ha_pltr
@@ -146,11 +149,10 @@ emg_data = []
 for (index, val) in enumerate(signal_mv):
     emg_data.append(SignalPoint(time[index], 1, val))
 
-print(len(emg_data))
 activation_begin, activation_end = bsnb.detect_emg_activations([point.value for point in emg_data], sr)[
                                    :2]
 median_freq_data = []
-mean_freq_data = [100]
+mean_freq_data = []
 for (index, start) in enumerate(activation_begin):
     emg_pts = emg_data[start: activation_end[index]]
     freqs, power = periodogram([point.value for point in emg_pts], fs=sr)
@@ -160,14 +162,29 @@ for (index, start) in enumerate(activation_begin):
     median_freq_data += [freqs[where(area_freq >= total_power / 2)[0][0]]]
     # MNF
     mnf = sum(freqs * power) / sum(power)
-    mean_freq_data.append(1 - mnf / mean_freq_data[0])
+    mean_freq_data.append(math.log(mnf))
 
-bursts = [0] + [x/sr for x in activation_end]
+bursts = [x / sr for x in activation_end]
 print(bursts)
-param_est, x_fore, forecasts = sig_mgr.n_predictions(
-    [SignalPoint(bursts[index], 1, f) for (index, f) in enumerate(mean_freq_data)],
-    TimeInterval(0, bursts[-1]), 200, order=1,
-    show_formula=True)
+print(mean_freq_data)
+
+model = LinearRegression()
+model.fit(np.array(bursts).reshape((-1, 1)), mean_freq_data)
+q = model.intercept_
+m = model.coef_
+print('ESTIMATED RATE: {}'.format(m))
+x = np.arange(0, 1700, 0.1)
+est_values = [q + m * t for t in x]
+
 plt.figure()
-plt.plot(bursts, mean_freq_data, 'b', x_fore, forecasts, 'r')
+plt.plot(bursts, mean_freq_data, 'b', x, est_values, 'r')
+plt.show()
+
+plt.figure()
+x = np.arange(0, 2000, 1)
+exp_ftg = [1 - math.exp(-math.fabs(m) * t) for t in x]
+MET = len(list(filter(lambda p: p < 0.98, exp_ftg)))
+print('MET: {}, ln(MNF[MET]): {}'.format(MET, q + m * MET))
+
+plt.plot(x[:MET], [1 - math.exp(-math.fabs(m) * t) for t in x[:MET]])
 plt.show()
