@@ -1,21 +1,11 @@
 import math
-import os
-import warnings
 from typing import List
 
 import biosignalsnotebooks as bsnb
-import matplotlib.pyplot as plt
 import numpy as np
-from numpy import where
-from scipy.integrate import cumtrapz
+from scipy import signal
 from scipy.signal import periodogram
 from sklearn.linear_model import LinearRegression
-import scipy.io
-import mgrs.sig_mgr as sig_mgr
-import pltr.ha_pltr as ha_pltr
-import pltr.sig_pltr as sig_pltr
-from domain.hafeatures import HybridAutomaton, LOCATIONS, Edge
-from domain.sigfeatures import SignalPoint, ChangePoint, SignalType, Labels, TimeInterval
 
 
 def get_bursts(emg_data: List[float], sr: int):
@@ -31,7 +21,19 @@ def calculate_mnf(emg_data: List[float], sr: int):
         # MNF
         mnf = sum(freqs * power) / sum(power)
         mean_freq_data.append(math.log(mnf))
-    return mean_freq_data
+
+    # First, design the Buterworth filter
+    N = 3  # Filter order
+    Wn = 0.3  # Cutoff frequency
+    B, A = signal.butter(N, Wn, output='ba')
+    cf = 0.0001
+    smooth_data = signal.filtfilt(B, A, mean_freq_data)
+    smooth_data = [i * (1 - cf * index) for (index, i) in enumerate(smooth_data)]
+    # plt.plot(mean_freq_data, 'r-')
+    # plt.plot(smooth_data, 'b-')
+    # plt.show()
+
+    return smooth_data
 
 
 def mnf_lin_reg(mean_freq_data: List[float], bursts: List[float]):
@@ -41,7 +43,6 @@ def mnf_lin_reg(mean_freq_data: List[float], bursts: List[float]):
     m = model.coef_
     if m > 0:
         raise ValueError
-    print('ESTIMATED RATE: {:.6f}'.format(math.fabs(m)))
     x = np.arange(0, max(bursts), 0.1)
     est_values = [q + m * t for t in x]
     return q, m, x, est_values
