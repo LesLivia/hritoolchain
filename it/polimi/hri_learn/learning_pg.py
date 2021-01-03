@@ -1,15 +1,9 @@
 import math
 import os
-import random
 import warnings
 from typing import List
 
-import biosignalsnotebooks as bsnb
-import matplotlib.pyplot as plt
-import numpy as np
-import scipy.io
-
-import mgrs.emg_mgr as emg_mgr
+import mgrs.dryad_mgr as dryad_mgr
 import mgrs.sig_mgr as sig_mgr
 import pltr.ha_pltr as ha_pltr
 import pltr.sig_pltr as sig_pltr
@@ -121,70 +115,6 @@ while os.path.isdir(LOG_PATH.format(SIM_ID)) and False:
 # PLAYGROUND with ECG signal
 print('-----------------------------')
 
-# data, header = bsnb.load_signal('emg_fatigue', get_header=True)
-# mac = "00:07:80:79:6F:DB"  # Mac-address
-# channel = "CH" + str(header["channels"][0])
-# sr = header["sampling rate"]
-# resolution = 16  # Resolution (number of available bits)
-# signal_mv = data[channel]
-# vcc = 3000  # mV
-# gain = 1000
-# time = bsnb.generate_time(signal_mv, sr)
-
-INDEX = 5
-category = 'y'
-muscle = 3
-count = 0
-MAX = 35
-
-est_lambdas = []
-METs = []
-while os.path.isdir('resources/hrv_pg/{}{}'.format(category, INDEX)) and count < MAX:
-    trial = random.randint(1, 10)
-    print('SUBJECT {}{}, trial {}'.format(category, INDEX, trial))
-    df = scipy.io.loadmat('resources/hrv_pg/{}{}/rawdata.mat'.format(category, INDEX))
-    mask = scipy.io.loadmat('resources/hrv_pg/{}{}/spikeindicator.mat'.format(category, INDEX))
-    try:
-        to_use = mask['trial{}sd'.format(trial)][:, muscle].astype(np.bool)
-    except IndexError:
-        muscle = 0
-        to_use = mask['trial{}sd'.format(trial)][:, muscle].astype(np.bool)
-    sr = 1080
-    signal_mv = df['trial{}'.format(trial)][~to_use, muscle]
-    lim = int(5 * 60 * sr)
-    signal_mv = signal_mv[:lim]
-    time = bsnb.generate_time(signal_mv, sr)
-
-    # plt.figure(figsize=(30, 5))
-    # plt.plot(time, signal_mv)
-    # plt.show()
-    try:
-        mean_freq_data = emg_mgr.calculate_mnf(signal_mv, sr)
-
-        b_s, b_e = emg_mgr.get_bursts(signal_mv, sr)
-        bursts = b_e / sr
-        q, m, x, est_values = emg_mgr.mnf_lin_reg(mean_freq_data, bursts)
-
-        est_lambda = math.fabs(m)
-        MET = math.log(1 - 0.95) / -est_lambda / 60
-        est_lambdas.append(math.fabs(m))
-        METs.append(MET)
-        print('ESTIMATED RATE: {:.6f}, MET: {:.2f}min'.format(est_lambda, MET))
-
-        plt.figure()
-        plt.plot(bursts, mean_freq_data, 'b', x, est_values, 'r')
-        plt.show()
-    except ValueError:
-        print('invalid data')
-
-    if (category == 'y' and INDEX < 21) or (category == 'e'):
-        INDEX += 1
-    else:
-        print('switching to elders')
-        category = 'e'
-        INDEX = 7
-    count = count + 1
-
-plt.figure()
-plt.plot(METs)
-plt.show()
+SPEEDS_PATH = 'resources/hrv_pg/dryad_data/walking_speeds.txt'
+TRIALS = dryad_mgr.acquire_trials_list(SPEEDS_PATH)
+TRIALS = dryad_mgr.fill_emg_signals('resources/hrv_pg/dryad_data', TRIALS)
