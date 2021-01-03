@@ -41,10 +41,16 @@ class Muscles(Enum):
 class Mode(Enum):
     WALKING = 1
     RESTING = 0
+    ERROR = -1
 
     @staticmethod
     def int_to_mode(x: int):
-        return Mode.WALKING if x == 1 else Mode.RESTING
+        if x == 1:
+            return Mode.WALKING
+        elif x == 0:
+            return Mode.RESTING
+        else:
+            return Mode.ERROR
 
 
 class Trial:
