@@ -118,3 +118,8 @@ print('-----------------------------')
 SPEEDS_PATH = 'resources/hrv_pg/dryad_data/walking_speeds.txt'
 TRIALS = dryad_mgr.acquire_trials_list(SPEEDS_PATH)
 TRIALS = dryad_mgr.fill_emg_signals('resources/hrv_pg/dryad_data', TRIALS)
+
+y5_trial1 = list(filter(lambda t: t.group == dryad_mgr.Group.YOUNG and t.sub_id == 5 and t.trial_id == 2, TRIALS))[0]
+y5_trial1 = dryad_mgr.load_emg_signal('resources/hrv_pg/dryad_data', y5_trial1)
+
+dryad_mgr.prog_trial_proc(y5_trial1)

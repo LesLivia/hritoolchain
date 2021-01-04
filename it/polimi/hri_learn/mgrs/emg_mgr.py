@@ -34,7 +34,7 @@ def calculate_mnf(emg_data: List[float], sr: int):
     return smooth_data
 
 
-def mnf_lin_reg(mean_freq_data: List[float], bursts: List[float]):
+def mnf_lin_reg(mean_freq_data: List[float], bursts: List[float], plot=True):
     model = LinearRegression()
     model.fit(np.array(bursts).reshape((-1, 1)), mean_freq_data)
     q = model.intercept_
@@ -42,8 +42,9 @@ def mnf_lin_reg(mean_freq_data: List[float], bursts: List[float]):
     x = np.arange(0, max(bursts), 0.1)
     est_values = [q + m * t for t in x]
 
-    plt.plot(mean_freq_data, 'b-')
-    plt.plot(x, est_values, 'r-')
-    plt.show()
+    if plot:
+        plt.plot(mean_freq_data, 'b-')
+        plt.plot(x, est_values, 'r-')
+        plt.show()
 
     return q, m, x, est_values
