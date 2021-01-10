@@ -3,6 +3,7 @@ import os
 import warnings
 from typing import List
 
+import matplotlib.pyplot as plt
 import mgrs.dryad_mgr as dryad_mgr
 import mgrs.sig_mgr as sig_mgr
 import pltr.ha_pltr as ha_pltr
@@ -115,11 +116,20 @@ while os.path.isdir(LOG_PATH.format(SIM_ID)) and False:
 # PLAYGROUND with ECG signal
 print('-----------------------------')
 
-SPEEDS_PATH = 'resources/hrv_pg/dryad_data/walking_speeds.txt'
-TRIALS = dryad_mgr.acquire_trials_list(SPEEDS_PATH)
-TRIALS = dryad_mgr.fill_emg_signals('resources/hrv_pg/dryad_data', TRIALS)
+f = open('resources/sim_logs/emg_to_ftg.log', 'r')
+lines = f.readlines()
+y = [float(line.split(')')[1]) for line in lines]
+plt.figure()
+plt.plot(y)
+plt.show()
 
-y5_trial1 = list(filter(lambda t: t.group == dryad_mgr.Group.YOUNG and t.sub_id == 5 and t.trial_id == 2, TRIALS))[0]
-y5_trial1 = dryad_mgr.load_emg_signal('resources/hrv_pg/dryad_data', y5_trial1)
-
-dryad_mgr.prog_trial_proc(y5_trial1)
+# SPEEDS_PATH = 'resources/hrv_pg/dryad_data/walking_speeds.txt'
+# TRIALS = dryad_mgr.acquire_trials_list(SPEEDS_PATH)
+# TRIALS = dryad_mgr.fill_emg_signals('resources/hrv_pg/dryad_data', TRIALS)
+# #
+# test_trial = list(filter(lambda t: t.group == dryad_mgr.Group.YOUNG and t.sub_id == 5 and t.trial_id == 3, TRIALS))[0]
+# test_trial = dryad_mgr.load_emg_signal('resources/hrv_pg/dryad_data', test_trial)
+#
+# dryad_mgr.process_trial(test_trial, dump=False, cf=0)
+# dryad_mgr.prog_trial_proc(test_trial, initial_guess=0.0005, cf=0.0001)
+# dryad_mgr.prog_trial_proc_tpoll(test_trial, 10, initial_guess=0.0005, cf=0.0001)

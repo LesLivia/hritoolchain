@@ -13,7 +13,7 @@ def get_bursts(emg_data: List[float], sr: int):
     return bsnb.detect_emg_activations(emg_data, sr)[:2]
 
 
-def calculate_mnf(emg_data: List[float], sr: int):
+def calculate_mnf(emg_data: List[float], sr: int, cf=0):
     b_s, b_e = get_bursts(emg_data, sr)
     mean_freq_data = []
     for (index, start) in enumerate(b_s):
@@ -27,7 +27,6 @@ def calculate_mnf(emg_data: List[float], sr: int):
     N = 3  # Filter order
     Wn = 0.3  # Cutoff frequency
     B, A = signal.butter(N, Wn, output='ba')
-    cf = 0
     smooth_data = signal.filtfilt(B, A, mean_freq_data)
     smooth_data = [i * (1 - cf * index) for (index, i) in enumerate(smooth_data)]
 

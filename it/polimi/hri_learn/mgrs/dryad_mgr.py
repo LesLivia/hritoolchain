@@ -19,7 +19,13 @@ class Emg:
         self.val = val
 
     def __str__(self):
-        return '{}\t{}\n'.format(self.t, self.val)
+        formatted_t = '{:.15f}'.format(self.t)
+        if int(self.t) < 10:
+            formatted_t = '00' + formatted_t
+        elif 10 <= int(self.t) < 100:
+            formatted_t = '0' + formatted_t
+
+        return '{}\t{:+.17f}\n'.format(formatted_t, self.val)
 
 
 class Group(Enum):
@@ -130,9 +136,13 @@ def fill_emg_signals(path: str, trials: List[Trial], dump=True):
 
         if t.mode is not None:
             print('Subject already processed')
-            continue
+            if t == trials[-1]:
+                break
+            else:
+                continue
 
         t = load_emg_signal(path, t)
+
         process_trial(t, dump=True)
 
         if os.path.isfile('{}/dump/{}{}/trial{}.txt'.format(path, group_char, t.sub_id, trial)) and os.path.getsize(
@@ -152,10 +162,10 @@ def fill_emg_signals(path: str, trials: List[Trial], dump=True):
     return trials
 
 
-def process_trial(trial: Trial, dump=False):
+def process_trial(trial: Trial, dump=False, cf=0):
     try:
         signal = [x.val for x in trial.emg]
-        mean_freq_data = emg_mgr.calculate_mnf(signal, SAMPLING_RATE)
+        mean_freq_data = emg_mgr.calculate_mnf(signal, SAMPLING_RATE, cf)
 
         b_s, b_e = emg_mgr.get_bursts(signal, SAMPLING_RATE)
         bursts = b_e / SAMPLING_RATE
@@ -180,7 +190,7 @@ def process_trial(trial: Trial, dump=False):
         print('An error occurred')
 
 
-def prog_trial_proc(trial: Trial, initial_guess=None):
+def prog_trial_proc(trial: Trial, initial_guess=None, cf=0):
     signal_mv = [x.val for x in trial.emg]
 
     b_s, b_e = emg_mgr.get_bursts(signal_mv, SAMPLING_RATE)
@@ -204,22 +214,112 @@ def prog_trial_proc(trial: Trial, initial_guess=None):
             N = 3  # Filter order
             Wn = 0.3  # Cutoff frequency
             B, A = signal.butter(N, Wn, output='ba')
-            cf = 0.0001
             smooth_data = signal.filtfilt(B, A, mean_freq_data)
             mean_freq_data = [i * (1 - cf * index) for (index, i) in enumerate(smooth_data)]
 
             bursts = subset_b_e / SAMPLING_RATE
             q, m, x, est_values = emg_mgr.mnf_lin_reg(mean_freq_data, bursts, plot=False)
-            est_lambda = math.fabs(m)
-            try:
-                MET = math.log(1 - 0.95) / -est_lambda / 60
+            if m < 0:
+                est_lambda = math.fabs(m)
+                MET = math.log(1 - 0.05) / -est_lambda
                 print('ESTIMATED RATE: {:.6f}, MET: {:.2f}min'.format(est_lambda, MET))
-            except ZeroDivisionError:
-                print('lambda is 0')
+            else:
+                est_lambda = initial_guess
             est_lambdas.append(est_lambda)
         except ValueError:
             print('insufficient bursts ({} of {})'.format(i, len(b_e)))
 
-    plt.figure(figsize=(5, 10))
+    plt.figure(figsize=(10, 5))
     plt.plot(est_lambdas)
+
+    avg_lambdas = []
+    for i in range(len(est_lambdas)):
+        try:
+            avg = sum(est_lambdas[:i]) / i
+            avg_lambdas.append(avg)
+        except ZeroDivisionError:
+            avg_lambdas.append(initial_guess)
+    plt.plot(avg_lambdas, 'r')
+    plt.show()
+
+    F = [1 - math.exp(-l * t) for (t, l) in enumerate(est_lambdas)]
+    F_avg = [1 - math.exp(-l * t) for (t, l) in enumerate(avg_lambdas)]
+    F_init = [1 - math.exp(-initial_guess * t) for (t, l) in enumerate(avg_lambdas)]
+    F_post = [1 - math.exp(-avg_lambdas[-1] * t) for (t, l) in enumerate(avg_lambdas)]
+    print(F_post)
+    plt.figure(figsize=(10, 5))
+    plt.plot(F, label='instantaneous l')
+    plt.plot(F_avg, 'r', label='avg. l')
+    plt.plot(F_init, 'g', label='initial guess')
+    plt.plot(F_post, 'k', label='post. l')
+    plt.plot()
+    plt.legend()
+    plt.show()
+
+
+def prog_trial_proc_tpoll(trial: Trial, t_poll: float, initial_guess=None, cf=0):
+    signal_mv = [x.val for x in trial.emg]
+    est_lambdas = []
+
+    for i in np.arange(0, len(signal_mv), t_poll * SAMPLING_RATE):
+        b_s, b_e = emg_mgr.get_bursts(signal_mv[:i], SAMPLING_RATE)
+        try:
+            mean_freq_data = []
+            for (index, start) in enumerate(b_s):
+                emg_pts = signal_mv[start: b_e[index]]
+                freqs, power = periodogram(emg_pts, fs=SAMPLING_RATE)
+                # MNF
+                try:
+                    mnf = sum(freqs * power) / sum(power)
+                    mean_freq_data.append(math.log(mnf))
+                except ZeroDivisionError:
+                    print('error in division')
+
+            # First, design the Buterworth filter
+            N = 3  # Filter order
+            Wn = 0.3  # Cutoff frequency
+            B, A = signal.butter(N, Wn, output='ba')
+            smooth_data = signal.filtfilt(B, A, mean_freq_data)
+            mean_freq_data = [i * (1 - cf * index) for (index, i) in enumerate(smooth_data)]
+
+            bursts = b_e / SAMPLING_RATE
+            q, m, x, est_values = emg_mgr.mnf_lin_reg(mean_freq_data, bursts, plot=False)
+            if m < 0:
+                est_lambda = math.fabs(m)
+                MET = math.log(1 - 0.05) / -est_lambda
+                print('ESTIMATED RATE: {:.6f}, MET: {:.2f}min'.format(est_lambda, MET))
+            else:
+                est_lambda = initial_guess
+            est_lambdas.append(est_lambda)
+        except ValueError:
+            print('insufficient bursts ({} of {})'.format(i, len(b_e)))
+            est_lambdas.append(initial_guess)
+
+    t = [t * t_poll for (t, l) in enumerate(est_lambdas)]
+
+    plt.figure(figsize=(10, 5))
+    plt.plot(t, est_lambdas)
+
+    avg_lambdas = []
+    for i in range(len(est_lambdas)):
+        try:
+            avg = sum(est_lambdas[:i]) / i
+            avg_lambdas.append(avg)
+        except ZeroDivisionError:
+            avg_lambdas.append(initial_guess)
+    plt.plot(t, avg_lambdas, 'r')
+    plt.show()
+
+    F = [1 - math.exp(-l * t * t_poll) for (t, l) in enumerate(est_lambdas)]
+    F_avg = [1 - math.exp(-l * t * t_poll) for (t, l) in enumerate(avg_lambdas)]
+    F_init = [1 - math.exp(-initial_guess * t * t_poll) for (t, l) in enumerate(avg_lambdas)]
+    F_post = [1 - math.exp(-avg_lambdas[-1] * t * t_poll) for (t, l) in enumerate(avg_lambdas)]
+    print(F_post)
+    plt.figure(figsize=(10, 5))
+    # plt.plot(t, F, label='instantaneous l')
+    plt.plot(t, F_avg, 'r', label='avg. l')
+    plt.plot(t, F_init, 'g', label='initial guess')
+    plt.plot(t, F_post, 'k', label='post. l')
+    plt.plot()
+    plt.legend()
     plt.show()
