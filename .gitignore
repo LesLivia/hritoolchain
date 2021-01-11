@@ -6,4 +6,4 @@
 it/polimi/hri/domain/__pycache__/hri_constants.cpython-37.pyc
 it/polimi/hri/domain/__pycache__/user_input.cpython-37.pyc
 /resources/
-.*.h5
+*.h5
