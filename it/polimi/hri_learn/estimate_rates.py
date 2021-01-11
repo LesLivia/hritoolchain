@@ -1,5 +1,9 @@
-import mgrs.emg_mgr as emg_mgr
+import math
+
 import matplotlib.pyplot as plt
+import numpy as np
+
+import mgrs.emg_mgr as emg_mgr
 
 
 def parse_float(x: str):
@@ -20,8 +24,10 @@ def line_to_sig(line: str, state: str):
 
 LOG_PATH = 'resources/sim_logs/humanFatigue.log'
 SAMPLING_RATE = 1080
+T_POLL = 2.0
+CORRECTION_FACTOR = 0
 INIT_LAMBDA = 0.0005
-INIT_MU = 0.0005
+INIT_MU = 0.0002
 
 f = open(LOG_PATH)
 lines = f.readlines()
@@ -46,18 +52,46 @@ plt.figure(figsize=(10, 5))
 plt.plot(signal_rest)
 plt.show()
 
-try:
-    mnf = emg_mgr.calculate_mnf(signal_mov, SAMPLING_RATE, cf=0)
-    b_s, b_e = emg_mgr.get_bursts(signal_mov, SAMPLING_RATE)
-    q, m, x, est_values = emg_mgr.mnf_lin_reg(mnf, b_e / SAMPLING_RATE, plot=True)
-    print(m)
-except ValueError:
-    print(INIT_LAMBDA)
+lambdas = []
+for i in np.arange(0, len(signal_mov), SAMPLING_RATE * T_POLL):
+    sig = signal_mov[:int(i)]
+    try:
+        mnf = emg_mgr.calculate_mnf(sig, SAMPLING_RATE, cf=CORRECTION_FACTOR)
+        b_s, b_e = emg_mgr.get_bursts(sig, SAMPLING_RATE)
+        # plt.plot(sig)
+        # plt.plot(b_s, [0] * len(b_s), 'w.')
+        # plt.plot(b_e, [0] * len(b_e), 'r.')
+        # plt.show()
+        q, m, x, est_values = emg_mgr.mnf_lin_reg(mnf, b_e / SAMPLING_RATE, plot=False)
+        if m >= 0:
+            raise ValueError
+        print('EST LAMBDA: {}'.format(math.fabs(m)))
+        lambdas.append(math.fabs(m))
+    except ValueError:
+        # print(INIT_LAMBDA)
+        lambdas.append(INIT_LAMBDA)
 
-try:
-    mnf = emg_mgr.calculate_mnf(signal_rest, SAMPLING_RATE, cf=0)
-    b_s, b_e = emg_mgr.get_bursts(signal_rest, SAMPLING_RATE)
-    q, m, x, est_values = emg_mgr.mnf_lin_reg(mnf, b_e / SAMPLING_RATE, plot=True)
-    print(m)
-except ValueError:
-    print(INIT_MU)
+avg_lambda = sum(lambdas) / len(lambdas)
+print('FINAL AVG LAMBDA: {:.4f}'.format(avg_lambda))
+
+mus = []
+for i in np.arange(0, len(signal_rest), SAMPLING_RATE * T_POLL):
+    sig = signal_rest[:int(i)]
+    try:
+        mnf = emg_mgr.calculate_mnf(sig, SAMPLING_RATE, cf=CORRECTION_FACTOR)
+        b_s, b_e = emg_mgr.get_bursts(sig, SAMPLING_RATE)
+        # plt.plot(sig)
+        # plt.plot(b_s, [0] * len(b_s), 'w.')
+        # plt.plot(b_e, [0] * len(b_e), 'r.')
+        # plt.show()
+        q, m, x, est_values = emg_mgr.mnf_lin_reg(mnf, b_e / SAMPLING_RATE, plot=False)
+        if m <= 0:
+            raise ValueError
+        print('EST MU: {}'.format(math.fabs(m)))
+        mus.append(math.fabs(m))
+    except ValueError:
+        # print(INIT_MU)
+        mus.append(INIT_MU)
+
+avg_mu = sum(mus) / len(mus)
+print('FINAL AVG MU: {:.4f}'.format(avg_mu))
