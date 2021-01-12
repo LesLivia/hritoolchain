@@ -1,4 +1,5 @@
 import math
+from typing import List
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -41,57 +42,97 @@ for line in lines:
 signal_mov = list(filter(lambda v: v is not None, signal_mov))
 signal_rest = list(filter(lambda v: v is not None, signal_rest))
 
-print(signal_mov[:10])
-print(signal_rest[:10])
-
-plt.figure(figsize=(10, 5))
-plt.plot(signal_mov)
-plt.show()
-
-plt.figure(figsize=(10, 5))
-plt.plot(signal_rest)
-plt.show()
-
 lambdas = []
-for i in np.arange(0, len(signal_mov), SAMPLING_RATE * T_POLL):
-    sig = signal_mov[:int(i)]
+step = SAMPLING_RATE * T_POLL
+definitive_bursts = []
+candidate_bursts = []
+
+
+def overlaps(burst: List[float], prevs: List[List[float]]):
+    for cand in prevs:
+        if cand[0] > burst[1]:
+            continue
+        else:
+            return cand
+
+    return None
+
+
+for i in np.arange(step, len(signal_mov) + step, step):
+    start = definitive_bursts[len(definitive_bursts) - 1][1] if len(definitive_bursts) > 0 else 0
+    sig = signal_mov[start:int(min(i, len(signal_mov)))]
     try:
-        mnf = emg_mgr.calculate_mnf(sig, SAMPLING_RATE, cf=CORRECTION_FACTOR)
         b_s, b_e = emg_mgr.get_bursts(sig, SAMPLING_RATE)
-        # plt.plot(sig)
-        # plt.plot(b_s, [0] * len(b_s), 'w.')
-        # plt.plot(b_e, [0] * len(b_e), 'r.')
-        # plt.show()
-        q, m, x, est_values = emg_mgr.mnf_lin_reg(mnf, b_e / SAMPLING_RATE, plot=False)
+        for (index, b) in enumerate(b_s):
+            adj_burst = [b + start, b_e[index] + start]
+            best_fit = overlaps(adj_burst, candidate_bursts)
+            if best_fit is None:
+                candidate_bursts.append(adj_burst)
+            elif best_fit is not None:
+                definitive_bursts.append(adj_burst)
+                candidate_bursts.remove(best_fit)
+
+        bursts_start = [burst[0] for burst in definitive_bursts]
+        bursts_end = [burst[1] for burst in definitive_bursts]
+        mnf = emg_mgr.calculate_mnf(signal_mov[:int(i)], SAMPLING_RATE, cf=CORRECTION_FACTOR, b_s=bursts_start,
+                                    b_e=bursts_end)
+        q, m, x, est_values = emg_mgr.mnf_lin_reg(mnf, [x / SAMPLING_RATE for x in bursts_end], plot=False)
         if m >= 0:
             raise ValueError
         print('EST LAMBDA: {}'.format(math.fabs(m)))
         lambdas.append(math.fabs(m))
     except ValueError:
-        # print(INIT_LAMBDA)
-        lambdas.append(INIT_LAMBDA)
+        pass
+
+print(definitive_bursts)
+bursts_start = [burst[0] for burst in definitive_bursts]
+bursts_end = [burst[1] for burst in definitive_bursts]
+plt.figure(figsize=(10, 5))
+plt.plot(signal_mov, 'gray', linewidth=0.2)
+plt.plot(bursts_start, [0] * len(bursts_start), 'g.')
+plt.plot(bursts_end, [0] * len(bursts_end), 'r.')
+plt.show()
 
 avg_lambda = sum(lambdas) / len(lambdas)
 print('FINAL AVG LAMBDA: {:.4f}'.format(avg_lambda))
 
 mus = []
-for i in np.arange(0, len(signal_rest), SAMPLING_RATE * T_POLL):
-    sig = signal_rest[:int(i)]
+definitive_bursts = []
+candidate_bursts = []
+for i in np.arange(step, len(signal_mov) + step, step):
+    start = definitive_bursts[len(definitive_bursts) - 1][1] if len(definitive_bursts) > 0 else 0
+    sig = signal_rest[start:int(min(i, len(signal_mov)))]
     try:
-        mnf = emg_mgr.calculate_mnf(sig, SAMPLING_RATE, cf=CORRECTION_FACTOR)
         b_s, b_e = emg_mgr.get_bursts(sig, SAMPLING_RATE)
-        # plt.plot(sig)
-        # plt.plot(b_s, [0] * len(b_s), 'w.')
-        # plt.plot(b_e, [0] * len(b_e), 'r.')
-        # plt.show()
-        q, m, x, est_values = emg_mgr.mnf_lin_reg(mnf, b_e / SAMPLING_RATE, plot=False)
+        for (index, b) in enumerate(b_s):
+            adj_burst = [b + start, b_e[index] + start]
+            best_fit = overlaps(adj_burst, candidate_bursts)
+            if best_fit is None:
+                candidate_bursts.append(adj_burst)
+            elif best_fit is not None:
+                definitive_bursts.append(adj_burst)
+                candidate_bursts.remove(best_fit)
+
+        bursts_start = [burst[0] for burst in definitive_bursts]
+        bursts_end = [burst[1] for burst in definitive_bursts]
+        mnf = emg_mgr.calculate_mnf(signal_rest[:int(i)], SAMPLING_RATE, cf=CORRECTION_FACTOR, b_s=bursts_start,
+                                    b_e=bursts_end)
+        q, m, x, est_values = emg_mgr.mnf_lin_reg(mnf, [x / SAMPLING_RATE for x in bursts_end], plot=False)
         if m <= 0:
             raise ValueError
         print('EST MU: {}'.format(math.fabs(m)))
         mus.append(math.fabs(m))
     except ValueError:
-        # print(INIT_MU)
-        mus.append(INIT_MU)
+        pass
+
+print(definitive_bursts)
+bursts_start = [burst[0] for burst in definitive_bursts]
+bursts_end = [burst[1] for burst in definitive_bursts]
+plt.figure(figsize=(10, 5))
+plt.plot(signal_rest, 'gray', linewidth=0.2)
+plt.plot(bursts_start, [0] * len(bursts_start), 'g.')
+plt.plot(bursts_end, [0] * len(bursts_end), 'r.')
+plt.show()
 
 avg_mu = sum(mus) / len(mus)
 print('FINAL AVG MU: {:.4f}'.format(avg_mu))

@@ -4,7 +4,9 @@ import warnings
 from typing import List
 
 import matplotlib.pyplot as plt
-import mgrs.dryad_mgr as dryad_mgr
+import numpy as np
+from scipy import stats
+
 import mgrs.sig_mgr as sig_mgr
 import pltr.ha_pltr as ha_pltr
 import pltr.sig_pltr as sig_pltr
@@ -116,11 +118,18 @@ while os.path.isdir(LOG_PATH.format(SIM_ID)) and False:
 # PLAYGROUND with ECG signal
 print('-----------------------------')
 
-f = open('resources/sim_logs/emg_to_ftg.log', 'r')
-lines = f.readlines()
-y = [float(line.split(')')[1]) for line in lines]
-plt.figure()
-plt.plot(y)
+mean_met = 39.2
+std_dev_met = 10.5
+mu = mean_met
+sigma = std_dev_met
+print(mu)
+print(sigma)
+x = np.linspace(max(mu - 3 * sigma, 0), mu + 3 * sigma, 1000)
+y = stats.norm.pdf(x, mu, sigma)
+plt.plot(x, y)
+s = np.random.normal(mu, sigma, 10)
+s = [x for x in s if x > 0]
+plt.plot(s, [0] * len(s), 'r.')
 plt.show()
 
 # SPEEDS_PATH = 'resources/hrv_pg/dryad_data/walking_speeds.txt'
