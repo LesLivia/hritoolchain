@@ -6,6 +6,28 @@ import numpy as np
 
 import mgrs.emg_mgr as emg_mgr
 
+EST_FTG_LOG_PATH = '/Users/lestingi/Desktop/logs/last_sim/emg_to_ftg1.log'
+
+f = open(EST_FTG_LOG_PATH, 'r')
+lines = f.readlines()
+ftg = []
+for (index, line) in enumerate(lines):
+    state = line.split('(')[1].split(')')[0].split(',')[0]
+    if index > 0:
+        _prev_state = lines[index - 1].split('(')[1].split(')')[0].split(',')[0]
+    else:
+        _prev_state = state
+    if state != _prev_state:
+        new_pts = lines[index - 1].split(')')[1].split('#')
+        new_pts = [float(pt) for pt in new_pts if pt != '\n']
+        ftg += new_pts
+
+x = np.arange(0, len(ftg) * 2, 2)
+plt.figure(figsize=(10, 5))
+plt.plot(x, ftg, 'k.', linewidth=0.25)
+plt.vlines(x, [0] * len(ftg), ftg, 'black', linewidth=0.25)
+plt.show()
+
 
 def parse_float(x: str):
     try:
@@ -23,12 +45,12 @@ def line_to_sig(line: str, state: str):
     return values
 
 
-LOG_PATH = 'resources/sim_logs/humanFatigue.log'
+LOG_PATH = '/Users/lestingi/Desktop/logs/last_sim/humanFatigue.log'
 SAMPLING_RATE = 1080
 T_POLL = 2.0
 CORRECTION_FACTOR = 0
 INIT_LAMBDA = 0.0005
-INIT_MU = 0.0002
+INIT_MU = 0.0005
 
 f = open(LOG_PATH)
 lines = f.readlines()
@@ -42,7 +64,7 @@ for line in lines:
 signal_mov = list(filter(lambda v: v is not None, signal_mov))
 signal_rest = list(filter(lambda v: v is not None, signal_rest))
 
-lambdas = []
+lambdas = [INIT_LAMBDA]
 step = SAMPLING_RATE * T_POLL
 definitive_bursts = []
 candidate_bursts = []
@@ -79,12 +101,11 @@ for i in np.arange(step, len(signal_mov) + step, step):
         q, m, x, est_values = emg_mgr.mnf_lin_reg(mnf, [x / SAMPLING_RATE for x in bursts_end], plot=False)
         if m >= 0:
             raise ValueError
-        print('EST LAMBDA: {}'.format(math.fabs(m)))
+        # print('EST LAMBDA: {}'.format(math.fabs(m)))
         lambdas.append(math.fabs(m))
     except ValueError:
-        pass
+        lambdas.append(INIT_LAMBDA)
 
-print(definitive_bursts)
 bursts_start = [burst[0] for burst in definitive_bursts]
 bursts_end = [burst[1] for burst in definitive_bursts]
 plt.figure(figsize=(10, 5))
@@ -94,9 +115,9 @@ plt.plot(bursts_end, [0] * len(bursts_end), 'r.')
 plt.show()
 
 avg_lambda = sum(lambdas) / len(lambdas)
-print('FINAL AVG LAMBDA: {:.4f}'.format(avg_lambda))
+print('FINAL LAMBDA: {:.4f}'.format(avg_lambda))
 
-mus = []
+mus = [INIT_MU]
 definitive_bursts = []
 candidate_bursts = []
 for i in np.arange(step, len(signal_mov) + step, step):
@@ -120,12 +141,11 @@ for i in np.arange(step, len(signal_mov) + step, step):
         q, m, x, est_values = emg_mgr.mnf_lin_reg(mnf, [x / SAMPLING_RATE for x in bursts_end], plot=False)
         if m <= 0:
             raise ValueError
-        print('EST MU: {}'.format(math.fabs(m)))
+        # print('EST MU: {}'.format(math.fabs(m)))
         mus.append(math.fabs(m))
     except ValueError:
-        pass
+        mus.append(INIT_MU)
 
-print(definitive_bursts)
 bursts_start = [burst[0] for burst in definitive_bursts]
 bursts_end = [burst[1] for burst in definitive_bursts]
 plt.figure(figsize=(10, 5))
@@ -135,4 +155,4 @@ plt.plot(bursts_end, [0] * len(bursts_end), 'r.')
 plt.show()
 
 avg_mu = sum(mus) / len(mus)
-print('FINAL AVG MU: {:.4f}'.format(avg_mu))
+print('FINAL MU: {:.4f}'.format(avg_mu))
