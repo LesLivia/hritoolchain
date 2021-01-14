@@ -2,6 +2,10 @@ import sqlite3
 from sqlite3 import Error, Cursor
 from typing import Set, Tuple, List
 
+import matplotlib.pyplot as plt
+import numpy as np
+import scipy.stats as stats
+
 import mgrs.dryad_mgr as dryad_mgr
 
 
@@ -93,7 +97,7 @@ if len(all_trials) == 0:
     populate_trials(sql, trials)
     conn.commit()
 
-processed_trials = select_where(sql, 'trial', 'lambda<=0 or mu>=0')
+processed_trials = select_where(sql, 'trial', 'lambda<=0 or mu>=0 or mode=\'e\'')
 processed_ids = [(t[0], t[1]) for t in processed_trials]
 print(len(processed_ids))
 
@@ -116,6 +120,27 @@ for trial in TRIALS:
 
 processed_trials = select_where(sql, 'trial', 'lambda<=0 or mu >=0')
 print(len(processed_trials))
+
+lambdas = [t[4] for t in processed_trials if t[4] is not None]
+avg_lambda = np.mean(lambdas)
+std_dev_lambda = np.std(lambdas)
+print(avg_lambda)
+print(std_dev_lambda)
+
+x = np.linspace(avg_lambda - 3 * std_dev_lambda, avg_lambda + 3 * std_dev_lambda, 1000)
+plt.plot(x, stats.norm.pdf(x, avg_lambda, std_dev_lambda))
+
+plt.show()
+
+mus = [t[5] for t in processed_trials if t[5] is not None]
+avg_mu = np.mean(mus)
+std_dev_mu = np.std(mus)
+print(avg_mu)
+print(std_dev_mu)
+
+x = np.linspace(avg_mu - 3 * std_dev_mu, avg_mu + 3 * std_dev_mu, 1000)
+plt.plot(x, stats.norm.pdf(x, avg_mu, std_dev_mu))
+plt.show()
 
 sql.close()
 conn.close()
