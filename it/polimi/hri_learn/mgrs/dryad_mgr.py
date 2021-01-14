@@ -61,6 +61,14 @@ class Mode(Enum):
         else:
             return Mode.ERROR
 
+    def to_char(self):
+        if self == Mode.WALKING:
+            return 'w'
+        elif self == Mode.RESTING:
+            return 'r'
+        else:
+            return 'e'
+
 
 class Trial:
     def __init__(self, group: Group, sub_id: int, trial_id: int, vel: int, emg: List[Emg] = None, mode: Mode = None):
@@ -134,16 +142,7 @@ def fill_emg_signals(path: str, trials: List[Trial], dump=True):
         group_char = t.group.to_char()
         print('Processing Subject {}{} trial {}...'.format(group_char, t.sub_id, trial))
 
-        if t.mode is not None:
-            print('Subject already processed')
-            if t == trials[-1]:
-                break
-            else:
-                continue
-
         t = load_emg_signal(path, t)
-
-        process_trial(t, dump=True)
 
         if os.path.isfile('{}/dump/{}{}/trial{}.txt'.format(path, group_char, t.sub_id, trial)) and os.path.getsize(
                 '{}/dump/{}{}/trial{}.txt'.format(path, group_char, t.sub_id, trial)) > 0:
@@ -169,7 +168,7 @@ def process_trial(trial: Trial, dump=False, cf=0):
 
         b_s, b_e = emg_mgr.get_bursts(signal, SAMPLING_RATE)
         bursts = b_e / SAMPLING_RATE
-        q, m, x, est_values = emg_mgr.mnf_lin_reg(mean_freq_data, bursts)
+        q, m, x, est_values = emg_mgr.mnf_lin_reg(mean_freq_data, bursts, plot=False)
 
         if dump:
             new_file = open('resources/hrv_pg/dryad_data/walking_speeds_new.txt', 'a')
@@ -182,11 +181,9 @@ def process_trial(trial: Trial, dump=False, cf=0):
             new_file.write(to_write)
             new_file.close()
 
-        est_lambda = math.fabs(m)
-        MET = math.log(1 - 0.95) / -est_lambda / 60
-        print('ESTIMATED RATE: {:.6f}, MET: {:.2f}min'.format(est_lambda, MET))
-        return q, m, x, est_values, est_lambda, MET
-    except:
+        print('ESTIMATED RATE: {:.6f}'.format(float(m)))
+        return m
+    except IOError:
         print('An error occurred')
 
 
