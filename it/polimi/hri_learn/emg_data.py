@@ -163,7 +163,7 @@ processed_ids = [(t[0], t[1]) for t in processed_trials]
 
 updated_trials = set()
 index = 0
-for trial in TRIALS[:100]:
+for trial in TRIALS:
     if (trial.trial_id, trial.group.to_char() + str(trial.sub_id)) not in processed_ids:
         try:
             trial = dryad_mgr.fill_emg_signals('resources/hrv_pg/dryad_data', [trial], dump=False)[0]
@@ -184,8 +184,9 @@ conn.commit()
 processed_trials = select_where(sql, 'trial', '(lambda<=0 and lambda_sick<=0) or (mu>=0 and mu_sick>=0)')
 print('{} available trials'.format(len(processed_trials)))
 
-velocities = np.arange(1, 6)
-COLORS = ['#CCCCCC', '#AAAAAA', '#999999', '#555555', '#000000']
+velocities = np.arange(1, 2)
+# COLORS = ['#CCCCCC', '#AAAAAA', '#999999', '#555555', '#000000']
+COLORS = ['#000000']
 
 for g in dryad_mgr.Group:
     lambdas_mean = []
@@ -202,7 +203,7 @@ for g in dryad_mgr.Group:
             g.to_char(), v)
         _trials = filter_trials(sql, clause)
 
-        train_perc = 0.8
+        train_perc = 0.6
         print('{}/{} trials for training...'.format(int(train_perc * len(_trials)), len(_trials)))
         lambdas = [t[4] for t in _trials[:int(train_perc * len(_trials))] if t[3] == 'w']
         lambdas_mean.append(np.mean(lambdas))
@@ -218,41 +219,42 @@ for g in dryad_mgr.Group:
         mus_sick_mean.append(np.mean(mus_sick))
         mus_sick_std.append(np.std(mus_sick))
 
-    z_score = 2
+    z_score = 3
+    SAMPLES = 100
 
-    plt.figure(figsize=(10, 5))
-    plt.title('Fatigue Rate Distribution, {} healthy group'.format(g.to_char()))
+    plt.figure(figsize=(10, 10))
+    plt.grid(color='lightgray')
+    plt.title('Fatigue Rate Distribution, {} Profile'.format(g.to_str()))
+    x_ticks = lambdas_mean + lambdas_sick_mean
+    plt.xticks(ticks=x_ticks)
     for (index, rate) in enumerate(lambdas_mean):
-        x = np.linspace(rate - z_score * lambdas_std[index], rate + z_score * lambdas_std[index], 1000)
-        label = 'v.{}, mean:{:.6f}, sigma:{:.6f}'.format(velocities[index], rate, lambdas_std[index])
-        plt.plot(x, stats.norm.pdf(x, rate, lambdas_std[index]), label=label, color=COLORS[index], linewidth=1)
-    plt.legend()
-    plt.show()
+        x = np.linspace(rate - z_score * lambdas_std[index], rate + z_score * lambdas_std[index], SAMPLES)
+        label = 'healthy: mean:{:.6f}, sigma:{:.6f}'.format(rate, lambdas_std[index])
+        plt.plot(x, stats.norm.pdf(x, rate, lambdas_std[index]), label=label, color=COLORS[index], linewidth=0.75)
 
-    plt.figure(figsize=(10, 5))
-    plt.title('Resting Rate Distribution, {} healthy group'.format(g.to_char()))
-    for (index, rate) in enumerate(mus_mean):
-        x = np.linspace(rate - z_score * mus_std[index], rate + z_score * mus_std[index], 1000)
-        label = 'v.{}, mean:{:.6f}, sigma:{:.6f}'.format(velocities[index], rate, mus_std[index])
-        plt.plot(x, stats.norm.pdf(x, rate, mus_std[index]), label=label, color=COLORS[index], linewidth=1)
-    plt.legend()
-    plt.show()
-
-    plt.figure(figsize=(10, 5))
-    plt.title('Fatigue Rate Distribution, {} sick group'.format(g.to_char()))
     for (index, rate) in enumerate(lambdas_sick_mean):
-        x = np.linspace(rate - z_score * lambdas_sick_std[index], rate + z_score * lambdas_sick_std[index], 1000)
-        label = 'v.{}, mean:{:.6f}, sigma:{:.6f}'.format(velocities[index], rate, lambdas_sick_std[index])
-        plt.plot(x, stats.norm.pdf(x, rate, lambdas_sick_std[index]), label=label, color=COLORS[index], linewidth=1)
+        x = np.linspace(rate - z_score * lambdas_sick_std[index], rate + z_score * lambdas_sick_std[index], SAMPLES)
+        label = 'sick: mean:{:.6f}, sigma:{:.6f}'.format(rate, lambdas_sick_std[index])
+        plt.plot(x, stats.norm.pdf(x, rate, lambdas_sick_std[index]), '--', label=label, color=COLORS[index],
+                 linewidth=0.75)
     plt.legend()
     plt.show()
 
-    plt.figure(figsize=(10, 5))
-    plt.title('Resting Rate Distribution, {} sick group'.format(g.to_char()))
+    plt.figure(figsize=(10, 10))
+    plt.grid(color='lightgray')
+    plt.title('Resting Rate Distribution, {} Profile'.format(g.to_str()))
+    x_ticks = mus_mean + mus_sick_mean
+    plt.xticks(ticks=x_ticks)
+    for (index, rate) in enumerate(mus_mean):
+        x = np.linspace(rate - z_score * mus_std[index], rate + z_score * mus_std[index], SAMPLES)
+        label = 'healthy: mean:{:.6f}, sigma:{:.6f}'.format(rate, mus_std[index])
+        plt.plot(x, stats.norm.pdf(x, rate, mus_std[index]), label=label, color=COLORS[index], linewidth=0.75)
+
     for (index, rate) in enumerate(mus_sick_mean):
-        x = np.linspace(rate - z_score * mus_sick_std[index], rate + z_score * mus_sick_std[index], 1000)
-        label = 'v.{}, mean:{:.6f}, sigma:{:.6f}'.format(velocities[index], rate, mus_sick_std[index])
-        plt.plot(x, stats.norm.pdf(x, rate, mus_sick_std[index]), label=label, color=COLORS[index], linewidth=1)
+        x = np.linspace(rate - z_score * mus_sick_std[index], rate + z_score * mus_sick_std[index], SAMPLES)
+        label = 'sick: mean:{:.6f}, sigma:{:.6f}'.format(rate, mus_sick_std[index])
+        plt.plot(x, stats.norm.pdf(x, rate, mus_sick_std[index]), '--', label=label, color=COLORS[index],
+                 linewidth=0.75)
     plt.legend()
     plt.show()
 

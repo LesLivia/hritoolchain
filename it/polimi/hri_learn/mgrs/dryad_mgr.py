@@ -39,6 +39,9 @@ class Group(Enum):
     def to_char(self):
         return 'y' if self == Group.YOUNG else 'e'
 
+    def to_str(self):
+        return 'Young' if self == Group.YOUNG else 'Elderly'
+
 
 class Muscles(Enum):
     LEFT_VASTUS_LATERALIS = 0
