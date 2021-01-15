@@ -84,6 +84,16 @@ def update_trial(sql: Cursor, elem):
     sql.execute(query, elem)
 
 
+def fix_rates(sql: Cursor):
+    query = 'UPDATE trial SET mu = -lambda WHERE mode=\'r\''
+    sql.execute(query)
+
+
+def clear_trials(sql: Cursor):
+    query = 'UPDATE trial SET lambda = ?, mu = ? WHERE id>0'
+    sql.execute(query, (None, None))
+
+
 conn = create_connection('resources/hrv_pg/dryad_data/subjects.db')
 sql = conn.cursor()
 create_tables(sql)
@@ -105,6 +115,9 @@ if len(all_trials) == 0:
     populate_trials(sql, trials)
     conn.commit()
 
+# clear_trials(sql)
+# conn.commit()
+
 processed_trials = select_where(sql, 'trial', 'lambda<=0 or mu>=0 or mode=\'e\'')
 processed_ids = [(t[0], t[1]) for t in processed_trials]
 
@@ -114,7 +127,7 @@ for trial in TRIALS:
     if (trial.trial_id, trial.group.to_char() + str(trial.sub_id)) not in processed_ids:
         try:
             trial = dryad_mgr.fill_emg_signals('resources/hrv_pg/dryad_data', [trial], dump=False)[0]
-            est_rate = dryad_mgr.process_trial(trial, dump=False)
+            est_rate = dryad_mgr.process_trial(trial, dump=False, cf=0.0001)
             to_update = (float(est_rate) if est_rate < 0 else None,
                          float(est_rate) if est_rate >= 0 else None, trial.trial_id,
                          trial.group.to_char() + str(trial.sub_id))
@@ -125,10 +138,13 @@ for trial in TRIALS:
         index += 1
         print('{} processed'.format(index))
 
+fix_rates(sql)
+conn.commit()
+
 processed_trials = select_where(sql, 'trial', 'lambda<=0 or mu >=0')
 print('{} available trials'.format(len(processed_trials)))
 
-velocities = np.arange(1, 5)
+velocities = np.arange(1, 6)
 COLORS = ['#CCCCCC', '#AAAAAA', '#999999', '#555555', '#000000']
 
 for g in dryad_mgr.Group:
