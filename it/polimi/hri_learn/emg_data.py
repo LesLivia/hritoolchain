@@ -59,6 +59,14 @@ def select_where(sql: Cursor, table: str, clause: str):
     return sql.fetchall()
 
 
+def filter_trials(sql: Cursor, clause: str):
+    query = """SELECT * FROM trial t JOIN subject s
+                ON t.sub_id=s.id
+                WHERE {}""".format(clause)
+    sql.execute(query)
+    return sql.fetchall()
+
+
 def populate_subjects(sql: Cursor, elems):
     query = 'INSERT INTO subject(id, sub_group, sub_num) VALUES(?,?,?)'
     for elem in elems:
@@ -99,7 +107,6 @@ if len(all_trials) == 0:
 
 processed_trials = select_where(sql, 'trial', 'lambda<=0 or mu>=0 or mode=\'e\'')
 processed_ids = [(t[0], t[1]) for t in processed_trials]
-print(len(processed_ids))
 
 updated_trials = set()
 index = 0
@@ -119,28 +126,47 @@ for trial in TRIALS:
         print('{} processed'.format(index))
 
 processed_trials = select_where(sql, 'trial', 'lambda<=0 or mu >=0')
-print(len(processed_trials))
+print('{} available trials'.format(len(processed_trials)))
 
-lambdas = [t[4] for t in processed_trials if t[4] is not None]
-avg_lambda = np.mean(lambdas)
-std_dev_lambda = np.std(lambdas)
-print(avg_lambda)
-print(std_dev_lambda)
+velocities = np.arange(1, 5)
+COLORS = ['#CCCCCC', '#AAAAAA', '#999999', '#555555', '#000000']
 
-x = np.linspace(avg_lambda - 3 * std_dev_lambda, avg_lambda + 3 * std_dev_lambda, 1000)
-plt.plot(x, stats.norm.pdf(x, avg_lambda, std_dev_lambda))
+for g in dryad_mgr.Group:
+    lambdas_mean = []
+    lambdas_std = []
+    mus_mean = []
+    mus_std = []
+    for v in velocities:
+        clause = '(lambda<=0 or mu >=0) and s.sub_group=\'{}\' and vel={}'.format(g.to_char(), v)
+        _trials = filter_trials(sql, clause)
+        print('{}/{} trials for training...'.format(int(0.6 * len(_trials)), len(_trials)))
+        lambdas = [t[4] for t in _trials[:int(0.6 * len(_trials))] if t[4] is not None]
+        lambdas_mean.append(np.mean(lambdas))
+        lambdas_std.append(np.std(lambdas))
 
-plt.show()
+        mus = [t[5] for t in _trials[:int(0.6 * len(_trials))] if t[5] is not None]
+        mus_mean.append(np.mean(mus))
+        mus_std.append(np.std(mus))
 
-mus = [t[5] for t in processed_trials if t[5] is not None]
-avg_mu = np.mean(mus)
-std_dev_mu = np.std(mus)
-print(avg_mu)
-print(std_dev_mu)
+    plt.figure(figsize=(10, 5))
+    plt.title('Fatigue Rate Distribution, {} group'.format(g.to_char()))
 
-x = np.linspace(avg_mu - 3 * std_dev_mu, avg_mu + 3 * std_dev_mu, 1000)
-plt.plot(x, stats.norm.pdf(x, avg_mu, std_dev_mu))
-plt.show()
+    z_score = 2
+    for (index, rate) in enumerate(lambdas_mean):
+        x = np.linspace(rate - z_score * lambdas_std[index], rate + z_score * lambdas_std[index], 1000)
+        label = 'v.{}, mean:{:.6f}, sigma:{:.6f}'.format(velocities[index], rate, lambdas_std[index])
+        plt.plot(x, stats.norm.pdf(x, rate, lambdas_std[index]), label=label, color=COLORS[index], linewidth=1)
+    plt.legend()
+    plt.show()
+
+    plt.figure(figsize=(10, 5))
+    plt.title('Resting Rate Distribution, {} group'.format(g.to_char()))
+    for (index, rate) in enumerate(mus_mean):
+        x = np.linspace(rate - z_score * mus_std[index], rate + z_score * mus_std[index], 1000)
+        label = 'v.{}, mean:{:.6f}, sigma:{:.6f}'.format(velocities[index], rate, mus_std[index])
+        plt.plot(x, stats.norm.pdf(x, rate, mus_std[index]), label=label, color=COLORS[index], linewidth=1)
+    plt.legend()
+    plt.show()
 
 sql.close()
 conn.close()
