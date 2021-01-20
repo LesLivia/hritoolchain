@@ -1,4 +1,6 @@
+import math
 import sqlite3
+from functools import cmp_to_key
 from sqlite3 import Error, Cursor, OperationalError
 from typing import Set, Tuple, List
 
@@ -184,9 +186,31 @@ conn.commit()
 processed_trials = select_where(sql, 'trial', '(lambda<=0 and lambda_sick<=0) or (mu>=0 and mu_sick>=0)')
 print('{} available trials'.format(len(processed_trials)))
 
-velocities = np.arange(1, 2)
+velocities = np.arange(4, 5)
 # COLORS = ['#CCCCCC', '#AAAAAA', '#999999', '#555555', '#000000']
 COLORS = ['#000000']
+
+
+def sortby_lambda(t1, t2):
+    if t1[6] > t2[6]:
+        return 1
+    elif t2[6] > t1[6]:
+        return -1
+    else:
+        return 0
+
+
+def sortby_mu(t1, t2):
+    try:
+        if t1[7] > t2[7]:
+            return 1
+        elif t2[7] > t1[7]:
+            return -1
+        else:
+            return 0
+    except TypeError:
+        return 0
+
 
 for g in dryad_mgr.Group:
     lambdas_mean = []
@@ -202,20 +226,25 @@ for g in dryad_mgr.Group:
         clause = '((lambda<=0 and lambda_sick<=0) or (mu>=0 and mu_sick>=0)) and s.sub_group=\'{}\' and vel={}'.format(
             g.to_char(), v)
         _trials = filter_trials(sql, clause)
+        _trials.sort(key=cmp_to_key(sortby_lambda), reverse=True)
 
-        train_perc = 0.6
-        print('{}/{} trials for training...'.format(int(train_perc * len(_trials)), len(_trials)))
-        lambdas = [t[4] for t in _trials[:int(train_perc * len(_trials))] if t[3] == 'w']
+        # train_perc = .1
+        train_perc = 1.0
+        print('{}/{} trials for training...'.format(math.ceil(train_perc * len(_trials)), len(_trials)))
+        lambdas = [t[4] for t in _trials[:math.ceil(train_perc * len(_trials))] if t[3] == 'w']
         lambdas_mean.append(np.mean(lambdas))
         lambdas_std.append(np.std(lambdas))
-        lambdas_sick = [t[6] for t in _trials[:int(train_perc * len(_trials))] if t[3] == 'w']
+        lambdas_sick = [t[6] for t in _trials[:math.ceil(train_perc * len(_trials))] if t[3] == 'w']
         lambdas_sick_mean.append(np.mean(lambdas_sick))
         lambdas_sick_std.append(np.std(lambdas_sick))
 
-        mus = [t[5] for t in _trials[:int(train_perc * len(_trials))] if t[3] == 'r']
+        _trials = [t for t in _trials if t[3] == 'r']
+        _trials.sort(key=cmp_to_key(sortby_mu), reverse=True)
+        print('{}/{} trials for training...'.format(math.ceil(train_perc * len(_trials)), len(_trials)))
+        mus = [t[5] for t in _trials[:math.ceil(train_perc * len(_trials))] if t[3] == 'r']
         mus_mean.append(np.mean(mus))
         mus_std.append(np.std(mus))
-        mus_sick = [t[7] for t in _trials[:int(train_perc * len(_trials))] if t[3] == 'r']
+        mus_sick = [t[7] for t in _trials[:math.ceil(train_perc * len(_trials))] if t[3] == 'r']
         mus_sick_mean.append(np.mean(mus_sick))
         mus_sick_std.append(np.std(mus_sick))
 

@@ -5,7 +5,7 @@ PLOT_TYPE = "upp_en"
 
 # LOG CONSTANTS
 LOG_PATH = "resources/uppaal_logs/"
-EXP_ID = "exp4"
+EXP_ID = "exp2"
 if PLOT_TYPE == 'upp_en':
     VAR_ID = ["humanFatigue[ID]", "humanFatigue[ID]", "batteryCharge"]
 else:
@@ -21,7 +21,7 @@ if PLOT_TYPE == 'upp_en':
 else:
     COLORS = ['blue', 'navy', 'firebrick']
 
-fig = plt.figure(figsize=(15, 7))
+fig = plt.figure(figsize=(15, 5))
 plt.xlabel('t [s]', fontsize=24)
 if PLOT_TYPE == 'upp_en':
     plt.ylabel('[%]', fontsize=24)
@@ -114,6 +114,6 @@ for i in range(0, len(VAR_ID)):
         plt.plot(x_x, y_x, color=COLORS[i], label=label.replace('D', 'X'))
         plt.plot(x_y, y_y, linestyle='-.', color=COLORS[i], label=label.replace('D', 'Y'))
 
-plt.legend(prop={'size': 20})
+#plt.legend(prop={'size': 20})
 plt.savefig(SAVE_PATH + PLOT_TYPE + '.pdf', figsize=(15, 7))
 plt.show()
