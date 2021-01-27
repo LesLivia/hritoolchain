@@ -186,7 +186,7 @@ conn.commit()
 processed_trials = select_where(sql, 'trial', '(lambda<=0 and lambda_sick<=0) or (mu>=0 and mu_sick>=0)')
 print('{} available trials'.format(len(processed_trials)))
 
-velocities = np.arange(4, 5)
+velocities = np.arange(2, 3)
 # COLORS = ['#CCCCCC', '#AAAAAA', '#999999', '#555555', '#000000']
 COLORS = ['#000000']
 
@@ -228,8 +228,8 @@ for g in dryad_mgr.Group:
         _trials = filter_trials(sql, clause)
         _trials.sort(key=cmp_to_key(sortby_lambda), reverse=True)
 
-        # train_perc = .1
-        train_perc = 1.0
+        train_perc = .1
+        # train_perc = 1.0
         print('{}/{} trials for training...'.format(math.ceil(train_perc * len(_trials)), len(_trials)))
         lambdas = [t[4] for t in _trials[:math.ceil(train_perc * len(_trials))] if t[3] == 'w']
         lambdas_mean.append(np.mean(lambdas))
