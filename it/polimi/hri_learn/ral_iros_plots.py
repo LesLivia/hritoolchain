@@ -14,6 +14,29 @@ SAMPLING_RATE = 1080
 FIG_SIZE = (30, 9)
 DPI = 1000
 
+plt.figure(figsize=(15, 7.5))
+x = [0, 4, 10, 18, 26, 34]
+plt.xticks(ticks=x, fontsize=20)
+plt.yticks(ticks=np.arange(-20, 120, 20), fontsize=20)
+plt.ylim(0, 100)
+plt.xlabel('trials', fontsize=22, weight='bold')
+plt.ylabel('(p_min, p_max) [%]', fontsize=22, weight='bold')
+p_min = [81.1699, 69.7085, 56.84675, 41.6015, 34.56015, 20.3574]
+p_max = [94.3793, 86.5056, 73.64385, 58.39855, 51.35725, 38.9266]
+p_mean = [p + (p_max[index] - p) / 2 for (index, p) in enumerate(p_min)]
+
+plt.vlines(x, p_min, p_max)
+plt.plot(x, p_mean, 'k--')
+plt.plot(x, p_mean, 'k.', markersize=18)
+N = 1
+for (index, value) in enumerate(x):
+    h_line = np.arange(value - N, value + 2 * N, 1)
+    plt.plot(h_line, [p_min[index]] * len(h_line), 'k')
+    plt.plot(h_line, [p_max[index]] * len(h_line), 'k')
+plt.grid(color='lightgrey')
+plt.tight_layout()
+plt.savefig('/Users/lestingi/Desktop/phd-workspace/_papers/RA-L_IROS21/ieeeconf/figs/est_probs.pdf', dpi=DPI)
+
 f = open(PATH.format(FTG_TRIAL))
 lines = f.readlines()
 t_ftg = [float(line.split('\t')[0]) for line in lines]
@@ -78,5 +101,5 @@ p6 = ax[2].plot(t_ftg, ftg, 'k', t_rec, rec, 'k', linewidth=1)
 ax[2].vlines([t_rec[0]], [min(ftg)], [max(ftg)], colors='black', linestyles='dashed')
 ax[2].legend((p6), ('Fatigue',), loc='lower right', shadow=False)
 
-plt.tight_layout()
-plt.savefig('/Users/lestingi/Desktop/phd-workspace/_papers/RA-L_IROS21/ieeeconf/figs/emg_plots.pdf', dpi=DPI)
+# plt.tight_layout()
+# plt.savefig('/Users/lestingi/Desktop/phd-workspace/_papers/RA-L_IROS21/ieeeconf/figs/emg_plots.pdf', dpi=DPI)
