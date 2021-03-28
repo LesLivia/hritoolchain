@@ -7,8 +7,9 @@ import numpy as np
 import scipy.stats as stats
 
 import mgrs.sig_mgr as sig_mgr
-from domain.hafeatures import LocLabels
+from domain.hafeatures import LocLabels, Location, Edge, HybridAutomaton
 from domain.sigfeatures import SignalPoint, TimeInterval
+import pltr.ha_pltr as ha_pltr
 
 
 def find_chg_pts(values: List[float]):
@@ -21,6 +22,25 @@ def find_chg_pts(values: List[float]):
         prev = curr
     return chg_pts
 
+
+'''
+INITIAL HA
+'''
+IDLE_LOC = Location('r_0', 'F\'== -Fp*mi*exp(-mi*t)')
+BUSY_LOC = Location('w_0', 'F\' == Fp*lambda*exp(-lambda*t)')
+e_1 = Edge(IDLE_LOC, BUSY_LOC, 'start_h_action?')
+e_2 = Edge(BUSY_LOC, IDLE_LOC, 'stop_h_action?')
+
+LOC = [IDLE_LOC, BUSY_LOC]
+EDGES = [e_1, e_2]
+
+HUMAN_FOLLOWER_HA = HybridAutomaton(LOC, EDGES)
+
+ha_pltr.plot_ha(HUMAN_FOLLOWER_HA, 'human_follower', view=True)
+
+'''
+START LEARNING PROCEDURE
+'''
 
 warnings.filterwarnings('ignore')
 
@@ -110,7 +130,7 @@ for sim in range(len(segments)):
             dt = TimeInterval(segment[0].timestamp, segment[-1].timestamp)
             params, x_fore, fore = sig_mgr.n_predictions(segment, dt, 10, show_formula=False)
             est_rate = -math.log(params[1]) / avg_dt * 2 if params[1] != 0.0 else 0.0
-            # print('{:.5f} {}'.format(est_rate, labels[sim][segments[sim].index(segment)]))
+            print('{:.5f} {}'.format(est_rate, labels[sim][segments[sim].index(segment)]))
             rates.append(est_rate)
         except ValueError:
             rates.append(None)
@@ -119,15 +139,20 @@ for sim in range(len(segments)):
 
 '''
 HYPOTHESIS TESTING on ESTIMATED RATES
-'''
-IDLE_DISTR = (0.005, 0.00008)
-BUSY_DISTR = (0.002, 0.00008)
 
-x_idle = np.linspace(IDLE_DISTR[0] - 3 * IDLE_DISTR[1], IDLE_DISTR[0] + 3 * IDLE_DISTR[1], 100)
+const double YOUNG_SICK[2] = {0.004538, 0.003328}; 
+const double YOUNG_SICK_SIGMA[2] = {0.000469, 0.001342};
+'''
+
+IDLE_DISTR = (0.003328, 0.001342)
+BUSY_DISTR = (0.004538, 0.000469)
+
+Z = 4
+x_idle = np.linspace(IDLE_DISTR[0] - Z * IDLE_DISTR[1], IDLE_DISTR[0] + Z * IDLE_DISTR[1], 100)
 idle_norm = stats.norm.pdf(x, IDLE_DISTR[0], IDLE_DISTR[1])
 mus = [rate for sim in est_rates for rate in sim if labels[est_rates.index(sim)][sim.index(rate)] == LocLabels.IDLE]
 
-x_busy = np.linspace(BUSY_DISTR[0] - 3 * BUSY_DISTR[1], BUSY_DISTR[0] + 3 * BUSY_DISTR[1], 100)
+x_busy = np.linspace(BUSY_DISTR[0] - Z * BUSY_DISTR[1], BUSY_DISTR[0] + Z * BUSY_DISTR[1], 100)
 busy_norm = stats.norm.pdf(x, BUSY_DISTR[0], BUSY_DISTR[1])
 lambdas = [rate for sim in est_rates for rate in sim if labels[est_rates.index(sim)][sim.index(rate)] == LocLabels.BUSY]
 
@@ -141,8 +166,6 @@ for i in range(len(est_rates)):
             new = min(x_busy) <= est_rates[i][j] <= max(x_busy) if est_rates[i][j] is not None else None
         out.append(new)
     HT_outcome.append(out)
-
-print(HT_outcome)
 
 '''
 PLOT TRACES WITH OVERLAY and HT outcome
@@ -166,3 +189,7 @@ for i in range(len(segments)):
 
     [plt.plot(t[n], 1, 'bx', markersize=12) for n in chg_pts[i]]
     plt.show()
+
+'''
+REFINE GRAPH
+'''
