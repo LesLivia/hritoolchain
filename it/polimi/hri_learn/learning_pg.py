@@ -142,7 +142,7 @@ for sim in range(len(segments)):
             dt = TimeInterval(segment[0].timestamp, segment[-1].timestamp)
             params, x_fore, fore = sig_mgr.n_predictions(segment, dt, 10, show_formula=False)
             est_rate = math.fabs(math.log(params[1])) / avg_dt * 2 if params[1] != 0.0 else 0.0
-            print('{:.5f} {}'.format(est_rate, labels[sim][segments[sim].index(segment)]))
+            # print('{:.5f} {}'.format(est_rate, labels[sim][segments[sim].index(segment)]))
             rates.append(est_rate)
         except ValueError:
             rates.append(None)
@@ -180,19 +180,31 @@ for i in range(len(est_rates)):
     HT_outcome.append(out)
 
 '''
-REFINE GRAPH
+REFINE GRAPH - STEP 0 check if a segment failed the test
 '''
 
-ign_events = []
+REFINEMENT_NEEDED = False
 
-hPosX = [variables[i] for i in range(len(variables)) if variables[i - 1].__contains__('internalHumX')]
-hPosX_entries = []
-for i in range(len(hPosX)):
-    entries = hPosX[i].split('\n')
-    entries = [entry for entry in entries if len(entry.split(' ')) > 1]
-    hPosX_entries.append(entries)
-    values = [float(entry.split(' ')[1]) for entry in entries]
-    ign_events.append(find_ignored(values))
+for i in range(len(HT_outcome)):
+    for j in range(len(HT_outcome[i])):
+        if not HT_outcome[i][j] and HT_outcome[i][j] is not None:
+            REFINEMENT_NEEDED = True
+
+'''
+REFINE GRAPH - STEP 1 identify ignored events
+'''
+
+if REFINEMENT_NEEDED:
+    ign_events = []
+
+    hPosX = [variables[i] for i in range(len(variables)) if variables[i - 1].__contains__('internalHumX')]
+    hPosX_entries = []
+    for i in range(len(hPosX)):
+        entries = hPosX[i].split('\n')
+        entries = [entry for entry in entries if len(entry.split(' ')) > 1]
+        hPosX_entries.append(entries)
+        values = [float(entry.split(' ')[1]) for entry in entries]
+        ign_events.append(find_ignored(values))
 
 '''
 PLOT TRACES WITH OVERLAY and HT outcome
@@ -215,6 +227,7 @@ for i in range(len(segments)):
     plt.plot(t, idle_pts, 'g--', linewidth=1)
 
     [plt.plot(t[n], 1, 'bx', markersize=12) for n in chg_pts[i]]
-    t = [float(x.split(' ')[0]) for x in hPosX_entries[i][1:len(hPosX_entries[i]) - 1] if len(x.split(' ')) > 1]
-    [plt.plot(t[n], 1, 'rx', markersize=12) for n in ign_events[i]]
+    if REFINEMENT_NEEDED:
+        t = [float(x.split(' ')[0]) for x in hPosX_entries[i][1:len(hPosX_entries[i]) - 1] if len(x.split(' ')) > 1]
+        [plt.plot(t[n], 1, 'rx', markersize=12) for n in ign_events[i]]
     plt.show()
