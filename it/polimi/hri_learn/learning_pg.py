@@ -23,6 +23,18 @@ def find_chg_pts(values: List[float]):
     return chg_pts
 
 
+IGNORED_EVENTS = ['enter_area_2']
+
+
+def find_ignored(values: List[float]):
+    # TODO: PROTOTYPE! should work for list of events
+    ign_events = []
+    for i in range(len(values)):
+        if values[i] > 4000.0 and values[i - 1] <= 4000.0:
+            ign_events.append(i)
+    return ign_events
+
+
 '''
 INITIAL HA
 '''
@@ -36,7 +48,7 @@ EDGES = [e_1, e_2]
 
 HUMAN_FOLLOWER_HA = HybridAutomaton(LOC, EDGES)
 
-ha_pltr.plot_ha(HUMAN_FOLLOWER_HA, 'human_follower', view=True)
+ha_pltr.plot_ha(HUMAN_FOLLOWER_HA, 'human_follower', view=False)
 
 '''
 START LEARNING PROCEDURE
@@ -44,7 +56,7 @@ START LEARNING PROCEDURE
 
 warnings.filterwarnings('ignore')
 
-LOG_PATH = 'resources/uppaal_logs/test2.txt'
+LOG_PATH = 'resources/uppaal_logs/test.txt'
 
 '''
 PARSE TRACES
@@ -129,7 +141,7 @@ for sim in range(len(segments)):
         try:
             dt = TimeInterval(segment[0].timestamp, segment[-1].timestamp)
             params, x_fore, fore = sig_mgr.n_predictions(segment, dt, 10, show_formula=False)
-            est_rate = -math.log(params[1]) / avg_dt * 2 if params[1] != 0.0 else 0.0
+            est_rate = math.fabs(math.log(params[1])) / avg_dt * 2 if params[1] != 0.0 else 0.0
             print('{:.5f} {}'.format(est_rate, labels[sim][segments[sim].index(segment)]))
             rates.append(est_rate)
         except ValueError:
@@ -145,9 +157,9 @@ const double YOUNG_SICK_SIGMA[2] = {0.000469, 0.001342};
 '''
 
 IDLE_DISTR = (0.003328, 0.001342)
-BUSY_DISTR = (0.004538, 0.000469)
+BUSY_DISTR = (0.004538, 0.00065)
 
-Z = 4
+Z = 3
 x_idle = np.linspace(IDLE_DISTR[0] - Z * IDLE_DISTR[1], IDLE_DISTR[0] + Z * IDLE_DISTR[1], 100)
 idle_norm = stats.norm.pdf(x, IDLE_DISTR[0], IDLE_DISTR[1])
 mus = [rate for sim in est_rates for rate in sim if labels[est_rates.index(sim)][sim.index(rate)] == LocLabels.IDLE]
@@ -168,6 +180,21 @@ for i in range(len(est_rates)):
     HT_outcome.append(out)
 
 '''
+REFINE GRAPH
+'''
+
+ign_events = []
+
+hPosX = [variables[i] for i in range(len(variables)) if variables[i - 1].__contains__('internalHumX')]
+hPosX_entries = []
+for i in range(len(hPosX)):
+    entries = hPosX[i].split('\n')
+    entries = [entry for entry in entries if len(entry.split(' ')) > 1]
+    hPosX_entries.append(entries)
+    values = [float(entry.split(' ')[1]) for entry in entries]
+    ign_events.append(find_ignored(values))
+
+'''
 PLOT TRACES WITH OVERLAY and HT outcome
 '''
 
@@ -181,15 +208,13 @@ for i in range(len(segments)):
 
     t = [float(x.split(' ')[0]) for x in mov_entries[i][1:len(mov_entries[i]) - 1] if len(x.split(' ')) > 1]
     mov_pts = [float(x.split(' ')[1]) for x in mov_entries[i][1:len(mov_entries[i]) - 1] if len(x.split(' ')) > 1]
-    plt.plot(t, mov_pts, 'r--', linewidth=1)
+    plt.plot(t, mov_pts, 'b--', linewidth=1)
 
     t = [float(x.split(' ')[0]) for x in idle_entries[i][1:len(idle_entries[i]) - 1] if len(x.split(' ')) > 1]
     idle_pts = [float(x.split(' ')[1]) for x in idle_entries[i][1:len(idle_entries[i]) - 1] if len(x.split(' ')) > 1]
     plt.plot(t, idle_pts, 'g--', linewidth=1)
 
     [plt.plot(t[n], 1, 'bx', markersize=12) for n in chg_pts[i]]
+    t = [float(x.split(' ')[0]) for x in hPosX_entries[i][1:len(hPosX_entries[i]) - 1] if len(x.split(' ')) > 1]
+    [plt.plot(t[n], 1, 'rx', markersize=12) for n in ign_events[i]]
     plt.show()
-
-'''
-REFINE GRAPH
-'''
