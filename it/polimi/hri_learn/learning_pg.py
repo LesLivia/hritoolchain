@@ -1,9 +1,9 @@
 import math
 import warnings
 from typing import List
-
+import numpy as np
 import matplotlib.pyplot as plt
-
+import scipy.stats as stats
 import mgrs.sig_mgr as sig_mgr
 from domain.sigfeatures import SignalPoint, TimeInterval
 from domain.hafeatures import LocLabels
@@ -23,30 +23,13 @@ def find_chg_pts(values: List[float]):
 warnings.filterwarnings('ignore')
 
 LOG_PATH = 'resources/uppaal_logs/test2.txt'
-FTG_LOG = 'humanFatigue.log'
-POS_LOG = 'humanPosition.log'
-CHG_LOG = 'robotBattery.log'
-ROB_POS_LOG = 'robotPosition.log'
-HUM_ID = 1
-ROB_ID = 1
-
-SIM_ID = 1
-
-REAL_PROFILES = [(0.0005, 0.0005), (0.01, 0.004), (0.008, 0.0035)]
-LAMBDA_EST: float
-MU_EST: float
-
-SIM_ID += 1
-
-plt.figure(figsize=(10, 5))
-
-f = open(LOG_PATH)
-lines = f.read()
-variables = lines.split('#')
 
 '''
 PARSE TRACES
 '''
+f = open(LOG_PATH)
+lines = f.read()
+variables = lines.split('#')
 
 ftg = [variables[i] for i in range(len(variables)) if variables[i - 1].__contains__('amy.F')]
 hMov = [variables[i] for i in range(len(variables)) if variables[i - 1].__contains__('amy.busy')]
@@ -63,12 +46,15 @@ idle_entries = []
 chg_pts = []
 for (i, sim) in enumerate(ftg):
     entries = sim.split('\n')[1:]
+    entries = [entry for (i, entry) in enumerate(entries) if i == 0 or entries[i - 1] != entry]
     ftg_entries.append(entries)
 
     entries = hMov[i].split('\n')[1:]
+    entries = [entry for (i, entry) in enumerate(entries) if i == 0 or entries[i - 1] != entry]
     mov_entries.append(entries)
 
     entries = hIdle[i].split('\n')[1:]
+    entries = [entry for (i, entry) in enumerate(entries) if i == 0 or entries[i - 1] != entry]
     idle_entries.append(entries)
 
     chg_pts.append(find_chg_pts([float(x.split(' ')[1]) for x in mov_entries[i] if len(x.split(' ')) > 1]))
@@ -136,23 +122,38 @@ for sim in range(len(segments)):
     rates = []
     for segment in segments[sim]:
         t = [pt.timestamp for pt in segment]
+        dts = [v - t[i - 1] for i, v in enumerate(t) if i > 0]
+        avg_dt = sum(dts) / len(dts)
         x = [pt.value for pt in segment]
         try:
             dt = TimeInterval(segment[0].timestamp, segment[-1].timestamp)
-            params, _, _ = sig_mgr.n_predictions(segment, dt, 10, show_formula=False)
-            est_rate = -math.log(params[1]) if params[1] != 0.0 else 0.0
-            # print('{} {}'.format(est_rate, labels[sim][segments[sim].index(segment)]))
+            params, x_fore, fore = sig_mgr.n_predictions(segment, dt, 10, show_formula=False)
+            est_rate = -math.log(params[1]) / avg_dt * 2 if params[1] != 0.0 else 0.0
+            print('{:.5f} {}'.format(est_rate, labels[sim][segments[sim].index(segment)]))
             rates.append(est_rate)
         except ValueError:
-            rates.append(0.0)
+            rates.append(None)
             print("Not enough data pts ({})".format(len(segment)))
     est_rates.append(rates)
 
-lambdas = [rate for sim in est_rates for rate in sim if labels[est_rates.index(sim)][sim.index(rate)] == LocLabels.BUSY]
+'''
+HYPOTHESIS TESTING on ESTIMATED RATES
+'''
+IDLE_DISTR = (0.005, 0.00008)
+BUSY_DISTR = (0.002, 0.00008)
+
+x = np.linspace(IDLE_DISTR[0] - 3 * IDLE_DISTR[1], IDLE_DISTR[0] + 3 * IDLE_DISTR[1], 100)
+idle_norm = stats.norm.pdf(x, IDLE_DISTR[0], IDLE_DISTR[1])
 mus = [rate for sim in est_rates for rate in sim if labels[est_rates.index(sim)][sim.index(rate)] == LocLabels.IDLE]
 
-avg_lambda = sum(lambdas)/len(lambdas)
-print(avg_lambda)
+plt.figure()
+plt.plot(x, idle_norm, 'b', mus, [0]*len(mus), 'rx')
+plt.show()
 
-avg_mu = sum(mus)/len(mus)
-print(avg_mu)
+x = np.linspace(BUSY_DISTR[0] - 3 * BUSY_DISTR[1], BUSY_DISTR[0] + 3 * BUSY_DISTR[1], 100)
+busy_norm = stats.norm.pdf(x, BUSY_DISTR[0], BUSY_DISTR[1])
+lambdas = [rate for sim in est_rates for rate in sim if labels[est_rates.index(sim)][sim.index(rate)] == LocLabels.BUSY]
+
+plt.figure()
+plt.plot(x, busy_norm, 'b', lambdas, [0]*len(lambdas), 'rx')
+plt.show()
