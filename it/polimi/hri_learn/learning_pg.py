@@ -1,12 +1,14 @@
 import math
 import warnings
 from typing import List
-import numpy as np
+
 import matplotlib.pyplot as plt
+import numpy as np
 import scipy.stats as stats
+
 import mgrs.sig_mgr as sig_mgr
-from domain.sigfeatures import SignalPoint, TimeInterval
 from domain.hafeatures import LocLabels
+from domain.sigfeatures import SignalPoint, TimeInterval
 
 
 def find_chg_pts(values: List[float]):
@@ -60,27 +62,6 @@ for (i, sim) in enumerate(ftg):
     chg_pts.append(find_chg_pts([float(x.split(' ')[1]) for x in mov_entries[i] if len(x.split(' ')) > 1]))
 
 '''
-PLOT TRACES WITH OVERLAY
-'''
-
-for (i, sim) in enumerate(ftg_entries):
-    plt.figure(figsize=(10, 5))
-    t = [float(x.split(' ')[0]) for x in sim[1:len(sim) - 1] if len(x.split(' ')) > 1]
-    ftg_pts = [float(x.split(' ')[1]) for x in sim[1:len(sim) - 1] if len(x.split(' ')) > 1]
-    plt.plot(t, ftg_pts, 'k-', linewidth=1)
-
-    t = [float(x.split(' ')[0]) for x in mov_entries[i][1:len(mov_entries[i]) - 1] if len(x.split(' ')) > 1]
-    mov_pts = [float(x.split(' ')[1]) for x in mov_entries[i][1:len(sim) - 1] if len(x.split(' ')) > 1]
-    plt.plot(t, mov_pts, 'r--', linewidth=1)
-
-    t = [float(x.split(' ')[0]) for x in idle_entries[i][1:len(idle_entries[i]) - 1] if len(x.split(' ')) > 1]
-    idle_pts = [float(x.split(' ')[1]) for x in idle_entries[i][1:len(sim) - 1] if len(x.split(' ')) > 1]
-    plt.plot(t, idle_pts, 'g--', linewidth=1)
-
-    [plt.plot(t[n], 1, 'bx', markersize=12) for n in chg_pts[i]]
-    plt.show()
-
-'''
 SPLIT SEGMENTS AND SET LABEL
 '''
 segments = []
@@ -129,7 +110,7 @@ for sim in range(len(segments)):
             dt = TimeInterval(segment[0].timestamp, segment[-1].timestamp)
             params, x_fore, fore = sig_mgr.n_predictions(segment, dt, 10, show_formula=False)
             est_rate = -math.log(params[1]) / avg_dt * 2 if params[1] != 0.0 else 0.0
-            print('{:.5f} {}'.format(est_rate, labels[sim][segments[sim].index(segment)]))
+            # print('{:.5f} {}'.format(est_rate, labels[sim][segments[sim].index(segment)]))
             rates.append(est_rate)
         except ValueError:
             rates.append(None)
@@ -142,18 +123,46 @@ HYPOTHESIS TESTING on ESTIMATED RATES
 IDLE_DISTR = (0.005, 0.00008)
 BUSY_DISTR = (0.002, 0.00008)
 
-x = np.linspace(IDLE_DISTR[0] - 3 * IDLE_DISTR[1], IDLE_DISTR[0] + 3 * IDLE_DISTR[1], 100)
+x_idle = np.linspace(IDLE_DISTR[0] - 3 * IDLE_DISTR[1], IDLE_DISTR[0] + 3 * IDLE_DISTR[1], 100)
 idle_norm = stats.norm.pdf(x, IDLE_DISTR[0], IDLE_DISTR[1])
 mus = [rate for sim in est_rates for rate in sim if labels[est_rates.index(sim)][sim.index(rate)] == LocLabels.IDLE]
 
-plt.figure()
-plt.plot(x, idle_norm, 'b', mus, [0]*len(mus), 'rx')
-plt.show()
-
-x = np.linspace(BUSY_DISTR[0] - 3 * BUSY_DISTR[1], BUSY_DISTR[0] + 3 * BUSY_DISTR[1], 100)
+x_busy = np.linspace(BUSY_DISTR[0] - 3 * BUSY_DISTR[1], BUSY_DISTR[0] + 3 * BUSY_DISTR[1], 100)
 busy_norm = stats.norm.pdf(x, BUSY_DISTR[0], BUSY_DISTR[1])
 lambdas = [rate for sim in est_rates for rate in sim if labels[est_rates.index(sim)][sim.index(rate)] == LocLabels.BUSY]
 
-plt.figure()
-plt.plot(x, busy_norm, 'b', lambdas, [0]*len(lambdas), 'rx')
-plt.show()
+HT_outcome = []
+for i in range(len(est_rates)):
+    out = []
+    for j in range(len(est_rates[i])):
+        if labels[i][j] == LocLabels.IDLE:
+            new = min(x_idle) <= est_rates[i][j] <= max(x_idle) if est_rates[i][j] is not None else None
+        else:
+            new = min(x_busy) <= est_rates[i][j] <= max(x_busy) if est_rates[i][j] is not None else None
+        out.append(new)
+    HT_outcome.append(out)
+
+print(HT_outcome)
+
+'''
+PLOT TRACES WITH OVERLAY and HT outcome
+'''
+
+for i in range(len(segments)):
+    plt.figure(figsize=(10, 5))
+    for j in range(len(segments[i])):
+        t = [pt.timestamp for pt in segments[i][j]]
+        val = [pt.value for pt in segments[i][j]]
+        color = 'black' if HT_outcome[i][j] or HT_outcome[i][j] is None else 'red'
+        plt.plot(t, val, color=color)
+
+    t = [float(x.split(' ')[0]) for x in mov_entries[i][1:len(mov_entries[i]) - 1] if len(x.split(' ')) > 1]
+    mov_pts = [float(x.split(' ')[1]) for x in mov_entries[i][1:len(mov_entries[i]) - 1] if len(x.split(' ')) > 1]
+    plt.plot(t, mov_pts, 'r--', linewidth=1)
+
+    t = [float(x.split(' ')[0]) for x in idle_entries[i][1:len(idle_entries[i]) - 1] if len(x.split(' ')) > 1]
+    idle_pts = [float(x.split(' ')[1]) for x in idle_entries[i][1:len(idle_entries[i]) - 1] if len(x.split(' ')) > 1]
+    plt.plot(t, idle_pts, 'g--', linewidth=1)
+
+    [plt.plot(t[n], 1, 'bx', markersize=12) for n in chg_pts[i]]
+    plt.show()
