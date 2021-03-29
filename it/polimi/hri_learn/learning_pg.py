@@ -48,7 +48,7 @@ EDGES = [e_1, e_2]
 
 HUMAN_FOLLOWER_HA = HybridAutomaton(LOC, EDGES)
 
-ha_pltr.plot_ha(HUMAN_FOLLOWER_HA, 'human_follower', view=False)
+ha_pltr.plot_ha(HUMAN_FOLLOWER_HA, 'human_follower', view=True)
 
 '''
 START LEARNING PROCEDURE
@@ -200,7 +200,17 @@ for i in range(len(HT_outcome)):
             REFINEMENT_NEEDED = True
 
 '''
-REFINE GRAPH - STEP 1 identify ignored events
+REFINE GRAPH - STEP 1 add locations
+'''
+
+# TODO: PROTOTYPE! should not only add a specific location
+if REFINEMENT_NEEDED:
+    LOC.append(Location('r_1', 'F\'== -Fp*mi*exp(-mi*t)'))
+    HUMAN_FOLLOWER_HA.set_locations(LOC)
+    ha_pltr.plot_ha(HUMAN_FOLLOWER_HA, 'human_follower_wip', view=True)
+
+'''
+REFINE GRAPH - STEP 2 identify ignored events
 '''
 
 if REFINEMENT_NEEDED:
@@ -224,8 +234,23 @@ if REFINEMENT_NEEDED:
                     EVENTS[i].insert(j, Event(t[ign], IGNORED_EVENTS[0]))
 
 for sim in EVENTS:
-    print('TRACE {}:'.format(EVENTS.index(sim)+1))
+    print('TRACE {}:'.format(EVENTS.index(sim) + 1))
     [print(event) for event in sim]
+
+'''
+REFINE GRAPH - STEP 3 longest common suffix
+'''
+
+path_lens = list(map(lambda i: len(i), EVENTS))
+shortest_path = [i for i in EVENTS if len(i) == min(path_lens)][0]
+LONG_COMM_SUFFIX = []
+for i in range(len(shortest_path)):
+    curr_label = shortest_path[len(shortest_path) - 1 - i].label
+    if all([sim[len(sim) - 1 - i].label == curr_label for sim in EVENTS]):
+        LONG_COMM_SUFFIX.insert(0, curr_label)
+
+print('LONGEST COMMON SUFFIX')
+print(LONG_COMM_SUFFIX)
 
 '''
 PLOT TRACES WITH OVERLAY and HT outcome
