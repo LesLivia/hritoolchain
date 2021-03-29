@@ -8,7 +8,7 @@ import scipy.stats as stats
 
 import mgrs.sig_mgr as sig_mgr
 from domain.hafeatures import LocLabels, Location, Edge, HybridAutomaton
-from domain.sigfeatures import SignalPoint, TimeInterval
+from domain.sigfeatures import SignalPoint, TimeInterval, Event
 import pltr.ha_pltr as ha_pltr
 
 
@@ -98,26 +98,34 @@ SPLIT SEGMENTS AND SET LABEL
 '''
 segments = []
 labels = []
+EVENTS = []
 for i in range(len(chg_pts)):
     sim_segm = []
     sim_labels = []
+    sim_events = []
     prev = 0.0
+    t = [float(x.split(' ')[0]) for x in idle_entries[i][1:len(idle_entries[i]) - 1] if len(x.split(' ')) > 1]
+
+    # one segment for each chg point
     for pt in chg_pts[i]:
         curr = float(mov_entries[i][pt].split(' ')[0])
         if float(mov_entries[i][pt - 1].split(' ')[1]) == 0.0:
             sim_labels.append(LocLabels.IDLE)
+            sim_events.append(Event(t[pt], 'start_h_action'))
         else:
             sim_labels.append(LocLabels.BUSY)
+            sim_events.append(Event(t[pt], 'stop_h_action'))
         sig_pts = list(filter(lambda e: len(e.split(' ')) > 1 and
                                         prev <= float(e.split(' ')[0]) < curr, ftg_entries[i]))
         sig_pts = list(map(lambda x: SignalPoint(float(x.split(' ')[0]), 1, float(x.split(' ')[1])), sig_pts))
         sim_segm.append(sig_pts)
         prev = curr
-
+    # last segment from last chg point to end of signal
     if float(mov_entries[i][- 2].split(' ')[1]) == 0.0:
         sim_labels.append(LocLabels.IDLE)
     else:
         sim_labels.append(LocLabels.BUSY)
+
     curr = float(ftg_entries[i][-2].split(' ')[0])
     sig_pts = list(filter(lambda e: len(e.split(' ')) > 1 and
                                     prev <= float(e.split(' ')[0]) < curr, ftg_entries[i]))
@@ -126,6 +134,7 @@ for i in range(len(chg_pts)):
 
     segments.append(sim_segm)
     labels.append(sim_labels)
+    EVENTS.append(sim_events)
 
 '''
 ESTIMATE RATES FOR IDENTIFIED SEGMENTS
@@ -203,8 +212,20 @@ if REFINEMENT_NEEDED:
         entries = hPosX[i].split('\n')
         entries = [entry for entry in entries if len(entry.split(' ')) > 1]
         hPosX_entries.append(entries)
+        t = [float(entry.split(' ')[0]) for entry in entries]
         values = [float(entry.split(' ')[1]) for entry in entries]
-        ign_events.append(find_ignored(values))
+        found_ignored = find_ignored(values)
+        ign_events.append(found_ignored)
+        # adds ignored events to sequence of prev. identified events
+        for ign in found_ignored:
+            prev = 0.0
+            for j in range(len(EVENTS[i])):
+                if prev <= t[ign] <= EVENTS[i][j].timestamp:
+                    EVENTS[i].insert(j, Event(t[ign], IGNORED_EVENTS[0]))
+
+for sim in EVENTS:
+    print('TRACE {}:'.format(EVENTS.index(sim)+1))
+    [print(event) for event in sim]
 
 '''
 PLOT TRACES WITH OVERLAY and HT outcome

@@ -50,3 +50,12 @@ class ChangePoint:
 
     def __str__(self):
         return '({}, {}) -> {}'.format(self.dt.t_min, self.dt.t_max, self.event)
+
+
+class Event:
+    def __init__(self, timestamp, label):
+        self.timestamp = timestamp
+        self.label = label
+
+    def __str__(self):
+        return '{:.2f}: {}'.format(self.timestamp, self.label)
