@@ -20,10 +20,17 @@ LOCATIONS: List[Location] = [Location(LocLabels.IDLE.value, None), Location(LocL
 
 
 class Edge:
-    def __init__(self, start: Location, dest: Location, guard: str):
+    def __init__(self, start: Location, dest: Location, guard: str = '', sync: str = ''):
         self.start = start
         self.dest = dest
         self.guard = guard
+        self.sync = sync
+
+    def set_guard(self, guard):
+        self.guard = guard
+
+    def set_sync(self, sync):
+        self.sync = sync
 
 
 class HybridAutomaton:

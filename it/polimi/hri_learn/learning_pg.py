@@ -7,9 +7,9 @@ import numpy as np
 import scipy.stats as stats
 
 import mgrs.sig_mgr as sig_mgr
+import pltr.ha_pltr as ha_pltr
 from domain.hafeatures import LocLabels, Location, Edge, HybridAutomaton
 from domain.sigfeatures import SignalPoint, TimeInterval, Event
-import pltr.ha_pltr as ha_pltr
 
 
 def find_chg_pts(values: List[float]):
@@ -30,7 +30,7 @@ def find_ignored(values: List[float]):
     # TODO: PROTOTYPE! should work for list of events
     ign_events = []
     for i in range(len(values)):
-        if values[i] > 4000.0 and values[i - 1] <= 4000.0:
+        if values[i] > 4000.0 >= values[i - 1]:
             ign_events.append(i)
     return ign_events
 
@@ -38,13 +38,15 @@ def find_ignored(values: List[float]):
 '''
 INITIAL HA
 '''
-IDLE_LOC = Location('r_0', 'F\'== -Fp*mi*exp(-mi*t)')
-BUSY_LOC = Location('w_0', 'F\' == Fp*lambda*exp(-lambda*t)')
-e_1 = Edge(IDLE_LOC, BUSY_LOC, 'start_h_action?')
-e_2 = Edge(BUSY_LOC, IDLE_LOC, 'stop_h_action?')
+IDLE_LOC = Location('r_0', 'F = f_rest(t)')
+BUSY_LOC = Location('w_0', 'F = f_walk(t) <br/> and F &lt;= 1')
+FAINT_LOC = Location('faint', 'F = 1')
+e_1 = Edge(IDLE_LOC, BUSY_LOC, sync='start_h_action?')
+e_2 = Edge(BUSY_LOC, IDLE_LOC, sync='stop_h_action?')
+e_3 = Edge(BUSY_LOC, FAINT_LOC, guard='F &gt;= 1')
 
-LOC = [IDLE_LOC, BUSY_LOC]
-EDGES = [e_1, e_2]
+LOC = [IDLE_LOC, BUSY_LOC, FAINT_LOC]
+EDGES = [e_1, e_2, e_3]
 
 HUMAN_FOLLOWER_HA = HybridAutomaton(LOC, EDGES)
 
@@ -205,7 +207,7 @@ REFINE GRAPH - STEP 1 add locations
 
 # TODO: PROTOTYPE! should not only add a specific location
 if REFINEMENT_NEEDED:
-    LOC.append(Location('r_1', 'F\'== -Fp*mi*exp(-mi*t)'))
+    LOC.append(Location('r_1', 'F = f_rest(t)'))
     HUMAN_FOLLOWER_HA.set_locations(LOC)
     ha_pltr.plot_ha(HUMAN_FOLLOWER_HA, 'human_follower_wip', view=True)
 
@@ -240,17 +242,50 @@ for sim in EVENTS:
 '''
 REFINE GRAPH - STEP 3 longest common suffix
 '''
+if REFINEMENT_NEEDED:
+    path_lens = list(map(lambda i: len(i), EVENTS))
+    shortest_path = [i for i in EVENTS if len(i) == min(path_lens)][0]
+    LONG_COMM_SUFFIX = []
+    for i in range(len(shortest_path)):
+        curr_label = shortest_path[len(shortest_path) - 1 - i].label
+        if all([sim[len(sim) - 1 - i].label == curr_label for sim in EVENTS]):
+            LONG_COMM_SUFFIX.insert(0, curr_label)
 
-path_lens = list(map(lambda i: len(i), EVENTS))
-shortest_path = [i for i in EVENTS if len(i) == min(path_lens)][0]
-LONG_COMM_SUFFIX = []
-for i in range(len(shortest_path)):
-    curr_label = shortest_path[len(shortest_path) - 1 - i].label
-    if all([sim[len(sim) - 1 - i].label == curr_label for sim in EVENTS]):
-        LONG_COMM_SUFFIX.insert(0, curr_label)
+    print('LONGEST COMMON SUFFIX')
+    print(LONG_COMM_SUFFIX)
 
-print('LONGEST COMMON SUFFIX')
-print(LONG_COMM_SUFFIX)
+'''
+REFINE GRAPH - STEP 4 ask for analyst confirmation
+'''
+
+# TODO: prototype, let's say they confirm
+#  the correlation between event and new condition
+CONFIRMATION = True
+
+'''
+REFINE GRAPH - STEP 5 fix edges
+'''
+
+if REFINEMENT_NEEDED and CONFIRMATION:
+    new_guards: str = ''
+    for event in LONG_COMM_SUFFIX:
+        # TODO: prototype, should check if controllable
+        if event not in IGNORED_EVENTS:
+            involved_locations = []
+            for edge in EDGES:
+                if edge.sync.__contains__(event) and len(new_guards) > 0:
+                    edge.set_guard('!' + new_guards)
+                    involved_locations.append(edge.start)
+            if event == LONG_COMM_SUFFIX[-1]:
+                for loc in involved_locations:
+                    EDGES.append(Edge(loc, LOC[-1], guard=new_guards, sync=event + '?'))
+                    new_guards = ''
+        else:
+            new_guards += 'humInArea2'
+
+    HUMAN_FOLLOWER_HA.set_edges(EDGES)
+
+ha_pltr.plot_ha(HUMAN_FOLLOWER_HA, 'human_follower_final', view=True)
 
 '''
 PLOT TRACES WITH OVERLAY and HT outcome
