@@ -9,6 +9,8 @@ class Channels(Enum):
 
 class Teacher:
     def __init__(self):
+        self.symbols = None
+        self.chg_pts = None
         pass
 
     def set_symbols(self, symbols):
@@ -35,12 +37,20 @@ class Teacher:
 
         self.set_symbols(symbols)
 
-    def find_chg_pts(self, values: List[float]):
-        chg_pts: List[int] = []
+    def set_chg_pts(self, chg_pts: List[float]):
+        self.chg_pts = chg_pts
+
+    def find_chg_pts(self, timestamps: List[float], values: List[float]):
+        chg_pts: List[float] = []
+
+        '''
+        IDENTIFY CHANGE PTS IN HUMAN MOVEMENT
+        '''
         prev = values[0]
         for i in range(1, len(values)):
             curr = values[i]
             if curr != prev:
-                chg_pts.append(i)
+                chg_pts.append(timestamps[i])
             prev = curr
-        return chg_pts
+
+        self.set_chg_pts(chg_pts)
