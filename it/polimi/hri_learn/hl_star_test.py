@@ -16,6 +16,7 @@ CONTR_EVTS = {'u': 'start_moving', 'd': 'stop_moving'}
 
 TEACHER = Teacher()
 TEACHER.compute_symbols(list(UNCONTR_EVTS.keys()), list(CONTR_EVTS.keys()))
+print(TEACHER.get_symbols())
 
 '''
 ACQUIRE TRACES
@@ -29,10 +30,10 @@ hMov = [variables[i] for i in range(len(variables)) if variables[i - 1].__contai
 hIdle = [variables[i] for i in range(len(variables)) if variables[i - 1].__contains__('amy.idle')]
 hPosX = [variables[i] for i in range(len(variables)) if variables[i - 1].__contains__('internalHumX')]
 
-LOGGER.info("TRACES TO ANALYZE: {}".format(len(ftg)))
+LOGGER.info("TRACES TO ANALYZE-> {}".format(len(ftg)))
 
 for trace in range(len(ftg)):
-    LOGGER.info("ANALYZING TRACE: {}".format(trace + 1))
+    LOGGER.info("ANALYZING TRACE {}".format(trace + 1))
     TEACHER.clear()
 
     '''
@@ -59,6 +60,6 @@ for trace in range(len(ftg)):
     # IDENTIFY EVENTS
     TEACHER.find_chg_pts(timestamps, values)
     TEACHER.identify_events()
-    print(TEACHER.get_events())
+    TEACHER.plot_trace('TRACE {}'.format(trace+1), 't [s]', 'F [%]')
 
     # run hl_star
