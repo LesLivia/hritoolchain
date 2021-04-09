@@ -16,7 +16,12 @@ class Teacher:
         self.events = None
         self.signals: List[List[SignalPoint]] = []
         self.evt_factory = EventFactory(None, None, None)
-        pass
+
+    def clear(self):
+        self.events = None
+        self.chg_pts = None
+        self.signals: List[List[SignalPoint]] = []
+        self.evt_factory.clear()
 
     '''
     SYMBOLS

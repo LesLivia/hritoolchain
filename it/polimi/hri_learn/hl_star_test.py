@@ -32,6 +32,7 @@ LOGGER.info("TRACES TO ANALYZE: {}".format(len(ftg)))
 
 for trace in range(len(ftg)):
     LOGGER.info("ANALYZING TRACE: {}".format(trace + 1))
+    TEACHER.clear()
 
     '''
     PARSE TRACES

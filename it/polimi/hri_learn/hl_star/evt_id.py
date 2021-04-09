@@ -9,6 +9,9 @@ class EventFactory:
         self.symbols = symbols
         self.signals: List[List[SignalPoint]] = []
 
+    def clear(self):
+        self.signals: List[List[SignalPoint]] = []
+
     def set_guards(self, guards):
         self.guards = guards
 
@@ -34,6 +37,11 @@ class EventFactory:
         return self.signals
 
     def label_event(self, timestamp: float):
+        fatigue = self.get_signals()[0]
+        moving = self.get_signals()[2]
+
         identified_guard = ''
 
-        identified_channel = ''
+        curr_mov = list(filter(lambda x: x.timestamp == timestamp, moving))[0]
+        identified_channel = self.get_channels()[0] if curr_mov.value == 1 else self.get_channels()[1]
+        print(identified_channel)
