@@ -1,6 +1,7 @@
 import warnings
 from hri_learn.hl_star.logger import Logger
 from hri_learn.hl_star.teacher import Teacher
+from hri_learn.hl_star.learner import Learner
 from domain.sigfeatures import SignalPoint
 
 '''
@@ -17,6 +18,8 @@ CONTR_EVTS = {'u': 'start_moving', 'd': 'stop_moving'}
 TEACHER = Teacher()
 TEACHER.compute_symbols(list(UNCONTR_EVTS.keys()), list(CONTR_EVTS.keys()))
 print(TEACHER.get_symbols())
+
+LEARNER = Learner(TEACHER)
 
 '''
 ACQUIRE TRACES
@@ -60,6 +63,7 @@ for trace in range(len(ftg)):
     # IDENTIFY EVENTS
     TEACHER.find_chg_pts(timestamps, values)
     TEACHER.identify_events()
-    TEACHER.plot_trace('TRACE {}'.format(trace+1), 't [s]', 'F [%]')
+    TEACHER.plot_trace('TRACE {}'.format(trace + 1), 't [s]', 'F [%]')
 
-    # run hl_star
+    # RUN LEARNING ALGORITHM
+    LEARNER.run_hl_star()

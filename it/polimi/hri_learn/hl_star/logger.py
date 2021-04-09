@@ -10,7 +10,7 @@ class LogLevel(Enum):
 
 class Logger:
     def __init__(self):
-        self.format = "HL* ({})\t{}"
+        self.format = "\nHL* ({})\t{}\n"
         pass
 
     def info(self, msg):
