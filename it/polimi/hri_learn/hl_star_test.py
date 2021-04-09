@@ -27,6 +27,7 @@ variables = lines.split('#')
 ftg = [variables[i] for i in range(len(variables)) if variables[i - 1].__contains__('amy.F')]
 hMov = [variables[i] for i in range(len(variables)) if variables[i - 1].__contains__('amy.busy')]
 hIdle = [variables[i] for i in range(len(variables)) if variables[i - 1].__contains__('amy.idle')]
+hPosX = [variables[i] for i in range(len(variables)) if variables[i - 1].__contains__('internalHumX')]
 
 LOGGER.info("TRACES TO ANALYZE: {}".format(len(ftg)))
 
@@ -43,10 +44,10 @@ for trace in range(len(ftg)):
     values = [float(x.split(' ')[1]) for x in ftg_entries if len(x.split(' ')) > 1]
     TEACHER.add_signal([SignalPoint(timestamps[i], 1, values[i]) for i in range(len(timestamps))])
 
-    entries = hIdle[trace].split('\n')[1:]
-    idle_entries = [entry for (i, entry) in enumerate(entries) if i == 0 or entries[i - 1] != entry]
-    timestamps = [float(x.split(' ')[0]) for x in idle_entries if len(x.split(' ')) > 1]
-    values = [float(x.split(' ')[1]) for x in idle_entries if len(x.split(' ')) > 1]
+    entries = hPosX[trace].split('\n')[1:]
+    posX_entries = [entry for (i, entry) in enumerate(entries) if i == 0 or entries[i - 1] != entry]
+    timestamps = [float(x.split(' ')[0]) for x in posX_entries if len(x.split(' ')) > 1]
+    values = [float(x.split(' ')[1]) for x in posX_entries if len(x.split(' ')) > 1]
     TEACHER.add_signal([SignalPoint(timestamps[i], 1, values[i]) for i in range(len(timestamps))])
 
     entries = hMov[trace].split('\n')[1:]
@@ -58,5 +59,6 @@ for trace in range(len(ftg)):
     # IDENTIFY EVENTS
     TEACHER.find_chg_pts(timestamps, values)
     TEACHER.identify_events()
+    print(TEACHER.get_events())
 
     # run hl_star

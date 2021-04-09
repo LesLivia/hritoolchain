@@ -36,12 +36,34 @@ class EventFactory:
     def get_signals(self):
         return self.signals
 
+    '''
+    WARNING! 
+            This method must be RE-IMPLEMENTED for each new case study:
+            each guard corresponds to a specific condition on a signal,
+            the same stands for channels.
+    '''
+
     def label_event(self, timestamp: float):
-        fatigue = self.get_signals()[0]
+        posX = self.get_signals()[1]
         moving = self.get_signals()[2]
 
         identified_guard = ''
+        '''
+        Repeat for every guard in the system
+        '''
+        curr_posx = list(filter(lambda x: x.timestamp <= timestamp, posX))[-1]
+        identified_guard += self.get_guards()[0] if curr_posx.value >= 4000.0 else '!' + self.get_guards()[0]
 
+        '''
+        Repeat for every channel in the system
+        '''
         curr_mov = list(filter(lambda x: x.timestamp == timestamp, moving))[0]
         identified_channel = self.get_channels()[0] if curr_mov.value == 1 else self.get_channels()[1]
-        print(identified_channel)
+
+        '''
+        Find symbol associated with guard-channel combination
+        '''
+        combination = identified_guard + ' and ' + identified_channel
+        for key in self.get_symbols().keys():
+            if self.get_symbols()[key] == combination:
+                return key
