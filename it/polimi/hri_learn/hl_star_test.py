@@ -29,9 +29,8 @@ hIdle = [variables[i] for i in range(len(variables)) if variables[i - 1].__conta
 
 LOGGER.info("TRACES TO ANALYZE: {}".format(len(ftg)))
 
-# while there is a trace to parse
 for trace in range(len(ftg)):
-    LOGGER.info("ANALYZING TRACE: {}".format(trace+1))
+    LOGGER.info("ANALYZING TRACE: {}".format(trace + 1))
 
     '''
     PARSE TRACES
@@ -49,4 +48,5 @@ for trace in range(len(ftg)):
     values = [float(x.split(' ')[1]) for x in mov_entries if len(x.split(' ')) > 1]
     TEACHER.find_chg_pts(timestamps, values)
     print(TEACHER.chg_pts)
+
     # run hl_star

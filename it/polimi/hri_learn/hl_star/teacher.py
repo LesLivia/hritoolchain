@@ -1,5 +1,6 @@
 from enum import Enum
 from typing import List
+from hri_learn.hl_star.evt_id import EventFactory
 
 
 class Channels(Enum):
@@ -11,13 +12,25 @@ class Teacher:
     def __init__(self):
         self.symbols = None
         self.chg_pts = None
+        self.events = None
+        self.evt_factory = EventFactory(None, None, None, None)
         pass
+
+    '''
+    SYMBOLS
+    '''
 
     def set_symbols(self, symbols):
         self.symbols = symbols
+        self.evt_factory.set_symbols(symbols)
+
+    def get_symbols(self):
+        return self.symbols
 
     def compute_symbols(self, guards: List[str], syncs: List[str]):
         symbols = {}
+        self.evt_factory.set_guards(guards)
+        self.evt_factory.set_channels(syncs)
         '''
         Compute all permutations of guards
         '''
@@ -36,15 +49,23 @@ class Teacher:
                 symbols[chn + '_' + str(index + 1)] = g + ' and ' + chn
 
         self.set_symbols(symbols)
+        self.evt_factory.set_symbols(symbols)
+
+    '''
+    CHANGE POINTS
+    '''
 
     def set_chg_pts(self, chg_pts: List[float]):
         self.chg_pts = chg_pts
+
+    def get_chg_pts(self):
+        return self.chg_pts
 
     def find_chg_pts(self, timestamps: List[float], values: List[float]):
         chg_pts: List[float] = []
 
         '''
-        IDENTIFY CHANGE PTS IN HUMAN MOVEMENT
+        IDENTIFY CHANGE PTS IN DRIVER OVERLAY
         '''
         prev = values[0]
         for i in range(1, len(values)):
@@ -54,3 +75,18 @@ class Teacher:
             prev = curr
 
         self.set_chg_pts(chg_pts)
+
+    '''
+    EVENTS
+    '''
+
+    def set_events(self, events):
+        self.events = events
+
+    def get_events(self):
+        return self.events
+
+    def identify_events(self):
+        events = {}
+
+        self.set_events(events)
