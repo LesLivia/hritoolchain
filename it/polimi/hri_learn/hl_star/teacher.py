@@ -1,6 +1,7 @@
 from enum import Enum
 from typing import List
 from hri_learn.hl_star.evt_id import EventFactory
+from domain.sigfeatures import SignalPoint
 
 
 class Channels(Enum):
@@ -13,7 +14,8 @@ class Teacher:
         self.symbols = None
         self.chg_pts = None
         self.events = None
-        self.evt_factory = EventFactory(None, None, None, None)
+        self.signals: List[List[SignalPoint]] = []
+        self.evt_factory = EventFactory(None, None, None)
         pass
 
     '''
@@ -77,6 +79,14 @@ class Teacher:
         self.set_chg_pts(chg_pts)
 
     '''
+    SIGNALS
+    '''
+
+    def add_signal(self, signal: List[SignalPoint]):
+        self.signals.append(signal)
+        self.evt_factory.add_signal(signal)
+
+    '''
     EVENTS
     '''
 
@@ -88,5 +98,8 @@ class Teacher:
 
     def identify_events(self):
         events = {}
+
+        for pt in self.get_chg_pts():
+            events[pt] = self.evt_factory.label_event(pt)
 
         self.set_events(events)

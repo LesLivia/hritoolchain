@@ -1,6 +1,7 @@
 import warnings
 from hri_learn.hl_star.logger import Logger
 from hri_learn.hl_star.teacher import Teacher
+from domain.sigfeatures import SignalPoint
 
 '''
 SETUP LEARNING PROCEDURE
@@ -37,16 +38,24 @@ for trace in range(len(ftg)):
     '''
     entries = ftg[trace].split('\n')[1:]
     ftg_entries = [entry for (i, entry) in enumerate(entries) if i == 0 or entries[i - 1] != entry]
-
-    entries = hMov[trace].split('\n')[1:]
-    mov_entries = [entry for (i, entry) in enumerate(entries) if i == 0 or entries[i - 1] != entry]
+    timestamps = [float(x.split(' ')[0]) for x in ftg_entries if len(x.split(' ')) > 1]
+    values = [float(x.split(' ')[1]) for x in ftg_entries if len(x.split(' ')) > 1]
+    TEACHER.add_signal([SignalPoint(timestamps[i], 1, values[i]) for i in range(len(timestamps))])
 
     entries = hIdle[trace].split('\n')[1:]
     idle_entries = [entry for (i, entry) in enumerate(entries) if i == 0 or entries[i - 1] != entry]
+    timestamps = [float(x.split(' ')[0]) for x in idle_entries if len(x.split(' ')) > 1]
+    values = [float(x.split(' ')[1]) for x in idle_entries if len(x.split(' ')) > 1]
+    TEACHER.add_signal([SignalPoint(timestamps[i], 1, values[i]) for i in range(len(timestamps))])
 
+    entries = hMov[trace].split('\n')[1:]
+    mov_entries = [entry for (i, entry) in enumerate(entries) if i == 0 or entries[i - 1] != entry]  # DRIVER OVERLAY
     timestamps = [float(x.split(' ')[0]) for x in mov_entries if len(x.split(' ')) > 1]
     values = [float(x.split(' ')[1]) for x in mov_entries if len(x.split(' ')) > 1]
+    TEACHER.add_signal([SignalPoint(timestamps[i], 1, values[i]) for i in range(len(timestamps))])
+
+    # IDENTIFY EVENTS
     TEACHER.find_chg_pts(timestamps, values)
-    print(TEACHER.chg_pts)
+    TEACHER.identify_events()
 
     # run hl_star
