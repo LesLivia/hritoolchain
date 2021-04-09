@@ -1,19 +1,5 @@
 import warnings
-from typing import List
-
-
-def find_chg_pts(values: List[float]):
-    chg_pts: List[int] = []
-    prev = values[0]
-    for i in range(1, len(values)):
-        curr = values[i]
-        if curr != prev:
-            chg_pts.append(i)
-        prev = curr
-    return chg_pts
-
-
-IGNORED_EVENTS = ['enter_area_2']
+from hri_learn.hl_star.teacher import Teacher
 
 '''
 SETUP LEARNING PROCEDURE
@@ -21,6 +7,11 @@ SETUP LEARNING PROCEDURE
 warnings.filterwarnings('ignore')
 
 LOG_PATH = 'resources/uppaal_logs/test.txt'
+UNCONTR_EVTS = {'e': 'enter_area_2'} #, 'r': 'is_running', 'o': 'enter_office'}
+CONTR_EVTS = {'u': 'start_moving', 'd': 'stop_moving'}
+
+TEACHER = Teacher()
+TEACHER.compute_symbols(list(UNCONTR_EVTS.keys()), list(CONTR_EVTS.keys()))
 
 '''
 ACQUIRE TRACES
@@ -49,6 +40,6 @@ for trace in range(len(ftg)):
     entries = hIdle[trace].split('\n')[1:]
     idle_entries = [entry for (i, entry) in enumerate(entries) if i == 0 or entries[i - 1] != entry]
 
-    chg_pts = find_chg_pts([float(x.split(' ')[1]) for x in mov_entries if len(x.split(' ')) > 1])
+    chg_pts = TEACHER.find_chg_pts([float(x.split(' ')[1]) for x in mov_entries if len(x.split(' ')) > 1])
     print(chg_pts)
-    # run hl*
+    # run hl_star
