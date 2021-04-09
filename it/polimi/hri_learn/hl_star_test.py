@@ -1,8 +1,9 @@
 import warnings
+
+from domain.sigfeatures import SignalPoint
+from hri_learn.hl_star.learner import Learner
 from hri_learn.hl_star.logger import Logger
 from hri_learn.hl_star.teacher import Teacher
-from hri_learn.hl_star.learner import Learner
-from domain.sigfeatures import SignalPoint
 
 '''
 SETUP LEARNING PROCEDURE
@@ -14,8 +15,12 @@ LOGGER = Logger()
 
 UNCONTR_EVTS = {'e': 'enter_area_2'}  # , 'r': 'is_running', 'o': 'enter_office'}
 CONTR_EVTS = {'u': 'start_moving', 'd': 'stop_moving'}
+IDLE_DISTR = (0.003328, 0.001342)
+BUSY_DISTR = (0.004538, 0.00065)
+PROB_DISTR = [IDLE_DISTR, BUSY_DISTR]
+MODELS = ['1-F_0*exp(-lambda*t)', 'F_0*exp(-mu*t)']
 
-TEACHER = Teacher()
+TEACHER = Teacher(MODELS, PROB_DISTR)
 TEACHER.compute_symbols(list(UNCONTR_EVTS.keys()), list(CONTR_EVTS.keys()))
 print(TEACHER.get_symbols())
 
@@ -60,10 +65,11 @@ for trace in range(len(ftg)):
     values = [float(x.split(' ')[1]) for x in mov_entries if len(x.split(' ')) > 1]
     TEACHER.add_signal([SignalPoint(timestamps[i], 1, values[i]) for i in range(len(timestamps))])
 
-    # IDENTIFY EVENTS
+    # IDENTIFY EVENTS:
+    # (Updates Teacher's knowledge of system behavior)
     TEACHER.find_chg_pts(timestamps, values)
     TEACHER.identify_events()
     TEACHER.plot_trace('TRACE {}'.format(trace + 1), 't [s]', 'F [%]')
 
-    # RUN LEARNING ALGORITHM
+    # RUN LEARNING ALGORITHM:
     LEARNER.run_hl_star()

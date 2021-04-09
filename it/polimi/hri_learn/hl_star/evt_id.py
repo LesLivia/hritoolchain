@@ -38,7 +38,7 @@ class EventFactory:
 
     '''
     WARNING! 
-            This method must be RE-IMPLEMENTED for each new case study:
+            This method must be RE-IMPLEMENTED for each system:
             each guard corresponds to a specific condition on a signal,
             the same stands for channels.
     '''
@@ -67,3 +67,12 @@ class EventFactory:
         for key in self.get_symbols().keys():
             if self.get_symbols()[key] == combination:
                 return key
+
+    '''
+    WARNING! 
+            This method must be RE-IMPLEMENTED for each system:
+            signal from which segments are extracted is returned.
+    '''
+
+    def get_main_signal(self):
+        return self.get_signals()[0]

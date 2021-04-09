@@ -92,8 +92,11 @@ class Learner:
         for (i, s_word) in enumerate(self.get_table().get_S()):
             row: List[Tuple] = upp_obs[i]
             for (j, t_word) in enumerate(self.get_table().get_T()):
+                # if cell is yet to be filled,
+                # asks teacher to answer queries
+                # and fills cell with answers
                 if upp_obs[i][j][0] is None:
-                    cell = ('f_0', 'N_0')
+                    cell = (self.TEACHER.mf_query(s_word + t_word), self.TEACHER.ht_query(s_word + t_word))
                     row[j] = cell
             upp_obs[i] = row
         self.get_table().set_upper_observations(upp_obs)
@@ -102,13 +105,29 @@ class Learner:
         for (i, s_word) in enumerate(self.get_table().get_low_S()):
             row: List[Tuple] = low_obs[i]
             for (j, t_word) in enumerate(self.get_table().get_T()):
+                # if cell is yet to be filled,
+                # asks teacher to answer queries
+                # and fills cell with answers
                 if low_obs[i][j][0] is None:
-                    cell = ('f_0', 'N_0')
+                    cell = (self.TEACHER.mf_query(s_word + t_word), self.TEACHER.ht_query(s_word + t_word))
                     row[j] = cell
             low_obs[i] = row
         self.get_table().set_upper_observations(upp_obs)
 
-    def run_hl_star(self):
+    def run_hl_star(self, debug_print=True):
         # Fill Observation Table with Answers to Queries (from TEACHER)
         self.fill_table()
-        self.get_table().print()
+        if debug_print:
+            self.get_table().print()
+
+        # TODO: Check if obs. table is closed
+
+        # TODO: If not, make closed
+
+        # TODO: Check if obs. table is consistent
+
+        # TODO: If not, make consistent
+
+        # TODO: Build Hypothesis Automaton
+
+        # TODO: if counterexamples -> repeat

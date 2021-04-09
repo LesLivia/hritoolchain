@@ -1,22 +1,24 @@
-from enum import Enum
-from typing import List
-from hri_learn.hl_star.evt_id import EventFactory
-from domain.sigfeatures import SignalPoint
+from typing import List, Tuple
+
 import matplotlib.pyplot as plt
 
-
-class Channels(Enum):
-    START = 'u'
-    STOP = 'd'
+from domain.sigfeatures import SignalPoint
+from hri_learn.hl_star.evt_id import EventFactory
 
 
 class Teacher:
-    def __init__(self):
+    def __init__(self, models, distributions=List[Tuple]):
+        # System-Dependent Attributes
         self.symbols = None
+        self.models = models
+        self.distributions = distributions
+        self.evt_factory = EventFactory(None, None, None)
+
+        # Trace-Dependent Attributes
+        # (to be cleared when trace changes)
         self.chg_pts = None
         self.events = None
         self.signals: List[List[SignalPoint]] = []
-        self.evt_factory = EventFactory(None, None, None)
 
     def clear(self):
         self.events = None
@@ -136,3 +138,60 @@ class Teacher:
             plt.text(x[index] - 7, max(v) + .01, e, fontsize=18, color='blue')
 
         plt.show()
+
+    '''
+    QUERIES
+    '''
+
+    def set_models(self, models):
+        self.models = models
+
+    def get_models(self):
+        return self.models
+
+    def set_distributions(self, distributions):
+        self.distributions = distributions
+
+    def get_distributions(self):
+        return self.distributions
+
+    def cut_segment(self, word: str):
+        main_sig = self.evt_factory.get_main_signal()
+        events_in_word = []
+        for i in range(0, len(word), 3):
+            events_in_word.append(word[i:i + 3])
+
+        last_event = events_in_word[-1]
+        for (index, event) in enumerate(self.get_events().values()):
+            if event == last_event:
+                start_timestamp = list(self.get_events().keys())[index]
+                end_timestamp: float
+                if index < len(self.get_events()) - 1:
+                    end_timestamp = list(self.get_events().keys())[index + 1]
+                else:
+                    end_timestamp = main_sig[-1].timestamp
+                return list(filter(lambda pt: start_timestamp <= pt.timestamp <= end_timestamp, main_sig))
+        else:
+            return None
+
+    def mf_query(self, word: str):
+        if word == '':
+            return 'f_0'
+        else:
+            segment = self.cut_segment(word)
+            if segment is not None:
+                # TODO: perform model fitting
+                pass
+            else:
+                return None
+
+    def ht_query(self, word: str):
+        if word == '':
+            return 'N_0'
+        else:
+            segment = self.cut_segment(word)
+            if segment is not None:
+                # TODO: perform hypothesis testing
+                pass
+            else:
+                return None
