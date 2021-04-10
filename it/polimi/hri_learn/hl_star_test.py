@@ -16,17 +16,17 @@ LOGGER = Logger()
 
 UNCONTR_EVTS = {'e': 'enter_area_2'}  # , 'r': 'is_running', 'o': 'enter_office'}
 CONTR_EVTS = {'u': 'start_moving', 'd': 'stop_moving'}
-IDLE_DISTR = [(0.003328, 0.001342)]
-BUSY_DISTR = [(0.004538, 0.00065)]
+IDLE_DISTR = (0.003328, 0.001342)
+BUSY_DISTR = (0.004538, 0.00065)
 PROB_DISTR = [IDLE_DISTR, BUSY_DISTR]
 
 
 def idle_model(interval: List[float], F_0: float):
-    return [F_0 * math.exp(-IDLE_DISTR[0][0] * (t - interval[0])) for t in interval]
+    return [F_0 * math.exp(-IDLE_DISTR[0] * (t - interval[0])) for t in interval]
 
 
 def busy_model(interval: List[float], F_0: float):
-    return [1 - (1 - F_0) * math.exp(-BUSY_DISTR[0][0] * (t - interval[0])) for t in interval]
+    return [1 - (1 - F_0) * math.exp(-BUSY_DISTR[0] * (t - interval[0])) for t in interval]
 
 
 MODELS = [idle_model, busy_model]
@@ -49,10 +49,10 @@ hMov = [variables[i] for i in range(len(variables)) if variables[i - 1].__contai
 hIdle = [variables[i] for i in range(len(variables)) if variables[i - 1].__contains__('amy.idle')]
 hPosX = [variables[i] for i in range(len(variables)) if variables[i - 1].__contains__('internalHumX')]
 
-LOGGER.info("TRACES TO ANALYZE-> {}".format(len(ftg)))
+LOGGER.info("TRACES TO ANALYZE-> {}\n".format(len(ftg)))
 
 for trace in range(len(ftg)):
-    LOGGER.info("ANALYZING TRACE {}".format(trace + 1))
+    LOGGER.info("ANALYZING TRACE {}:\n".format(trace + 1))
     TEACHER.clear()
 
     '''

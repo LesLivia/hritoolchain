@@ -3,14 +3,14 @@ from typing import Tuple, List
 import matplotlib.pyplot as plt
 
 from domain.sigfeatures import SignalPoint
-from hri_learn.hl_star.evt_id import EventFactory, DEFAULT_DISTR, DEFAULT_MODEL, DRIVER_SIGNAL
+from hri_learn.hl_star.evt_id import EventFactory, DEFAULT_DISTR, DEFAULT_MODEL, DRIVER_SIGNAL, MODEL_TO_DISTR_MAP
 from hri_learn.hl_star.logger import Logger
 
 LOGGER = Logger()
 
 
 class Teacher:
-    def __init__(self, models, distributions: List[List[Tuple]]):
+    def __init__(self, models, distributions: List[Tuple]):
         # System-Dependent Attributes
         self.symbols = None
         self.models = models
@@ -210,13 +210,18 @@ class Teacher:
             if segment is not None:
                 metric = self.evt_factory.get_ht_metric(segment)
                 if metric is not None:
-                    print('{} {}'.format(word, metric))
-                    distributions = list(self.get_distributions())
-                    for (index, distr) in enumerate(distributions[model]):
+                    LOGGER.debug('EST. RATE for {}: {}'.format(word, metric))
+                    distributions = self.get_distributions()
+                    eligible_distributions = [k for k in MODEL_TO_DISTR_MAP.keys() if MODEL_TO_DISTR_MAP[k] == model]
+                    for index in eligible_distributions:
+                        distr: tuple = distributions[index]
                         minus_sigma = max(distr[0] - 3 * distr[1], 0)
                         plus_sigma = distr[0] + 3 * distr[1]
                         if minus_sigma <= metric <= plus_sigma:
-                            return sum([len(d) for d in distributions[:model]]) + index
+                            return index
+                    else:
+                        self.get_distributions().append((metric, metric / 10))
+                        return len(self.get_distributions()) - 1
                 else:
                     return None
             else:
