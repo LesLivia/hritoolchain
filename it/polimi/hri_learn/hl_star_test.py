@@ -1,5 +1,6 @@
 import warnings
-
+import math
+from typing import List
 from domain.sigfeatures import SignalPoint
 from hri_learn.hl_star.learner import Learner
 from hri_learn.hl_star.logger import Logger
@@ -18,7 +19,17 @@ CONTR_EVTS = {'u': 'start_moving', 'd': 'stop_moving'}
 IDLE_DISTR = [(0.003328, 0.001342)]
 BUSY_DISTR = [(0.004538, 0.00065)]
 PROB_DISTR = [IDLE_DISTR, BUSY_DISTR]
-MODELS = ['1-F_0*exp(-lambda*t)', 'F_0*exp(-mu*t)']
+
+
+def idle_model(interval: List[float], F_0: float):
+    return [F_0 * math.exp(-IDLE_DISTR[0][0] * (t - interval[0])) for t in interval]
+
+
+def busy_model(interval: List[float], F_0: float):
+    return [1 - (1 - F_0) * math.exp(-BUSY_DISTR[0][0] * (t - interval[0])) for t in interval]
+
+
+MODELS = [idle_model, busy_model]
 
 TEACHER = Teacher(MODELS, PROB_DISTR)
 TEACHER.compute_symbols(list(UNCONTR_EVTS.keys()), list(CONTR_EVTS.keys()))

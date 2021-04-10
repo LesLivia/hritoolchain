@@ -179,8 +179,12 @@ class Teacher:
         else:
             segment = self.cut_segment(word)
             if segment is not None:
-                # TODO: perform model fitting
-                pass
+                for model in self.get_models():
+                    interval = [pt.timestamp for pt in segment]
+                    ideal_model = model(interval, segment[0].value)
+                    plt.figure()
+                    plt.plot(interval, ideal_model, 'b', interval, [pt.value for pt in segment], 'r')
+                    plt.show()
             else:
                 return None
 
@@ -195,7 +199,7 @@ class Teacher:
             if segment is not None:
                 metric = self.evt_factory.get_ht_metric(segment)
                 if metric is not None:
-                    print('{} {}'.format(word, metric))
+                    # print('{} {}'.format(word, metric))
                     for (index, distr) in enumerate(list(self.get_distributions()[model])):
                         minus_sigma = max(distr[0] - 3 * distr[1], 0)
                         plus_sigma = distr[0] + 3 * distr[1]
