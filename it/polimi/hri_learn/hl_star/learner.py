@@ -148,19 +148,28 @@ class Learner:
         self.get_table().set_lower_observations(low_obs)
 
     def make_closed(self):
-        S = self.get_table().get_S()
         upp_obs: List[List[Tuple]] = self.get_table().get_upper_observations()
         low_S = self.get_table().get_low_S()
         low_obs: List[List[Tuple]] = self.get_table().get_lower_observations()
         for (index, row) in enumerate(low_obs):
             row_is_populated = all([cell[0] is not None and cell[1] is not None for cell in row])
+            # if there is a populated row in lower portion that is not in the upper portion
+            # the corresponding word is added to the S word set
             if row_is_populated and row not in upp_obs:
                 upp_obs.append(row)
-                self.get_table().add_S(low_S[index])
+                new_s_word = low_S[index]
+                self.get_table().add_S(new_s_word)
                 low_obs.pop(index)
                 self.get_table().del_low_S(index)
+                # lower portion is then updated with all combinations of
+                # new S word and all possible symbols
+                for symbol in self.get_symbols():
+                    self.get_table().add_low_S(new_s_word + symbol)
+                    new_row: List[Tuple] = [(None, None)] * len(self.get_table().get_T())
+                    low_obs.append(new_row)
         self.get_table().set_upper_observations(upp_obs)
         self.get_table().set_lower_observations(low_obs)
+        self.fill_table()
 
     def make_consistent(self):
         pass

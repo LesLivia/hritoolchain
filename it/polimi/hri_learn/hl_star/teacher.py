@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from domain.sigfeatures import SignalPoint
 from hri_learn.hl_star.evt_id import EventFactory, DEFAULT_DISTR, DEFAULT_MODEL, DRIVER_SIGNAL, MODEL_TO_DISTR_MAP
 from hri_learn.hl_star.logger import Logger
+from functools import reduce
 
 LOGGER = Logger()
 
@@ -159,6 +160,9 @@ class Teacher:
         return self.distributions
 
     def cut_segment(self, word: str):
+        trace_events = reduce(lambda x, y: x + y, list(self.get_events().values()))
+        if word not in trace_events:
+            return None
         main_sig = self.get_signals()[DRIVER_SIGNAL]
         events_in_word = []
         for i in range(0, len(word), 3):
@@ -210,9 +214,10 @@ class Teacher:
             if segment is not None:
                 metric = self.evt_factory.get_ht_metric(segment)
                 if metric is not None:
-                    LOGGER.debug('EST. RATE for {}: {}'.format(word, metric))
+                    # LOGGER.debug('EST. RATE for {}: {}'.format(word, metric))
                     distributions = self.get_distributions()
                     eligible_distributions = [k for k in MODEL_TO_DISTR_MAP.keys() if MODEL_TO_DISTR_MAP[k] == model]
+                    # performs hyp. testing on all eligible distributions
                     for index in eligible_distributions:
                         distr: tuple = distributions[index]
                         minus_sigma = max(distr[0] - 3 * distr[1], 0)
@@ -220,8 +225,13 @@ class Teacher:
                         if minus_sigma <= metric <= plus_sigma:
                             return index
                     else:
+                        # if no distribution is found that passes the hyp. test,
+                        # a new distribution is created...
                         self.get_distributions().append((metric, metric / 10))
-                        return len(self.get_distributions()) - 1
+                        # and added to the map of eligible distr. for the selected model
+                        new_distr_index = len(self.get_distributions()) - 1
+                        MODEL_TO_DISTR_MAP[new_distr_index] = model
+                        return new_distr_index
                 else:
                     return None
             else:

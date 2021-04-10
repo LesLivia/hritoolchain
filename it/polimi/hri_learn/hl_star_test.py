@@ -12,7 +12,7 @@ SETUP LEARNING PROCEDURE
 '''
 warnings.filterwarnings('ignore')
 
-LOG_PATH = 'resources/uppaal_logs/test.txt'
+LOG_PATH = 'resources/uppaal_logs/test2.txt'
 LOGGER = Logger()
 
 UNCONTR_EVTS = {'e': 'enter_area_2'}  # , 'r': 'is_running', 'o': 'enter_office'}
