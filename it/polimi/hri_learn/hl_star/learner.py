@@ -1,9 +1,12 @@
 from typing import List, Tuple
 
+from hri_learn.hl_star.logger import Logger
+
 EMPTY_STRING = '\u03B5'
 
 MODEL_FORMATTER = 'f_{}'
 DISTR_FORMATTER = 'N_{}'
+LOGGER = Logger()
 
 
 class ObsTable:
@@ -164,14 +167,17 @@ class Learner:
         # Fill Observation Table with Answers to Queries (from TEACHER)
         self.fill_table()
         if debug_print:
+            LOGGER.info('OBSERVATION TABLE')
             self.get_table().print()
 
         # Check if obs. table is closed
         while not (self.get_table().is_closed() and self.get_table().is_consistent()):
             if not self.get_table().is_closed():
-                # print('table not closed')
-                # TODO: If not, make closed
+                LOGGER.warn('TABLE IS NOT CLOSED')
+                # If not, make closed
                 self.make_closed()
+                LOGGER.info('CLOSED OBSERVATION TABLE')
+                self.get_table().print()
 
             # TODO: Check if obs. table is consistent
             if not self.get_table().is_consistent():

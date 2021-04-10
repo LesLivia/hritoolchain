@@ -1,8 +1,12 @@
-from typing import Tuple
+from typing import Tuple, List
 
 import matplotlib.pyplot as plt
 
-from hri_learn.hl_star.evt_id import *
+from domain.sigfeatures import SignalPoint
+from hri_learn.hl_star.evt_id import EventFactory, DEFAULT_DISTR, DEFAULT_MODEL, DRIVER_SIGNAL
+from hri_learn.hl_star.logger import Logger
+
+LOGGER = Logger()
 
 
 class Teacher:
@@ -41,7 +45,7 @@ class Teacher:
         self.evt_factory.set_guards(guards)
         self.evt_factory.set_channels(syncs)
         '''
-        Compute all permutations of guards
+        Compute all guards combinations
         '''
         guards_comb = [''] * 2 ** len(guards)
         for (i, g) in enumerate(guards):
@@ -206,12 +210,13 @@ class Teacher:
             if segment is not None:
                 metric = self.evt_factory.get_ht_metric(segment)
                 if metric is not None:
-                    # print('{} {}'.format(word, metric))
-                    for (index, distr) in enumerate(list(self.get_distributions()[model])):
+                    print('{} {}'.format(word, metric))
+                    distributions = list(self.get_distributions())
+                    for (index, distr) in enumerate(distributions[model]):
                         minus_sigma = max(distr[0] - 3 * distr[1], 0)
                         plus_sigma = distr[0] + 3 * distr[1]
                         if minus_sigma <= metric <= plus_sigma:
-                            return index
+                            return sum([len(d) for d in distributions[:model]]) + index
                 else:
                     return None
             else:
