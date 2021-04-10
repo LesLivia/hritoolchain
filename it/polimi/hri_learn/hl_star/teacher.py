@@ -1,9 +1,11 @@
-from typing import List, Tuple
+from typing import Tuple
 
 import matplotlib.pyplot as plt
 
-from domain.sigfeatures import SignalPoint
-from hri_learn.hl_star.evt_id import EventFactory
+from hri_learn.hl_star.evt_id import *
+
+MODEL_FORMATTER = 'f_{}'
+DISTR_FORMATTER = 'N_{}'
 
 
 class Teacher:
@@ -156,7 +158,7 @@ class Teacher:
         return self.distributions
 
     def cut_segment(self, word: str):
-        main_sig = self.evt_factory.get_main_signal()
+        main_sig = self.get_signals()[DRIVER_SIGNAL]
         events_in_word = []
         for i in range(0, len(word), 3):
             events_in_word.append(word[i:i + 3])
@@ -176,7 +178,7 @@ class Teacher:
 
     def mf_query(self, word: str):
         if word == '':
-            return 'f_0'
+            return MODEL_FORMATTER.format(DEFAULT_MODEL)
         else:
             segment = self.cut_segment(word)
             if segment is not None:
@@ -187,11 +189,20 @@ class Teacher:
 
     def ht_query(self, word: str):
         if word == '':
-            return 'N_0'
+            return DISTR_FORMATTER.format(DEFAULT_DISTR)
         else:
             segment = self.cut_segment(word)
             if segment is not None:
-                # TODO: perform hypothesis testing
-                pass
+                metric = self.evt_factory.get_ht_metric(segment)
+                if metric is not None:
+                    print('{} {}'.format(word, metric))
+                    for (index, distr) in enumerate(list(self.get_distributions())):
+                        minus_sigma = distr[0] - 3 * distr[1]
+                        plus_sigma = distr[0] + 3 * distr[1]
+                        if minus_sigma <= metric <= plus_sigma:
+                            return DISTR_FORMATTER.format(index)
+                else:
+                    return None
+
             else:
                 return None

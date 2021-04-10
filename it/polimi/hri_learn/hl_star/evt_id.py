@@ -1,5 +1,17 @@
-from domain.sigfeatures import SignalPoint
+import math
 from typing import List
+
+import mgrs.sig_mgr as sig_mgr
+from domain.sigfeatures import SignalPoint, TimeInterval
+
+'''
+WARNING! 
+        These constants may change if the system changes:
+        default model and distr. for empty string.
+'''
+DRIVER_SIGNAL = 0
+DEFAULT_MODEL = 0
+DEFAULT_DISTR = 0
 
 
 class EventFactory:
@@ -71,8 +83,18 @@ class EventFactory:
     '''
     WARNING! 
             This method must be RE-IMPLEMENTED for each system:
-            signal from which segments are extracted is returned.
+            returns metric for HT queries.
     '''
 
-    def get_main_signal(self):
-        return self.get_signals()[0]
+    def get_ht_metric(self, segment: List[SignalPoint]):
+        try:
+            t = [pt.timestamp for pt in segment]
+            dts = [v - t[i - 1] for i, v in enumerate(t) if i > 0]
+            avg_dt = sum(dts) / len(dts)
+
+            dt = TimeInterval(segment[0].timestamp, segment[-1].timestamp)
+            params, x_fore, fore = sig_mgr.n_predictions(segment, dt, 10, show_formula=False)
+            est_rate = math.fabs(math.log(params[1])) / avg_dt if params[1] != 0.0 else 0.0
+            return est_rate
+        except ValueError:
+            return None

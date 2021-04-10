@@ -103,7 +103,7 @@ class Learner:
     def fill_table(self):
         upp_obs: List[List[Tuple]] = self.get_table().get_upper_observations()
         for (i, s_word) in enumerate(self.get_table().get_S()):
-            row: List[Tuple] = upp_obs[i]
+            row: List[Tuple] = upp_obs[i].copy()
             for (j, t_word) in enumerate(self.get_table().get_T()):
                 # if cell is yet to be filled,
                 # asks teacher to answer queries
@@ -111,21 +111,21 @@ class Learner:
                 if upp_obs[i][j][0] is None:
                     cell = (self.TEACHER.mf_query(s_word + t_word), self.TEACHER.ht_query(s_word + t_word))
                     row[j] = cell
-            upp_obs[i] = row
+            upp_obs[i] = row.copy()
         self.get_table().set_upper_observations(upp_obs)
 
         low_obs: List[List[Tuple]] = self.get_table().get_lower_observations()
         for (i, s_word) in enumerate(self.get_table().get_low_S()):
-            row: List[Tuple] = low_obs[i]
+            row: List[Tuple] = low_obs[i].copy()
             for (j, t_word) in enumerate(self.get_table().get_T()):
                 # if cell is yet to be filled,
                 # asks teacher to answer queries
                 # and fills cell with answers
-                if low_obs[i][j][0] is None:
+                if low_obs[i][j][0] is None and low_obs[i][j][1] is None:
                     cell = (self.TEACHER.mf_query(s_word + t_word), self.TEACHER.ht_query(s_word + t_word))
                     row[j] = cell
-            low_obs[i] = row
-        self.get_table().set_upper_observations(upp_obs)
+            low_obs[i] = row.copy()
+        self.get_table().set_lower_observations(low_obs)
 
     def make_closed(self):
         pass
