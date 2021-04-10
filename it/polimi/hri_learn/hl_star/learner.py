@@ -45,6 +45,19 @@ class ObsTable:
     def tuple_to_str(tup):
         return '({}, {})'.format(tup[0], tup[1])
 
+    def is_closed(self):
+        for row in self.get_lower_observations():
+            for tup in row:
+                tuple_is_filled = tup[0] is not None and tup[1] is not None
+                tuple_is_in_upper = tup in self.get_upper_observations()
+                if tuple_is_filled and not tuple_is_in_upper:
+                    return False
+        else:
+            return True
+
+    def is_consistent(self):
+        return True
+
     def print(self):
         HEADER = '\t|\t\t'
         for t_word in self.get_T():
@@ -114,19 +127,30 @@ class Learner:
             low_obs[i] = row
         self.get_table().set_upper_observations(upp_obs)
 
+    def make_closed(self):
+        pass
+
+    def make_consistent(self):
+        pass
+
     def run_hl_star(self, debug_print=True):
         # Fill Observation Table with Answers to Queries (from TEACHER)
         self.fill_table()
         if debug_print:
             self.get_table().print()
 
-        # TODO: Check if obs. table is closed
+        # Check if obs. table is closed
+        while not (self.get_table().is_closed() and self.get_table().is_consistent()):
+            if not self.get_table().is_closed():
+                print('table not closed')
+                # TODO: If not, make closed
+                self.make_closed()
 
-        # TODO: If not, make closed
-
-        # TODO: Check if obs. table is consistent
-
-        # TODO: If not, make consistent
+            # TODO: Check if obs. table is consistent
+            if not self.get_table().is_consistent():
+                print('table is not consistent')
+                # TODO: If not, make consistent
+                self.make_consistent()
 
         # TODO: Build Hypothesis Automaton
 
