@@ -1,11 +1,13 @@
 from typing import List, Tuple
-
+from domain.hafeatures import HybridAutomaton, Location, Edge
 from hri_learn.hl_star.logger import Logger
+import pltr.ha_pltr as ha_pltr
 
 EMPTY_STRING = '\u03B5'
 
 MODEL_FORMATTER = 'f_{}'
 DISTR_FORMATTER = 'N_{}'
+LOCATION_FORMATTER = 'q_{}'
 LOGGER = Logger()
 
 
@@ -163,7 +165,27 @@ class Learner:
     def make_consistent(self):
         pass
 
-    def run_hl_star(self, debug_print=True):
+    def build_hyp_aut(self, show=True):
+        locations: List[Location] = []
+        upp_obs = self.get_table().get_upper_observations()
+        unique_sequences: List[List[Tuple]] = []
+        for row in upp_obs:
+            if row not in unique_sequences:
+                unique_sequences.append(row)
+        for (index, seq) in enumerate(unique_sequences):
+            new_name = LOCATION_FORMATTER.format(index)
+            new_flow = MODEL_FORMATTER.format(seq[0][0]) + ', ' + DISTR_FORMATTER.format(seq[0][1])
+            locations.append(Location(new_name, new_flow))
+
+        edges: List[Edge] = []
+
+        hyp_ha = HybridAutomaton(locations, edges)
+        if show:
+            ha_pltr.plot_ha(hyp_ha, 'hyp_ha', view=True)
+
+        return HybridAutomaton(locations, edges)
+
+    def run_hl_star(self, debug_print=True, show=True):
         # Fill Observation Table with Answers to Queries (from TEACHER)
         self.fill_table()
         if debug_print:
@@ -185,6 +207,8 @@ class Learner:
                 # TODO: If not, make consistent
                 self.make_consistent()
 
-        # TODO: Build Hypothesis Automaton
+        # Build Hypothesis Automaton
+        LOGGER.info('BUILDING HYP. AUTOMATON...')
+        return self.build_hyp_aut(show)
 
         # TODO: if counterexamples -> repeat
