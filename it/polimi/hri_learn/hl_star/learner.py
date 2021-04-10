@@ -2,6 +2,9 @@ from typing import List, Tuple
 
 EMPTY_STRING = '\u03B5'
 
+MODEL_FORMATTER = 'f_{}'
+DISTR_FORMATTER = 'N_{}'
+
 
 class ObsTable:
     def __init__(self, s: List[str], t: List[str], low_s: List[str]):
@@ -43,7 +46,10 @@ class ObsTable:
 
     @staticmethod
     def tuple_to_str(tup):
-        return '({}, {})'.format(tup[0], tup[1])
+        if tup[0] is None and tup[1] is None:
+            return '(∅, ∅)\t'
+        else:
+            return '({}, {})'.format(MODEL_FORMATTER.format(tup[0]), DISTR_FORMATTER.format(tup[1]))
 
     def is_closed(self):
         for row in self.get_lower_observations():
@@ -109,7 +115,9 @@ class Learner:
                 # asks teacher to answer queries
                 # and fills cell with answers
                 if upp_obs[i][j][0] is None:
-                    cell = (self.TEACHER.mf_query(s_word + t_word), self.TEACHER.ht_query(s_word + t_word))
+                    identified_model = self.TEACHER.mf_query(s_word + t_word)
+                    identified_distr = self.TEACHER.ht_query(s_word + t_word, identified_model)
+                    cell = (identified_model, identified_distr)
                     row[j] = cell
             upp_obs[i] = row.copy()
         self.get_table().set_upper_observations(upp_obs)
@@ -122,7 +130,9 @@ class Learner:
                 # asks teacher to answer queries
                 # and fills cell with answers
                 if low_obs[i][j][0] is None and low_obs[i][j][1] is None:
-                    cell = (self.TEACHER.mf_query(s_word + t_word), self.TEACHER.ht_query(s_word + t_word))
+                    identified_model = self.TEACHER.mf_query(s_word + t_word)
+                    identified_distr = self.TEACHER.ht_query(s_word + t_word, identified_model)
+                    cell = (identified_model, identified_distr)
                     row[j] = cell
             low_obs[i] = row.copy()
         self.get_table().set_lower_observations(low_obs)

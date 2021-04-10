@@ -15,8 +15,8 @@ LOGGER = Logger()
 
 UNCONTR_EVTS = {'e': 'enter_area_2'}  # , 'r': 'is_running', 'o': 'enter_office'}
 CONTR_EVTS = {'u': 'start_moving', 'd': 'stop_moving'}
-IDLE_DISTR = (0.003328, 0.001342)
-BUSY_DISTR = (0.004538, 0.00065)
+IDLE_DISTR = [(0.003328, 0.001342)]
+BUSY_DISTR = [(0.004538, 0.00065)]
 PROB_DISTR = [IDLE_DISTR, BUSY_DISTR]
 MODELS = ['1-F_0*exp(-lambda*t)', 'F_0*exp(-mu*t)']
 

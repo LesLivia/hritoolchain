@@ -4,12 +4,9 @@ import matplotlib.pyplot as plt
 
 from hri_learn.hl_star.evt_id import *
 
-MODEL_FORMATTER = 'f_{}'
-DISTR_FORMATTER = 'N_{}'
-
 
 class Teacher:
-    def __init__(self, models, distributions=List[Tuple]):
+    def __init__(self, models, distributions: List[List[Tuple]]):
         # System-Dependent Attributes
         self.symbols = None
         self.models = models
@@ -178,7 +175,7 @@ class Teacher:
 
     def mf_query(self, word: str):
         if word == '':
-            return MODEL_FORMATTER.format(DEFAULT_MODEL)
+            return DEFAULT_MODEL
         else:
             segment = self.cut_segment(word)
             if segment is not None:
@@ -187,22 +184,24 @@ class Teacher:
             else:
                 return None
 
-    def ht_query(self, word: str):
+    def ht_query(self, word: str, model=DEFAULT_MODEL):
+        if model is None:
+            return None
+
         if word == '':
-            return DISTR_FORMATTER.format(DEFAULT_DISTR)
+            return DEFAULT_DISTR
         else:
             segment = self.cut_segment(word)
             if segment is not None:
                 metric = self.evt_factory.get_ht_metric(segment)
                 if metric is not None:
                     print('{} {}'.format(word, metric))
-                    for (index, distr) in enumerate(list(self.get_distributions())):
-                        minus_sigma = distr[0] - 3 * distr[1]
+                    for (index, distr) in enumerate(list(self.get_distributions()[model])):
+                        minus_sigma = max(distr[0] - 3 * distr[1], 0)
                         plus_sigma = distr[0] + 3 * distr[1]
                         if minus_sigma <= metric <= plus_sigma:
-                            return DISTR_FORMATTER.format(index)
+                            return index
                 else:
                     return None
-
             else:
                 return None
