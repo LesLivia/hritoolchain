@@ -187,6 +187,14 @@ class Learner:
             locations.append(Location(new_name, new_flow))
 
         edges: List[Edge] = []
+        for (s_i, s_word) in enumerate(self.get_table().get_S()):
+            for (t_i, t_word) in enumerate(self.get_table().get_T()):
+                word: str = s_word + t_word
+                start_row = self.get_table().get_S().index(word.replace(s_word, ''))
+                start_loc = locations[start_row]
+                dest_row = self.get_table().get_S().index(word)
+                dest_loc = locations[dest_row]
+                edges.append(Edge(start_loc, dest_loc, guard=word))
 
         hyp_ha = HybridAutomaton(locations, edges)
         if show:
@@ -212,8 +220,9 @@ class Learner:
 
             # TODO: Check if obs. table is consistent
             if not self.get_table().is_consistent():
-                print('table is not consistent')
+                LOGGER.warn('TABLE IS NOT CONSISTENT')
                 # TODO: If not, make consistent
+                LOGGER.info('CONSISTENT OBSERVATION TABLE')
                 self.make_consistent()
 
         # Build Hypothesis Automaton
