@@ -94,7 +94,7 @@ class EventFactory:
 
             dt = TimeInterval(segment[0].timestamp, segment[-1].timestamp)
             params, x_fore, fore = sig_mgr.n_predictions(segment, dt, 10, show_formula=False)
-            est_rate = math.fabs(math.log(params[1])) / avg_dt if params[1] != 0.0 else 0.0
+            est_rate = math.fabs(math.log(params[1])) / avg_dt*2 if params[1] != 0.0 else 0.0
             return est_rate
         except ValueError:
             return None

@@ -179,12 +179,19 @@ class Teacher:
         else:
             segment = self.cut_segment(word)
             if segment is not None:
-                for model in self.get_models():
+                min_distance = 10000
+                best_fit = None
+                for (m_i, model) in enumerate(self.get_models()):
                     interval = [pt.timestamp for pt in segment]
                     ideal_model = model(interval, segment[0].value)
-                    plt.figure()
-                    plt.plot(interval, ideal_model, 'b', interval, [pt.value for pt in segment], 'r')
-                    plt.show()
+                    real_behavior = [pt.value for pt in segment]
+                    distances = [abs(i - real_behavior[index]) for (index, i) in enumerate(ideal_model)]
+                    avg_distance = sum(distances) / len(distances)
+                    if avg_distance < min_distance:
+                        min_distance = avg_distance
+                        best_fit = m_i
+                else:
+                    return best_fit
             else:
                 return None
 

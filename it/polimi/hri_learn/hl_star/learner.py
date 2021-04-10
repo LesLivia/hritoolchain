@@ -32,6 +32,9 @@ class ObsTable:
     def add_low_S(self, word: str):
         self.__low_S.append(word)
 
+    def del_low_S(self, index: int):
+        self.get_low_S().pop(index)
+
     def get_upper_observations(self):
         return self.__upp_obs
 
@@ -53,11 +56,13 @@ class ObsTable:
 
     def is_closed(self):
         for row in self.get_lower_observations():
+            row_is_filled = True
             for tup in row:
-                tuple_is_filled = tup[0] is not None and tup[1] is not None
-                tuple_is_in_upper = tup in self.get_upper_observations()
-                if tuple_is_filled and not tuple_is_in_upper:
-                    return False
+                if tup[0] is None or tup[1] is None:
+                    row_is_filled = False
+            row_is_in_upper = row in self.get_upper_observations()
+            if row_is_filled and not row_is_in_upper:
+                return False
         else:
             return True
 
@@ -138,7 +143,19 @@ class Learner:
         self.get_table().set_lower_observations(low_obs)
 
     def make_closed(self):
-        pass
+        S = self.get_table().get_S()
+        upp_obs: List[List[Tuple]] = self.get_table().get_upper_observations()
+        low_S = self.get_table().get_low_S()
+        low_obs: List[List[Tuple]] = self.get_table().get_lower_observations()
+        for (index, row) in enumerate(low_obs):
+            row_is_populated = all([cell[0] is not None and cell[1] is not None for cell in row])
+            if row_is_populated and row not in upp_obs:
+                upp_obs.append(row)
+                self.get_table().add_S(low_S[index])
+                low_obs.pop(index)
+                self.get_table().del_low_S(index)
+        self.get_table().set_upper_observations(upp_obs)
+        self.get_table().set_lower_observations(low_obs)
 
     def make_consistent(self):
         pass
@@ -152,7 +169,7 @@ class Learner:
         # Check if obs. table is closed
         while not (self.get_table().is_closed() and self.get_table().is_consistent()):
             if not self.get_table().is_closed():
-                print('table not closed')
+                # print('table not closed')
                 # TODO: If not, make closed
                 self.make_closed()
 
