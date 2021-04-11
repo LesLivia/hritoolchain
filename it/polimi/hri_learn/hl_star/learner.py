@@ -1,7 +1,8 @@
 from typing import List, Tuple
+
+import pltr.ha_pltr as ha_pltr
 from domain.hafeatures import HybridAutomaton, Location, Edge
 from hri_learn.hl_star.logger import Logger
-import pltr.ha_pltr as ha_pltr
 
 EMPTY_STRING = '\u03B5'
 
@@ -194,7 +195,24 @@ class Learner:
                 start_loc = locations[start_row]
                 dest_row = self.get_table().get_S().index(word)
                 dest_loc = locations[dest_row]
-                edges.append(Edge(start_loc, dest_loc, guard=word))
+                labels = self.get_symbols()[word].split(' and ') if word != '' else ['', EMPTY_STRING]
+                edges.append(Edge(start_loc, dest_loc, guard=labels[0], sync=labels[1]))
+
+        low_obs: List[List[Tuple]] = self.get_table().get_lower_observations()
+        for (s_i, s_word) in enumerate(self.get_table().get_low_S()):
+            for (t_i, t_word) in enumerate(self.get_table().get_T()):
+                if low_obs[s_i][t_i][0] is not None and low_obs[s_i][t_i][1] is not None:
+                    word = s_word + t_word
+                    entry_word = word[:-3]
+                    start_row = self.get_table().get_S().index(entry_word)
+                    start_loc = locations[start_row]
+                    dest_row = upp_obs.index(low_obs[s_i])
+                    dest_loc = locations[dest_row]
+                    if word != '':
+                        labels = self.get_symbols()[word.replace(entry_word, '')].split(' and ')
+                    else:
+                        labels = ['', EMPTY_STRING]
+                    edges.append(Edge(start_loc, dest_loc, guard=labels[0], sync=labels[1]))
 
         hyp_ha = HybridAutomaton(locations, edges)
         if show:
