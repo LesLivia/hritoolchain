@@ -38,14 +38,18 @@ def style_label(args: List[str], font_sizes: List[int] = None, font_colors: List
 
 def plot_ha(ha: HybridAutomaton, name: str, view=False):
     f = Digraph('hybrid_automaton', filename=SAVE_PATH + name)
-    f.attr(rankdir='LR', size='8,5')
+    f.attr(rankdir='LR', size='2')
     f.attr('node', shape='circle')
+    f.attr('node', fontname='helvetica')
+    f.attr('node', penwidth='0.5')
+    f.attr('edge', fontname='helvetica')
+    f.attr('edge', penwidth='0.5')
 
     locations = ha.locations
     edges = ha.edges
 
     for loc in locations:
-        label = style_label([loc.name, loc.flow_cond], [8, 8], ['black', 'purple'])
+        label = style_label([loc.name, '<br/><b>'+loc.flow_cond+'</b>'], [8, 6], ['black', '#ad0c00'])
         f.node(loc.name, label=label)
 
     for edge in edges:
