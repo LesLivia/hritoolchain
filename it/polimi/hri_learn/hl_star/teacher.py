@@ -193,6 +193,9 @@ class Teacher:
                     interval = [pt.timestamp for pt in segment]
                     ideal_model = model(interval, segment[0].value)
                     real_behavior = [pt.value for pt in segment]
+                    # plt.figure()
+                    # plt.plot(interval, ideal_model, 'b', interval, real_behavior, 'r')
+                    # plt.show()
                     distances = [abs(i - real_behavior[index]) for (index, i) in enumerate(ideal_model)]
                     avg_distance = sum(distances) / len(distances)
                     if avg_distance < min_distance:

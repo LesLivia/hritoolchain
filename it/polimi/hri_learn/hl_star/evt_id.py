@@ -12,7 +12,8 @@ WARNING!
 DRIVER_SIGNAL = 0
 DEFAULT_MODEL = 0
 DEFAULT_DISTR = 0
-MODEL_TO_DISTR_MAP = {0: 0, 1: 1}
+MODEL_TO_DISTR_MAP = {0: 0, 1: 1} # <- HRI
+# MODEL_TO_DISTR_MAP = {0: 0, 1: 0}  # <- THERMOSTAT
 
 
 class EventFactory:
@@ -81,6 +82,31 @@ class EventFactory:
             if self.get_symbols()[key] == combination:
                 return key
 
+    # def label_event(self, timestamp: float):
+    #     wOpen = self.get_signals()[1]
+    #     heatOn = self.get_signals()[2]
+    #
+    #     identified_guard = ''
+    #     '''
+    #     Repeat for every guard in the system
+    #     '''
+    #     curr_wOpen = list(filter(lambda x: x.timestamp <= timestamp, wOpen))[-1]
+    #     identified_guard += self.get_guards()[0] if curr_wOpen.value == 1.0 else '!' + self.get_guards()[0]
+    #
+    #     '''
+    #     Repeat for every channel in the system
+    #     '''
+    #     curr_heatOn = list(filter(lambda x: x.timestamp == timestamp, heatOn))[0]
+    #     identified_channel = self.get_channels()[0] if curr_heatOn.value == 1.0 else self.get_channels()[1]
+    #
+    #     '''
+    #     Find symbol associated with guard-channel combination
+    #     '''
+    #     combination = identified_guard + ' and ' + identified_channel
+    #     for key in self.get_symbols().keys():
+    #         if self.get_symbols()[key] == combination:
+    #             return key
+
     '''
     WARNING! 
             This method must be RE-IMPLEMENTED for each system:
@@ -99,3 +125,17 @@ class EventFactory:
             return est_rate
         except ValueError:
             return None
+
+    # def get_ht_metric(self, segment: List[SignalPoint]):
+    #     try:
+    #         t = [pt.timestamp for pt in segment]
+    #         dts = [v - t[i - 1] for i, v in enumerate(t) if i > 0]
+    #         avg_dt = sum(dts) / len(dts)
+    #
+    #         dt = TimeInterval(segment[0].timestamp, segment[-1].timestamp)
+    #         params, x_fore, fore = sig_mgr.n_predictions(segment, dt, 10, show_formula=False)
+    #         est_rate = math.fabs(math.log(params[1])) / avg_dt * 2 if params[1] != 0.0 else 0.0
+    #         return est_rate
+    #     except ValueError:
+    #         return None
+
