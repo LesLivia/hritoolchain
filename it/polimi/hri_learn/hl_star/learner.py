@@ -72,8 +72,36 @@ class ObsTable:
         else:
             return True
 
-    def is_consistent(self):
-        return True
+    def is_consistent(self, symbols):
+        upp_obs = self.get_upper_observations()
+        pairs: List[Tuple] = []
+        for (index, row) in enumerate(upp_obs):
+            equal_rows = [i for (i, r) in enumerate(upp_obs) if index != i and r == row]
+            equal_pairs = [(self.get_S()[index], self.get_S()[equal_i]) for equal_i in equal_rows]
+            pairs += equal_pairs
+        if len(pairs) == 0:
+            return True, None
+        else:
+            for pair in pairs:
+                for symbol in symbols.keys():
+                    new_pair_1 = self.get_S().index(pair[0] + symbol)
+                    if new_pair_1 is None:
+                        new_pair_1 = self.get_low_S().index(pair[0] + symbol)
+                        new_row_1 = self.get_lower_observations()[new_pair_1]
+                    else:
+                        new_row_1 = self.get_upper_observations()[new_pair_1]
+
+                    new_pair_2 = self.get_S().index(pair[1] + symbol)
+                    if new_pair_2 is None:
+                        new_pair_2 = self.get_low_S().index(pair[1] + symbol)
+                        new_row_2 = self.get_lower_observations()[new_pair_2]
+                    else:
+                        new_row_2 = self.get_upper_observations()[new_pair_2]
+
+                    if new_row_1 != new_row_2:
+                        return False, symbol
+            else:
+                return True, None
 
     def print(self):
         HEADER = '\t|\t\t'
@@ -172,8 +200,9 @@ class Learner:
         self.get_table().set_lower_observations(low_obs)
         self.fill_table()
 
-    def make_consistent(self):
-        pass
+    def make_consistent(self, discr_sym: str):
+        self.get_table().add_T(discr_sym)
+        self.fill_table()
 
     def build_hyp_aut(self, show=True):
         locations: List[Location] = []
@@ -236,15 +265,14 @@ class Learner:
                 LOGGER.info('CLOSED OBSERVATION TABLE')
                 self.get_table().print()
 
-            # TODO: Check if obs. table is consistent
-            if not self.get_table().is_consistent():
+            # Check if obs. table is consistent
+            consistency_check, discriminating_symbol = self.get_table().is_consistent(self.get_symbols())
+            if not consistency_check:
                 LOGGER.warn('TABLE IS NOT CONSISTENT')
-                # TODO: If not, make consistent
+                # If not, make consistent
                 LOGGER.info('CONSISTENT OBSERVATION TABLE')
-                self.make_consistent()
+                self.make_consistent(discriminating_symbol)
 
         # Build Hypothesis Automaton
         LOGGER.info('BUILDING HYP. AUTOMATON...')
         return self.build_hyp_aut(show)
-
-        # TODO: if counterexamples -> repeat
