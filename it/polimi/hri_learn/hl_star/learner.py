@@ -204,7 +204,7 @@ class Learner:
         self.get_table().add_T(discr_sym)
         self.fill_table()
 
-    def build_hyp_aut(self, show=True):
+    def build_hyp_aut(self):
         locations: List[Location] = []
         upp_obs = self.get_table().get_upper_observations()
         unique_sequences: List[List[Tuple]] = []
@@ -244,12 +244,10 @@ class Learner:
                     edges.append(Edge(start_loc, dest_loc, guard=labels[0], sync=labels[1]))
 
         hyp_ha = HybridAutomaton(locations, edges)
-        if show:
-            ha_pltr.plot_ha(hyp_ha, 'hyp_ha', view=True)
 
         return HybridAutomaton(locations, edges)
 
-    def run_hl_star(self, debug_print=True, show=True):
+    def run_hl_star(self, debug_print=True):
         # Fill Observation Table with Answers to Queries (from TEACHER)
         self.fill_table()
         if debug_print:
@@ -257,7 +255,7 @@ class Learner:
             self.get_table().print()
 
         # Check if obs. table is closed
-        while not (self.get_table().is_closed() and self.get_table().is_consistent()):
+        while not (self.get_table().is_closed() and self.get_table().is_consistent(self.get_symbols())):
             if not self.get_table().is_closed():
                 LOGGER.warn('TABLE IS NOT CLOSED')
                 # If not, make closed
@@ -275,4 +273,4 @@ class Learner:
 
         # Build Hypothesis Automaton
         LOGGER.info('BUILDING HYP. AUTOMATON...')
-        return self.build_hyp_aut(show)
+        return self.build_hyp_aut()

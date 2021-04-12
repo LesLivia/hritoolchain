@@ -11,6 +11,7 @@ WARNING!
         default model and distr. for empty string.
 '''
 CASE_STUDY = sys.argv[1]
+CS_VERSION = sys.argv[2]
 if CASE_STUDY == 'hri':
     DRIVER_SIGNAL = 0
     DEFAULT_MODEL = 0
@@ -75,6 +76,10 @@ class EventFactory:
             '''
             curr_posx = list(filter(lambda x: x.timestamp <= timestamp, posX))[-1]
             identified_guard += self.get_guards()[0] if curr_posx.value >= 4000.0 else '!' + self.get_guards()[0]
+            if CS_VERSION == 'c':
+                posY = self.get_signals()[3]
+                curr_posy = list(filter(lambda x: x.timestamp <= timestamp, posY))[-1]
+                identified_guard += self.get_guards()[1] if curr_posy.value >= 375.0 else '!' + self.get_guards()[1]
 
             '''
             Repeat for every channel in the system
