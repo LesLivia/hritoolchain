@@ -198,7 +198,12 @@ class Teacher:
                     # plt.show()
                     distances = [abs(i - real_behavior[index]) for (index, i) in enumerate(ideal_model)]
                     avg_distance = sum(distances) / len(distances)
-                    if avg_distance < min_distance:
+                    avg_ideal_dts = sum([v - ideal_model[i - 1] for (i, v) in enumerate(ideal_model) if i > 0]) / len(
+                        ideal_model)
+                    avg_real_dts = sum(
+                        [v - real_behavior[i - 1] for (i, v) in enumerate(real_behavior) if i > 0]) / len(
+                        real_behavior)
+                    if avg_distance < min_distance and avg_ideal_dts * avg_real_dts > 0:
                         min_distance = avg_distance
                         best_fit = m_i
                 else:
@@ -217,7 +222,7 @@ class Teacher:
             if segment is not None:
                 metric = self.evt_factory.get_ht_metric(segment)
                 if metric is not None:
-                    # LOGGER.debug('EST. RATE for {}: {}'.format(word, metric))
+                    LOGGER.debug('EST. RATE for {}: {}'.format(word, metric))
                     distributions = self.get_distributions()
                     eligible_distributions = [k for k in MODEL_TO_DISTR_MAP.keys() if MODEL_TO_DISTR_MAP[k] == model]
                     # performs hyp. testing on all eligible distributions

@@ -119,13 +119,17 @@ class EventFactory:
 
     def get_ht_metric(self, segment: List[SignalPoint]):
         try:
-            t = [pt.timestamp for pt in segment]
-            dts = [v - t[i - 1] for i, v in enumerate(t) if i > 0]
-            avg_dt = sum(dts) / len(dts)
+            if len(segment) <= 100:
+                differences = [pt.value - segment[i - 1].value for (i, pt) in enumerate(segment) if i > 0]
+                est_rate = abs(sum(differences) / len(segment))
+            else:
+                t = [pt.timestamp for pt in segment]
+                dts = [v - t[i - 1] for i, v in enumerate(t) if i > 0]
+                avg_dt = sum(dts) / len(dts)
 
-            dt = TimeInterval(segment[0].timestamp, segment[-1].timestamp)
-            params, x_fore, fore = sig_mgr.n_predictions(segment, dt, 10, show_formula=False)
-            est_rate = math.fabs(math.log(params[1])) / avg_dt * 2 if params[1] != 0.0 else 0.0
+                dt = TimeInterval(segment[0].timestamp, segment[-1].timestamp)
+                params, x_fore, fore = sig_mgr.n_predictions(segment, dt, 10, show_formula=False)
+                est_rate = math.fabs(math.log(params[1])) / avg_dt * 2 if params[1] != 0.0 else 0.0
             return est_rate
         except ValueError:
             return None

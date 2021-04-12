@@ -29,7 +29,7 @@ else:
     LOG_PATH = 'resources/uppaal_logs/cons.txt'
     UNCONTR_EVTS = {'e': 'enter_area_2', 'o': 'enter_office'}  # , 'r': 'is_running',
     IDLE_DISTR = (0.003328, 0.001342)
-    BUSY_DISTR = (0.004538, 0.00065)
+    BUSY_DISTR = (0.004538, 0.00650)
     SWITCH_TIME = 94.1
 
 LOGGER = Logger()

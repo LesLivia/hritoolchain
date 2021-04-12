@@ -1,6 +1,5 @@
 from typing import List, Tuple
 
-import pltr.ha_pltr as ha_pltr
 from domain.hafeatures import HybridAutomaton, Location, Edge
 from hri_learn.hl_star.logger import Logger
 
@@ -84,19 +83,19 @@ class ObsTable:
         else:
             for pair in pairs:
                 for symbol in symbols.keys():
-                    new_pair_1 = self.get_S().index(pair[0] + symbol)
-                    if new_pair_1 is None:
+                    try:
+                        new_pair_1 = self.get_S().index(pair[0] + symbol)
+                        new_row_1 = self.get_upper_observations()[new_pair_1]
+                    except ValueError:
                         new_pair_1 = self.get_low_S().index(pair[0] + symbol)
                         new_row_1 = self.get_lower_observations()[new_pair_1]
-                    else:
-                        new_row_1 = self.get_upper_observations()[new_pair_1]
 
-                    new_pair_2 = self.get_S().index(pair[1] + symbol)
-                    if new_pair_2 is None:
+                    try:
+                        new_pair_2 = self.get_S().index(pair[1] + symbol)
+                        new_row_2 = self.get_upper_observations()[new_pair_2]
+                    except ValueError:
                         new_pair_2 = self.get_low_S().index(pair[1] + symbol)
                         new_row_2 = self.get_lower_observations()[new_pair_2]
-                    else:
-                        new_row_2 = self.get_upper_observations()[new_pair_2]
 
                     if new_row_1 != new_row_2:
                         return False, symbol
@@ -104,23 +103,30 @@ class ObsTable:
                 return True, None
 
     def print(self):
-        HEADER = '\t|\t\t'
+        HEADER = '\t\t|\t\t'
         for t_word in self.get_T():
             HEADER += t_word if t_word != '' else EMPTY_STRING
             HEADER += '\t\t|\t'
         print(HEADER)
-        print('----+---------------+')
+
+        max_s = max(len(word) / 3 for word in self.get_S())
+        max_low_s = max(len(word) / 3 for word in self.get_low_S())
+        max_tabs = int(max(max_s, max_low_s))
+        SEPARATOR = '----' * max_tabs + '+---------------+'
+
+        print(SEPARATOR)
         for (i, s_word) in enumerate(self.get_S()):
             ROW = s_word if s_word != '' else EMPTY_STRING
-            ROW += '\t|\t'
+            len_word = int(len(s_word) / 3) if s_word != '' else 1
+            ROW += '\t' * (max_tabs + 1 - len_word) + '|\t'
             for (j, t_word) in enumerate(self.get_T()):
                 ROW += ObsTable.tuple_to_str(self.get_upper_observations()[i][j])
                 ROW += '\t|'
             print(ROW)
-        print('----+---------------+')
+        print(SEPARATOR)
         for (i, s_word) in enumerate(self.get_low_S()):
             ROW = s_word if s_word != '' else EMPTY_STRING
-            ROW += '\t|\t'
+            ROW += '\t' * (max_tabs + 1 - int(len(s_word) / 3)) + '|\t'
             for (j, t_word) in enumerate(self.get_T()):
                 ROW += ObsTable.tuple_to_str(self.get_lower_observations()[i][j])
                 ROW += '\t|'
@@ -204,6 +210,40 @@ class Learner:
         self.get_table().add_T(discr_sym)
         self.fill_table()
 
+    def get_counterexamples(self, init_words: List[str]):
+        upp_obs = self.get_table().get_upper_observations()
+        low_obs = self.get_table().get_lower_observations()
+        for (s_i, s_word) in enumerate(init_words):
+            new_row: List[Tuple] = []
+            for (t_i, t_word) in enumerate(self.get_table().get_T()):
+                if low_obs[s_i][t_i][0] is None and low_obs[s_i][t_i][1] is None:
+                    identified_model = self.TEACHER.mf_query(s_word + t_word)
+                    if identified_model is None:
+                        new_row = []
+                        break
+                    identified_distr = self.TEACHER.ht_query(s_word + t_word, identified_model)
+                    if identified_distr is None:
+                        new_row = []
+                        break
+                    new_row.append((identified_model, identified_distr))
+                else:
+                    new_row = []
+                    break
+            else:
+                upp_obs.append(new_row)
+                self.get_table().add_S(s_word)
+                self.get_table().del_low_S(s_i)
+                low_obs.pop(s_i)
+                # lower portion is then updated with all combinations of
+                # new S word and all possible symbols
+                for symbol in self.get_symbols():
+                    self.get_table().add_low_S(s_word + symbol)
+                    new_row: List[Tuple] = [(None, None)] * len(self.get_table().get_T())
+                    low_obs.append(new_row)
+                return s_word
+        else:
+            return None
+
     def build_hyp_aut(self):
         locations: List[Location] = []
         upp_obs = self.get_table().get_upper_observations()
@@ -248,28 +288,39 @@ class Learner:
         return HybridAutomaton(locations, edges)
 
     def run_hl_star(self, debug_print=True):
+        initial_low_s_words = self.get_table().get_low_S().copy()
         # Fill Observation Table with Answers to Queries (from TEACHER)
-        self.fill_table()
-        if debug_print:
-            LOGGER.info('OBSERVATION TABLE')
-            self.get_table().print()
+        counterexample = self.get_counterexamples(initial_low_s_words)
+        while counterexample is not None:
+            initial_low_s_words.remove(counterexample)
+            self.fill_table()
 
-        # Check if obs. table is closed
-        while not (self.get_table().is_closed() and self.get_table().is_consistent(self.get_symbols())):
-            if not self.get_table().is_closed():
-                LOGGER.warn('TABLE IS NOT CLOSED')
-                # If not, make closed
-                self.make_closed()
-                LOGGER.info('CLOSED OBSERVATION TABLE')
+            if debug_print:
+                LOGGER.info('OBSERVATION TABLE')
                 self.get_table().print()
 
-            # Check if obs. table is consistent
+            # Check if obs. table is closed
+            closedness_check = self.get_table().is_closed()
             consistency_check, discriminating_symbol = self.get_table().is_consistent(self.get_symbols())
-            if not consistency_check:
-                LOGGER.warn('TABLE IS NOT CONSISTENT')
-                # If not, make consistent
-                LOGGER.info('CONSISTENT OBSERVATION TABLE')
-                self.make_consistent(discriminating_symbol)
+            while not (closedness_check and consistency_check):
+                if not closedness_check:
+                    LOGGER.warn('TABLE IS NOT CLOSED')
+                    # If not, make closed
+                    self.make_closed()
+                    LOGGER.info('CLOSED OBSERVATION TABLE')
+                    self.get_table().print()
+                closedness_check = self.get_table().is_closed()
+
+                # Check if obs. table is consistent
+                if not consistency_check:
+                    LOGGER.warn('TABLE IS NOT CONSISTENT')
+                    # If not, make consistent
+                    LOGGER.info('CONSISTENT OBSERVATION TABLE')
+                    self.make_consistent(discriminating_symbol)
+                consistency_check, discriminating_symbol = self.get_table().is_consistent(self.get_symbols())
+
+            [initial_low_s_words.remove(s_word) for s_word in self.get_table().get_S() if s_word in initial_low_s_words]
+            counterexample = self.get_counterexamples(initial_low_s_words)
 
         # Build Hypothesis Automaton
         LOGGER.info('BUILDING HYP. AUTOMATON...')
