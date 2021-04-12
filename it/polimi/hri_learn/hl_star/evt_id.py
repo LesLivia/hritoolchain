@@ -1,4 +1,5 @@
 import math
+import sys
 from typing import List
 
 import mgrs.sig_mgr as sig_mgr
@@ -9,11 +10,17 @@ WARNING!
         These constants may change if the system changes:
         default model and distr. for empty string.
 '''
-DRIVER_SIGNAL = 0
-DEFAULT_MODEL = 0
-DEFAULT_DISTR = 0
-MODEL_TO_DISTR_MAP = {0: 0, 1: 1} # <- HRI
-# MODEL_TO_DISTR_MAP = {0: 0, 1: 0}  # <- THERMOSTAT
+CASE_STUDY = sys.argv[1]
+if CASE_STUDY == 'hri':
+    DRIVER_SIGNAL = 0
+    DEFAULT_MODEL = 0
+    DEFAULT_DISTR = 0
+    MODEL_TO_DISTR_MAP = {0: 0, 1: 1}  # <- HRI
+else:
+    DRIVER_SIGNAL = 0
+    DEFAULT_MODEL = 0
+    DEFAULT_DISTR = 0
+    MODEL_TO_DISTR_MAP = {0: 0, 1: 0}  # <- THERMOSTAT
 
 
 class EventFactory:
@@ -58,21 +65,38 @@ class EventFactory:
     '''
 
     def label_event(self, timestamp: float):
-        posX = self.get_signals()[1]
-        moving = self.get_signals()[2]
+        if CASE_STUDY == 'hri':
+            posX = self.get_signals()[1]
+            moving = self.get_signals()[2]
 
-        identified_guard = ''
-        '''
-        Repeat for every guard in the system
-        '''
-        curr_posx = list(filter(lambda x: x.timestamp <= timestamp, posX))[-1]
-        identified_guard += self.get_guards()[0] if curr_posx.value >= 4000.0 else '!' + self.get_guards()[0]
+            identified_guard = ''
+            '''
+            Repeat for every guard in the system
+            '''
+            curr_posx = list(filter(lambda x: x.timestamp <= timestamp, posX))[-1]
+            identified_guard += self.get_guards()[0] if curr_posx.value >= 4000.0 else '!' + self.get_guards()[0]
 
-        '''
-        Repeat for every channel in the system
-        '''
-        curr_mov = list(filter(lambda x: x.timestamp == timestamp, moving))[0]
-        identified_channel = self.get_channels()[0] if curr_mov.value == 1 else self.get_channels()[1]
+            '''
+            Repeat for every channel in the system
+            '''
+            curr_mov = list(filter(lambda x: x.timestamp == timestamp, moving))[0]
+            identified_channel = self.get_channels()[0] if curr_mov.value == 1 else self.get_channels()[1]
+        else:
+            wOpen = self.get_signals()[1]
+            heatOn = self.get_signals()[2]
+
+            identified_guard = ''
+            '''
+            Repeat for every guard in the system
+            '''
+            curr_wOpen = list(filter(lambda x: x.timestamp <= timestamp, wOpen))[-1]
+            identified_guard += self.get_guards()[0] if curr_wOpen.value == 1.0 else '!' + self.get_guards()[0]
+
+            '''
+            Repeat for every channel in the system
+            '''
+            curr_heatOn = list(filter(lambda x: x.timestamp == timestamp, heatOn))[0]
+            identified_channel = self.get_channels()[0] if curr_heatOn.value == 1.0 else self.get_channels()[1]
 
         '''
         Find symbol associated with guard-channel combination
@@ -81,31 +105,6 @@ class EventFactory:
         for key in self.get_symbols().keys():
             if self.get_symbols()[key] == combination:
                 return key
-
-    # def label_event(self, timestamp: float):
-    #     wOpen = self.get_signals()[1]
-    #     heatOn = self.get_signals()[2]
-    #
-    #     identified_guard = ''
-    #     '''
-    #     Repeat for every guard in the system
-    #     '''
-    #     curr_wOpen = list(filter(lambda x: x.timestamp <= timestamp, wOpen))[-1]
-    #     identified_guard += self.get_guards()[0] if curr_wOpen.value == 1.0 else '!' + self.get_guards()[0]
-    #
-    #     '''
-    #     Repeat for every channel in the system
-    #     '''
-    #     curr_heatOn = list(filter(lambda x: x.timestamp == timestamp, heatOn))[0]
-    #     identified_channel = self.get_channels()[0] if curr_heatOn.value == 1.0 else self.get_channels()[1]
-    #
-    #     '''
-    #     Find symbol associated with guard-channel combination
-    #     '''
-    #     combination = identified_guard + ' and ' + identified_channel
-    #     for key in self.get_symbols().keys():
-    #         if self.get_symbols()[key] == combination:
-    #             return key
 
     '''
     WARNING! 
@@ -138,4 +137,3 @@ class EventFactory:
     #         return est_rate
     #     except ValueError:
     #         return None
-
