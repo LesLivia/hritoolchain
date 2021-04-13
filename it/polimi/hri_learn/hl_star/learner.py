@@ -102,7 +102,7 @@ class ObsTable:
             else:
                 return True, None
 
-    def print(self):
+    def print(self, filter_empty=False):
         HEADER = '\t\t|\t\t'
         for t_word in self.get_T():
             HEADER += t_word if t_word != '' else EMPTY_STRING
@@ -125,12 +125,18 @@ class ObsTable:
             print(ROW)
         print(SEPARATOR)
         for (i, s_word) in enumerate(self.get_low_S()):
-            ROW = s_word if s_word != '' else EMPTY_STRING
-            ROW += '\t' * (max_tabs + 1 - int(len(s_word) / 3)) + '|\t'
-            for (j, t_word) in enumerate(self.get_T()):
-                ROW += ObsTable.tuple_to_str(self.get_lower_observations()[i][j])
-                ROW += '\t|'
-            print(ROW)
+            row = self.get_lower_observations()[i]
+            row_is_populated = all([row[j][0] is not None and row[j][1] is not None for j in range(len(self.get_T()))])
+            if filter_empty and not row_is_populated:
+                pass
+            else:
+                ROW = s_word if s_word != '' else EMPTY_STRING
+                ROW += '\t' * (max_tabs + 1 - int(len(s_word) / 3)) + '|\t'
+                for (j, t_word) in enumerate(self.get_T()):
+                    ROW += ObsTable.tuple_to_str(self.get_lower_observations()[i][j])
+                    ROW += '\t|'
+                print(ROW)
+        print(SEPARATOR)
 
 
 class Learner:
@@ -288,7 +294,7 @@ class Learner:
 
         return HybridAutomaton(locations, edges)
 
-    def run_hl_star(self, debug_print=True):
+    def run_hl_star(self, debug_print=True, filter_empty=False):
         initial_low_s_words = self.get_table().get_low_S().copy()
         # Fill Observation Table with Answers to Queries (from TEACHER)
         counterexample = self.get_counterexamples(initial_low_s_words)
@@ -298,7 +304,7 @@ class Learner:
 
             if debug_print:
                 LOGGER.info('OBSERVATION TABLE')
-                self.get_table().print()
+                self.get_table().print(filter_empty)
 
             # Check if obs. table is closed
             closedness_check = self.get_table().is_closed()
@@ -309,23 +315,25 @@ class Learner:
                     # If not, make closed
                     self.make_closed()
                     LOGGER.msg('CLOSED OBSERVATION TABLE')
-                    self.get_table().print()
+                    self.get_table().print(filter_empty)
                 closedness_check = self.get_table().is_closed()
 
                 # Check if obs. table is consistent
                 if not consistency_check:
                     LOGGER.warn('!!TABLE IS NOT CONSISTENT!!')
                     # If not, make consistent
-                    LOGGER.msg('CONSISTENT OBSERVATION TABLE')
                     self.make_consistent(discriminating_symbol)
+                    LOGGER.msg('CONSISTENT OBSERVATION TABLE')
+                    self.get_table().print(filter_empty)
+
                 consistency_check, discriminating_symbol = self.get_table().is_consistent(self.get_symbols())
 
             [initial_low_s_words.remove(s_word) for s_word in self.get_table().get_S() if s_word in initial_low_s_words]
             counterexample = self.get_counterexamples(initial_low_s_words)
 
         if debug_print:
-            LOGGER.info('OBSERVATION TABLE')
-            self.get_table().print()
+            LOGGER.msg('FINAL OBSERVATION TABLE')
+            self.get_table().print(filter_empty)
         # Build Hypothesis Automaton
         LOGGER.info('BUILDING HYP. AUTOMATON...')
         return self.build_hyp_aut()

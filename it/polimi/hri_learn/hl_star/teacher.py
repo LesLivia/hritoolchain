@@ -30,10 +30,7 @@ class Teacher:
         self.signals: List[List[SignalPoint]] = []
         self.evt_factory.clear()
 
-    '''
-    SYMBOLS
-    '''
-
+    # SYMBOLS
     def set_symbols(self, symbols):
         self.symbols = symbols
         self.evt_factory.set_symbols(symbols)
@@ -45,9 +42,8 @@ class Teacher:
         symbols = {}
         self.evt_factory.set_guards(guards)
         self.evt_factory.set_channels(syncs)
-        '''
-        Compute all guards combinations
-        '''
+
+        # Compute all guards combinations
         guards_comb = [''] * 2 ** len(guards)
         for (i, g) in enumerate(guards):
             pref = ''
@@ -55,9 +51,8 @@ class Teacher:
                 guards_comb[j] += pref + g
                 if (j + 1) % ((2 ** len(guards)) / (2 ** (i + 1))) == 0:
                     pref = '!' if pref == '' else ''
-        '''
-        Combine all guards with channels
-        '''
+
+        # Combine all guards with channels
         for chn in syncs:
             for (index, g) in enumerate(guards_comb):
                 symbols[chn + '_' + str(index + 1)] = g + ' and ' + chn
@@ -65,10 +60,7 @@ class Teacher:
         self.set_symbols(symbols)
         self.evt_factory.set_symbols(symbols)
 
-    '''
-    CHANGE POINTS
-    '''
-
+    # CHANGE POINTS
     def set_chg_pts(self, chg_pts: List[float]):
         self.chg_pts = chg_pts
 
@@ -78,9 +70,7 @@ class Teacher:
     def find_chg_pts(self, timestamps: List[float], values: List[float]):
         chg_pts: List[float] = []
 
-        '''
-        IDENTIFY CHANGE PTS IN DRIVER OVERLAY
-        '''
+        # IDENTIFY CHANGE PTS IN DRIVER OVERLAY
         prev = values[0]
         for i in range(1, len(values)):
             curr = values[i]
@@ -90,10 +80,7 @@ class Teacher:
 
         self.set_chg_pts(chg_pts)
 
-    '''
-    SIGNALS
-    '''
-
+    # SIGNALS
     def get_signals(self):
         return self.signals
 
@@ -101,10 +88,7 @@ class Teacher:
         self.signals.append(signal)
         self.evt_factory.add_signal(signal)
 
-    '''
-    EVENTS
-    '''
-
+    # EVENTS
     def set_events(self, events):
         self.events = events
 
@@ -143,10 +127,7 @@ class Teacher:
 
         plt.show()
 
-    '''
-    QUERIES
-    '''
-
+    # QUERIES
     def set_models(self, models):
         self.models = models
 

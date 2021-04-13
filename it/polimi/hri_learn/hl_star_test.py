@@ -9,9 +9,7 @@ from hri_learn.hl_star.learner import Learner
 from hri_learn.hl_star.logger import Logger
 from hri_learn.hl_star.teacher import Teacher
 
-'''
-SETUP LEARNING PROCEDURE
-'''
+# LEARNING PROCEDURE SETUP
 warnings.filterwarnings('ignore')
 
 CS_VERSION = sys.argv[2]
@@ -54,9 +52,7 @@ print(TEACHER.get_symbols())
 
 LEARNER = Learner(TEACHER)
 
-'''
-ACQUIRE TRACES
-'''
+# TRACE ACQUISIION
 f = open(LOG_PATH)
 lines = f.read()
 variables = lines.split('#')
@@ -75,9 +71,7 @@ for trace in range(len(ftg)):
     LOGGER.msg("ANALYZING TRACE {}:\n".format(trace + 1))
     TEACHER.clear()
 
-    '''
-    PARSE TRACES
-    '''
+    # TRACE PARSING
     entries = ftg[trace].split('\n')[1:]
 
     ftg_entries = [entry for (i, entry) in enumerate(entries) if i == 0 or entries[i - 1] != entry]
@@ -133,5 +127,5 @@ for trace in range(len(ftg)):
     TEACHER.plot_trace('TRACE {}'.format(trace + 1), 't [s]', 'F [%]')
 
     # RUN LEARNING ALGORITHM:
-    LEARNED_HA = LEARNER.run_hl_star()
+    LEARNED_HA = LEARNER.run_hl_star(filter_empty=True)
     ha_pltr.plot_ha(LEARNED_HA, 'hyp_ha_{}'.format(trace), view=True)
