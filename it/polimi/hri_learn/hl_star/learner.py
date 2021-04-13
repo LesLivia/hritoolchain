@@ -74,6 +74,7 @@ class ObsTable:
     def is_consistent(self, symbols):
         upp_obs = self.get_upper_observations()
         pairs: List[Tuple] = []
+        # FIXME: each pair shows up twice, duplicates should be cleared
         for (index, row) in enumerate(upp_obs):
             equal_rows = [i for (i, r) in enumerate(upp_obs) if index != i and r == row]
             equal_pairs = [(self.get_S()[index], self.get_S()[equal_i]) for equal_i in equal_rows]
@@ -97,21 +98,27 @@ class ObsTable:
                         new_pair_2 = self.get_low_S().index(pair[1] + symbol)
                         new_row_2 = self.get_lower_observations()[new_pair_2]
 
-                    if new_row_1 != new_row_2:
+                    new_1_populated = all([new_row_1[i][0] is not None and new_row_1[i][1]
+                                           for i in range(len(self.get_T()))])
+                    new_2_populated = all([new_row_2[i][0] is not None and new_row_2[i][1]
+                                           for i in range(len(self.get_T()))])
+
+                    if new_1_populated and new_2_populated and new_row_1 != new_row_2:
                         return False, symbol
             else:
                 return True, None
 
     def print(self, filter_empty=False):
-        HEADER = '\t\t|\t\t'
+        max_s = max(len(word) / 3 for word in self.get_S())
+        max_low_s = max(len(word) / 3 for word in self.get_low_S())
+        max_tabs = int(max(max_s, max_low_s))
+
+        HEADER = '\t' * max_tabs + '|\t\t'
         for t_word in self.get_T():
             HEADER += t_word if t_word != '' else EMPTY_STRING
             HEADER += '\t\t|\t'
         print(HEADER)
 
-        max_s = max(len(word) / 3 for word in self.get_S())
-        max_low_s = max(len(word) / 3 for word in self.get_low_S())
-        max_tabs = int(max(max_s, max_low_s))
         SEPARATOR = '----' * max_tabs + '+---------------+'
 
         print(SEPARATOR)
@@ -157,7 +164,7 @@ class Learner:
     def get_table(self):
         return self.obs_table
 
-    def fill_table(self):
+    def fill_table(self, initial_low_s_words: List[str]):
         upp_obs: List[List[Tuple]] = self.get_table().get_upper_observations()
         for (i, s_word) in enumerate(self.get_table().get_S()):
             row: List[Tuple] = upp_obs[i].copy()
@@ -180,7 +187,7 @@ class Learner:
                 # if cell is yet to be filled,
                 # asks teacher to answer queries
                 # and fills cell with answers
-                if low_obs[i][j][0] is None and low_obs[i][j][1] is None:
+                if low_obs[i][j][0] is None and low_obs[i][j][1] is None and s_word not in initial_low_s_words:
                     identified_model = self.TEACHER.mf_query(s_word + t_word)
                     identified_distr = self.TEACHER.ht_query(s_word + t_word, identified_model)
                     cell = (identified_model, identified_distr)
@@ -188,7 +195,7 @@ class Learner:
             low_obs[i] = row.copy()
         self.get_table().set_lower_observations(low_obs)
 
-    def make_closed(self):
+    def make_closed(self, initial_low_s_words: List[str]):
         upp_obs: List[List[Tuple]] = self.get_table().get_upper_observations()
         low_S = self.get_table().get_low_S()
         low_obs: List[List[Tuple]] = self.get_table().get_lower_observations()
@@ -210,11 +217,11 @@ class Learner:
                     low_obs.append(new_row)
         self.get_table().set_upper_observations(upp_obs)
         self.get_table().set_lower_observations(low_obs)
-        self.fill_table()
+        self.fill_table(initial_low_s_words)
 
-    def make_consistent(self, discr_sym: str):
+    def make_consistent(self, discr_sym: str, initial_low_s_words: List[str]):
         self.get_table().add_T(discr_sym)
-        self.fill_table()
+        self.fill_table(initial_low_s_words)
 
     def get_counterexamples(self, init_words: List[str]):
         upp_obs = self.get_table().get_upper_observations()
@@ -267,12 +274,14 @@ class Learner:
         for (s_i, s_word) in enumerate(self.get_table().get_S()):
             for (t_i, t_word) in enumerate(self.get_table().get_T()):
                 word: str = s_word + t_word
-                start_row = self.get_table().get_S().index(word.replace(s_word, ''))
+                start_row = self.get_table().get_S().index(word[:-3].replace(s_word, ''))
                 start_loc = locations[start_row]
-                dest_row = self.get_table().get_S().index(word)
+                dest_row = unique_sequences.index(upp_obs[s_i])
                 dest_loc = locations[dest_row]
-                labels = self.get_symbols()[word].split(' and ') if word != '' else ['', EMPTY_STRING]
-                edges.append(Edge(start_loc, dest_loc, guard=labels[0], sync=labels[1]))
+                labels = self.get_symbols()[word[-3:]].split(' and ') if word != '' else ['', EMPTY_STRING]
+                new_edge = Edge(start_loc, dest_loc, guard=labels[0], sync=labels[1])
+                if new_edge not in edges:
+                    edges.append(Edge(start_loc, dest_loc, guard=labels[0], sync=labels[1]))
 
         low_obs: List[List[Tuple]] = self.get_table().get_lower_observations()
         for (s_i, s_word) in enumerate(self.get_table().get_low_S()):
@@ -280,7 +289,8 @@ class Learner:
                 if low_obs[s_i][t_i][0] is not None and low_obs[s_i][t_i][1] is not None:
                     word = s_word + t_word
                     entry_word = word[:-3]
-                    start_row = self.get_table().get_S().index(entry_word)
+                    start_row_index = self.get_table().get_S().index(entry_word)
+                    start_row = unique_sequences.index(upp_obs[start_row_index])
                     start_loc = locations[start_row]
                     dest_row = upp_obs.index(low_obs[s_i])
                     dest_loc = locations[dest_row]
@@ -288,7 +298,9 @@ class Learner:
                         labels = self.get_symbols()[word.replace(entry_word, '')].split(' and ')
                     else:
                         labels = ['', EMPTY_STRING]
-                    edges.append(Edge(start_loc, dest_loc, guard=labels[0], sync=labels[1]))
+                    new_edge = Edge(start_loc, dest_loc, guard=labels[0], sync=labels[1])
+                    if new_edge not in edges:
+                        edges.append(Edge(start_loc, dest_loc, guard=labels[0], sync=labels[1]))
 
         hyp_ha = HybridAutomaton(locations, edges)
 
@@ -299,8 +311,9 @@ class Learner:
         # Fill Observation Table with Answers to Queries (from TEACHER)
         counterexample = self.get_counterexamples(initial_low_s_words)
         while counterexample is not None:
+            LOGGER.warn('FOUND COUNTERXAMPLE: {}'.format(counterexample))
             initial_low_s_words.remove(counterexample)
-            self.fill_table()
+            self.fill_table(initial_low_s_words)
 
             if debug_print:
                 LOGGER.info('OBSERVATION TABLE')
@@ -313,7 +326,7 @@ class Learner:
                 if not closedness_check:
                     LOGGER.warn('!!TABLE IS NOT CLOSED!!')
                     # If not, make closed
-                    self.make_closed()
+                    self.make_closed(initial_low_s_words)
                     LOGGER.msg('CLOSED OBSERVATION TABLE')
                     self.get_table().print(filter_empty)
                 closedness_check = self.get_table().is_closed()
@@ -322,7 +335,7 @@ class Learner:
                 if not consistency_check:
                     LOGGER.warn('!!TABLE IS NOT CONSISTENT!!')
                     # If not, make consistent
-                    self.make_consistent(discriminating_symbol)
+                    self.make_consistent(discriminating_symbol, initial_low_s_words)
                     LOGGER.msg('CONSISTENT OBSERVATION TABLE')
                     self.get_table().print(filter_empty)
 

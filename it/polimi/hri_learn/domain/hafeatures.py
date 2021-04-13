@@ -15,6 +15,11 @@ class Location:
     def set_flow_cond(self, flow_cond: str):
         self.flow_cond = flow_cond
 
+    def __eq__(self, other):
+        same_name = self.name == other.name
+        same_flow = self.flow_cond == other.flow_cond
+        return same_name and same_flow
+
 
 LOCATIONS: List[Location] = [Location(LocLabels.IDLE.value, None), Location(LocLabels.BUSY.value, None)]
 
@@ -31,6 +36,13 @@ class Edge:
 
     def set_sync(self, sync):
         self.sync = sync
+
+    def __eq__(self, other):
+        same_start = self.start == other.start
+        same_dest = self.dest == other.dest
+        same_guard = self.guard == other.guard
+        same_sync = self.sync == other.sync
+        return same_start and same_dest and same_guard and same_sync
 
 
 class HybridAutomaton:
