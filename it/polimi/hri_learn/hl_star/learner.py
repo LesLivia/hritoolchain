@@ -216,31 +216,32 @@ class Learner:
         for (s_i, s_word) in enumerate(init_words):
             new_row: List[Tuple] = []
             for (t_i, t_word) in enumerate(self.get_table().get_T()):
-                if low_obs[s_i][t_i][0] is None and low_obs[s_i][t_i][1] is None:
-                    identified_model = self.TEACHER.mf_query(s_word + t_word)
-                    if identified_model is None:
-                        new_row = []
-                        break
-                    identified_distr = self.TEACHER.ht_query(s_word + t_word, identified_model)
-                    if identified_distr is None:
-                        new_row = []
-                        break
-                    new_row.append((identified_model, identified_distr))
+                identified_model = self.TEACHER.mf_query(s_word + t_word)
+                identified_distr = self.TEACHER.ht_query(s_word + t_word, identified_model)
+                LOGGER.debug('QUERY RESULTS FOR {}: ({}, {})'.format(s_word + t_word,
+                                                                     MODEL_FORMATTER.format(identified_model),
+                                                                     DISTR_FORMATTER.format(identified_distr)))
+                new_row.append((identified_model, identified_distr))
+            existing_row = low_obs[s_i]
+            ex_row_populated = all([existing_row[t_i][0] is not None and existing_row[t_i][1] is not None
+                                    for s_i in range(len(init_words)) for t_i in range(len(self.get_table().get_T()))])
+            new_row_populated = all([new_row[t_i][0] is not None and new_row[t_i][1] is not None
+                                     for s_i in range(len(init_words)) for t_i in range(len(self.get_table().get_T()))])
+            if new_row_populated and new_row != low_obs[s_i]:
+                if not ex_row_populated:
+                    upp_obs.append(new_row)
+                    self.get_table().add_S(s_word)
+                    self.get_table().del_low_S(s_i)
+                    low_obs.pop(s_i)
+                    # lower portion is then updated with all combinations of
+                    # new S word and all possible symbols
+                    for symbol in self.get_symbols():
+                        self.get_table().add_low_S(s_word + symbol)
+                        new_row: List[Tuple] = [(None, None)] * len(self.get_table().get_T())
+                        low_obs.append(new_row)
+                    return s_word
                 else:
-                    new_row = []
-                    break
-            else:
-                upp_obs.append(new_row)
-                self.get_table().add_S(s_word)
-                self.get_table().del_low_S(s_i)
-                low_obs.pop(s_i)
-                # lower portion is then updated with all combinations of
-                # new S word and all possible symbols
-                for symbol in self.get_symbols():
-                    self.get_table().add_low_S(s_word + symbol)
-                    new_row: List[Tuple] = [(None, None)] * len(self.get_table().get_T())
-                    low_obs.append(new_row)
-                return s_word
+                    LOGGER.warn('CONFLICT DETECTED FOR {}'.format(s_word))
         else:
             return None
 
@@ -304,24 +305,27 @@ class Learner:
             consistency_check, discriminating_symbol = self.get_table().is_consistent(self.get_symbols())
             while not (closedness_check and consistency_check):
                 if not closedness_check:
-                    LOGGER.warn('TABLE IS NOT CLOSED')
+                    LOGGER.warn('!!TABLE IS NOT CLOSED!!')
                     # If not, make closed
                     self.make_closed()
-                    LOGGER.info('CLOSED OBSERVATION TABLE')
+                    LOGGER.msg('CLOSED OBSERVATION TABLE')
                     self.get_table().print()
                 closedness_check = self.get_table().is_closed()
 
                 # Check if obs. table is consistent
                 if not consistency_check:
-                    LOGGER.warn('TABLE IS NOT CONSISTENT')
+                    LOGGER.warn('!!TABLE IS NOT CONSISTENT!!')
                     # If not, make consistent
-                    LOGGER.info('CONSISTENT OBSERVATION TABLE')
+                    LOGGER.msg('CONSISTENT OBSERVATION TABLE')
                     self.make_consistent(discriminating_symbol)
                 consistency_check, discriminating_symbol = self.get_table().is_consistent(self.get_symbols())
 
             [initial_low_s_words.remove(s_word) for s_word in self.get_table().get_S() if s_word in initial_low_s_words]
             counterexample = self.get_counterexamples(initial_low_s_words)
 
+        if debug_print:
+            LOGGER.info('OBSERVATION TABLE')
+            self.get_table().print()
         # Build Hypothesis Automaton
         LOGGER.info('BUILDING HYP. AUTOMATON...')
         return self.build_hyp_aut()

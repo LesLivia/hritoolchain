@@ -72,7 +72,7 @@ if CS_VERSION == 'c':
 LOGGER.info("TRACES TO ANALYZE-> {}\n".format(len(ftg)))
 
 for trace in range(len(ftg)):
-    LOGGER.info("ANALYZING TRACE {}:\n".format(trace + 1))
+    LOGGER.msg("ANALYZING TRACE {}:\n".format(trace + 1))
     TEACHER.clear()
 
     '''
