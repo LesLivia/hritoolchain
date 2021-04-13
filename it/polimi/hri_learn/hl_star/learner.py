@@ -98,9 +98,9 @@ class ObsTable:
                         new_pair_2 = self.get_low_S().index(pair[1] + symbol)
                         new_row_2 = self.get_lower_observations()[new_pair_2]
 
-                    new_1_populated = all([new_row_1[i][0] is not None and new_row_1[i][1]
+                    new_1_populated = all([new_row_1[i][0] is not None and new_row_1[i][1] is not None
                                            for i in range(len(self.get_T()))])
-                    new_2_populated = all([new_row_2[i][0] is not None and new_row_2[i][1]
+                    new_2_populated = all([new_row_2[i][0] is not None and new_row_2[i][1] is not None
                                            for i in range(len(self.get_T()))])
 
                     if new_1_populated and new_2_populated and new_row_1 != new_row_2:
@@ -116,10 +116,10 @@ class ObsTable:
         HEADER = '\t' * max_tabs + '|\t\t'
         for t_word in self.get_T():
             HEADER += t_word if t_word != '' else EMPTY_STRING
-            HEADER += '\t\t|\t'
+            HEADER += '\t\t|\t\t'
         print(HEADER)
 
-        SEPARATOR = '----' * max_tabs + '+---------------+'
+        SEPARATOR = '----' * max_tabs + '+' + '---------------+'*len(self.get_T())
 
         print(SEPARATOR)
         for (i, s_word) in enumerate(self.get_S()):
@@ -128,12 +128,12 @@ class ObsTable:
             ROW += '\t' * (max_tabs + 1 - len_word) + '|\t'
             for (j, t_word) in enumerate(self.get_T()):
                 ROW += ObsTable.tuple_to_str(self.get_upper_observations()[i][j])
-                ROW += '\t|'
+                ROW += '\t|\t'
             print(ROW)
         print(SEPARATOR)
         for (i, s_word) in enumerate(self.get_low_S()):
             row = self.get_lower_observations()[i]
-            row_is_populated = all([row[j][0] is not None and row[j][1] is not None for j in range(len(self.get_T()))])
+            row_is_populated = any([row[j][0] is not None and row[j][1] is not None for j in range(len(self.get_T()))])
             if filter_empty and not row_is_populated:
                 pass
             else:
@@ -141,7 +141,7 @@ class ObsTable:
                 ROW += '\t' * (max_tabs + 1 - int(len(s_word) / 3)) + '|\t'
                 for (j, t_word) in enumerate(self.get_T()):
                     ROW += ObsTable.tuple_to_str(self.get_lower_observations()[i][j])
-                    ROW += '\t|'
+                    ROW += '\t|\t'
                 print(ROW)
         print(SEPARATOR)
 
@@ -221,6 +221,12 @@ class Learner:
 
     def make_consistent(self, discr_sym: str, initial_low_s_words: List[str]):
         self.get_table().add_T(discr_sym)
+        upp_obs = self.get_table().get_upper_observations()
+        low_obs = self.get_table().get_lower_observations()
+        for s_i in range(len(upp_obs)):
+            upp_obs[s_i].append((None, None))
+        for s_i in range(len(low_obs)):
+            low_obs[s_i].append((None, None))
         self.fill_table(initial_low_s_words)
 
     def get_counterexamples(self, init_words: List[str]):
@@ -301,8 +307,6 @@ class Learner:
                     new_edge = Edge(start_loc, dest_loc, guard=labels[0], sync=labels[1])
                     if new_edge not in edges:
                         edges.append(Edge(start_loc, dest_loc, guard=labels[0], sync=labels[1]))
-
-        hyp_ha = HybridAutomaton(locations, edges)
 
         return HybridAutomaton(locations, edges)
 
