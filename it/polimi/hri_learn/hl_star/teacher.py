@@ -1,4 +1,4 @@
-from typing import Tuple, List
+from typing import Tuple, List, Dict
 
 import matplotlib.pyplot as plt
 
@@ -19,15 +19,15 @@ class Teacher:
         self.evt_factory = EventFactory(None, None, None)
 
         # Trace-Dependent Attributes
-        # (to be cleared when trace changes)
-        self.chg_pts = None
-        self.events = None
-        self.signals: List[List[SignalPoint]] = []
+        self.chg_pts: List[List[float]] = []
+        self.events = []
+        self.signals: List[List[List[SignalPoint]]] = []
 
     def clear(self):
-        self.events = None
-        self.chg_pts = None
-        self.signals: List[List[SignalPoint]] = []
+        self.signals.append([])
+        # self.events = None
+        # self.chg_pts = None
+        # self.signals: List[List[List[SignalPoint]]] = []
         self.evt_factory.clear()
 
     # SYMBOLS
@@ -62,7 +62,7 @@ class Teacher:
 
     # CHANGE POINTS
     def set_chg_pts(self, chg_pts: List[float]):
-        self.chg_pts = chg_pts
+        self.chg_pts.append(chg_pts)
 
     def get_chg_pts(self):
         return self.chg_pts
@@ -84,26 +84,26 @@ class Teacher:
     def get_signals(self):
         return self.signals
 
-    def add_signal(self, signal: List[SignalPoint]):
-        self.signals.append(signal)
-        self.evt_factory.add_signal(signal)
+    def add_signal(self, signal: List[SignalPoint], trace: int):
+        self.signals[trace].append(signal)
+        self.evt_factory.add_signal(signal, trace)
 
     # EVENTS
     def set_events(self, events):
-        self.events = events
+        self.events.append(events)
 
     def get_events(self):
         return self.events
 
-    def identify_events(self):
+    def identify_events(self, trace):
         events = {}
 
-        for pt in self.get_chg_pts():
-            events[pt] = self.evt_factory.label_event(pt)
+        for pt in self.get_chg_pts()[trace]:
+            events[pt] = self.evt_factory.label_event(pt, trace)
 
         self.set_events(events)
 
-    def plot_trace(self, title=None, xlabel=None, ylabel=None):
+    def plot_trace(self, trace: int, title=None, xlabel=None, ylabel=None):
         plt.figure(figsize=(10, 5))
 
         if title is not None:
@@ -113,16 +113,16 @@ class Teacher:
         if ylabel is not None:
             plt.ylabel(ylabel, fontsize=18)
 
-        t = [x.timestamp for x in self.get_signals()[0]]
-        v = [x.value for x in self.get_signals()[0]]
+        t = [x.timestamp for x in self.get_signals()[trace][0]]
+        v = [x.value for x in self.get_signals()[trace][0]]
 
         plt.xlim(min(t) - 5, max(t) + 5)
         plt.ylim(0, max(v) + .05)
         plt.plot(t, v, 'k', linewidth=.5)
 
-        x = list(self.get_events().keys())
+        x = list(self.events[trace].keys())
         plt.vlines(x, [0] * len(x), [max(v)] * len(x), 'b', '--')
-        for (index, e) in enumerate(self.get_events().values()):
+        for (index, e) in enumerate(self.get_events()[trace].values()):
             plt.text(x[index] - 7, max(v) + .01, e, fontsize=18, color='blue')
 
         plt.show()
@@ -141,21 +141,28 @@ class Teacher:
         return self.distributions
 
     def cut_segment(self, word: str):
-        trace_events = reduce(lambda x, y: x + y, list(self.get_events().values()))
-        if word not in trace_events:
+        trace_events: List[str] = []
+        for trace in range(len(self.get_events())):
+            trace_events.append(reduce(lambda x, y: x + y, list(self.get_events()[trace].values())))
+        trace = None
+        for (i, event_str) in enumerate(trace_events):
+            if word in event_str:
+                trace = i
+        if trace is None:
             return None
-        main_sig = self.get_signals()[DRIVER_SIGNAL]
+
+        main_sig = self.get_signals()[trace][DRIVER_SIGNAL]
         events_in_word = []
         for i in range(0, len(word), 3):
             events_in_word.append(word[i:i + 3])
 
         last_event = events_in_word[-1]
-        for (index, event) in enumerate(self.get_events().values()):
+        for (index, event) in enumerate(self.get_events()[trace].values()):
             if event == last_event:
-                start_timestamp = list(self.get_events().keys())[index]
+                start_timestamp = list(self.get_events()[trace].keys())[index]
                 end_timestamp: float
-                if index < len(self.get_events()) - 1:
-                    end_timestamp = list(self.get_events().keys())[index + 1]
+                if index < len(self.get_events()[trace]) - 1:
+                    end_timestamp = list(self.get_events()[trace].keys())[index + 1]
                 else:
                     end_timestamp = main_sig[-1].timestamp
                 return list(filter(lambda pt: start_timestamp <= pt.timestamp <= end_timestamp, main_sig))

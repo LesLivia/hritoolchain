@@ -29,10 +29,10 @@ class EventFactory:
         self.guards = guards
         self.channels = channels
         self.symbols = symbols
-        self.signals: List[List[SignalPoint]] = []
+        self.signals: List[List[List[SignalPoint]]] = []
 
     def clear(self):
-        self.signals: List[List[SignalPoint]] = []
+        self.signals.append([])
 
     def set_guards(self, guards):
         self.guards = guards
@@ -43,8 +43,8 @@ class EventFactory:
     def set_symbols(self, symbols):
         self.symbols = symbols
 
-    def add_signal(self, signal):
-        self.signals.append(signal)
+    def add_signal(self, signal, trace):
+        self.signals[trace].append(signal)
 
     def get_guards(self):
         return self.guards
@@ -65,10 +65,10 @@ class EventFactory:
             the same stands for channels.
     '''
 
-    def label_event(self, timestamp: float):
+    def label_event(self, timestamp: float, trace):
         if CASE_STUDY == 'hri':
-            posX = self.get_signals()[1]
-            moving = self.get_signals()[2]
+            posX = self.get_signals()[trace][1]
+            moving = self.get_signals()[trace][2]
 
             identified_guard = ''
             '''
@@ -77,7 +77,7 @@ class EventFactory:
             curr_posx = list(filter(lambda x: x.timestamp <= timestamp, posX))[-1]
             identified_guard += self.get_guards()[0] if curr_posx.value >= 4000.0 else '!' + self.get_guards()[0]
             if CS_VERSION == 'c':
-                posY = self.get_signals()[3]
+                posY = self.get_signals()[trace][3]
                 curr_posy = list(filter(lambda x: x.timestamp <= timestamp, posY))[-1]
                 identified_guard += self.get_guards()[1] if curr_posy.value >= 375.0 else '!' + self.get_guards()[1]
 
@@ -87,8 +87,8 @@ class EventFactory:
             curr_mov = list(filter(lambda x: x.timestamp == timestamp, moving))[0]
             identified_channel = self.get_channels()[0] if curr_mov.value == 1 else self.get_channels()[1]
         else:
-            wOpen = self.get_signals()[1]
-            heatOn = self.get_signals()[2]
+            wOpen = self.get_signals()[trace][1]
+            heatOn = self.get_signals()[trace][2]
 
             identified_guard = ''
             '''

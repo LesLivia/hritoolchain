@@ -119,7 +119,7 @@ class ObsTable:
             HEADER += '\t\t|\t\t'
         print(HEADER)
 
-        SEPARATOR = '----' * max_tabs + '+' + '---------------+'*len(self.get_T())
+        SEPARATOR = '----' * max_tabs + '+' + '---------------+' * len(self.get_T())
 
         print(SEPARATOR)
         for (i, s_word) in enumerate(self.get_S()):
@@ -279,15 +279,23 @@ class Learner:
         edges: List[Edge] = []
         for (s_i, s_word) in enumerate(self.get_table().get_S()):
             for (t_i, t_word) in enumerate(self.get_table().get_T()):
-                word: str = s_word + t_word
-                start_row = self.get_table().get_S().index(word[:-3].replace(s_word, ''))
-                start_loc = locations[start_row]
-                dest_row = unique_sequences.index(upp_obs[s_i])
-                dest_loc = locations[dest_row]
-                labels = self.get_symbols()[word[-3:]].split(' and ') if word != '' else ['', EMPTY_STRING]
-                new_edge = Edge(start_loc, dest_loc, guard=labels[0], sync=labels[1])
-                if new_edge not in edges:
-                    edges.append(Edge(start_loc, dest_loc, guard=labels[0], sync=labels[1]))
+                if upp_obs[s_i][t_i][0] is not None and upp_obs[s_i][t_i][1] is not None:
+                    word: str = s_word + t_word
+                    entry_word = word[:-3] if t_word != '' else s_word[:-3]
+                    start_row_index = self.get_table().get_S().index(entry_word)
+                    start_row = unique_sequences.index(upp_obs[start_row_index])
+                    start_loc = locations[start_row]
+                    if t_word == '':
+                        dest_row = unique_sequences.index(upp_obs[s_i])
+                        dest_loc = locations[dest_row]
+                    else:
+                        dest_row = [obs[0] for obs in unique_sequences].index(upp_obs[s_i][t_i])
+                        dest_loc = locations[dest_row]
+                    # labels = self.get_symbols()[word[-3:]].split(' and ') if word != '' else ['', EMPTY_STRING]
+                    labels = word[-3:] if word != '' else EMPTY_STRING
+                    new_edge = Edge(start_loc, dest_loc, sync=labels)  # , sync=labels[1])
+                    if new_edge not in edges:
+                        edges.append(new_edge)
 
         low_obs: List[List[Tuple]] = self.get_table().get_lower_observations()
         for (s_i, s_word) in enumerate(self.get_table().get_low_S()):
@@ -298,15 +306,17 @@ class Learner:
                     start_row_index = self.get_table().get_S().index(entry_word)
                     start_row = unique_sequences.index(upp_obs[start_row_index])
                     start_loc = locations[start_row]
-                    dest_row = upp_obs.index(low_obs[s_i])
+                    dest_row = [obs[0] for obs in upp_obs].index(low_obs[s_i][t_i])
                     dest_loc = locations[dest_row]
                     if word != '':
-                        labels = self.get_symbols()[word.replace(entry_word, '')].split(' and ')
+                        # labels = self.get_symbols()[word.replace(entry_word, '')].split(' and ')
+                        labels = word.replace(entry_word, '')
                     else:
-                        labels = ['', EMPTY_STRING]
-                    new_edge = Edge(start_loc, dest_loc, guard=labels[0], sync=labels[1])
+                        # labels = ['', EMPTY_STRING]
+                        labels = EMPTY_STRING
+                    new_edge = Edge(start_loc, dest_loc, sync=labels)  # [0], sync=labels[1])
                     if new_edge not in edges:
-                        edges.append(Edge(start_loc, dest_loc, guard=labels[0], sync=labels[1]))
+                        edges.append(new_edge)
 
         return HybridAutomaton(locations, edges)
 
@@ -315,7 +325,7 @@ class Learner:
         # Fill Observation Table with Answers to Queries (from TEACHER)
         counterexample = self.get_counterexamples(initial_low_s_words)
         while counterexample is not None:
-            LOGGER.warn('FOUND COUNTERXAMPLE: {}'.format(counterexample))
+            LOGGER.warn('FOUND COUNTEREXAMPLE: {}'.format(counterexample))
             initial_low_s_words.remove(counterexample)
             self.fill_table(initial_low_s_words)
 

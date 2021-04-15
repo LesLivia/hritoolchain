@@ -88,13 +88,13 @@ for trace in range(len(ftg)):
         timestamps_bis = [t for t in timestamps_bis if t >= SWITCH_TIME]
         timestamps = timestamps + timestamps_bis
         values = values + values_bis
-    TEACHER.add_signal([SignalPoint(timestamps[i], 1, values[i]) for i in range(len(timestamps))])
+    TEACHER.add_signal([SignalPoint(timestamps[i], 1, values[i]) for i in range(len(timestamps))], trace)
 
     entries = hPosX[trace].split('\n')[1:]
     posX_entries = [entry for (i, entry) in enumerate(entries) if i == 0 or entries[i - 1] != entry]
     timestamps = [float(x.split(' ')[0]) for x in posX_entries if len(x.split(' ')) > 1]
     values = [float(x.split(' ')[1]) for x in posX_entries if len(x.split(' ')) > 1]
-    TEACHER.add_signal([SignalPoint(timestamps[i], 1, values[i]) for i in range(len(timestamps))])
+    TEACHER.add_signal([SignalPoint(timestamps[i], 1, values[i]) for i in range(len(timestamps))], trace)
 
     entries = hMov[trace].split('\n')[1:]
     mov_entries = [entry for (i, entry) in enumerate(entries) if i == 0 or entries[i - 1] != entry]  # DRIVER OVERLAY
@@ -111,21 +111,22 @@ for trace in range(len(ftg)):
         timestamps_bis = [t for t in timestamps_bis if t >= SWITCH_TIME]
         driver_timestamps = driver_timestamps + timestamps_bis
         driver_values = driver_values + values_bis
-    TEACHER.add_signal([SignalPoint(driver_timestamps[i], 1, driver_values[i]) for i in range(len(driver_timestamps))])
+    TEACHER.add_signal([SignalPoint(driver_timestamps[i], 1, driver_values[i]) for i in range(len(driver_timestamps))],
+                       trace)
 
     if CS_VERSION == 'c':
         entries = hPosY[trace].split('\n')[1:]
         posY_entries = [entry for (i, entry) in enumerate(entries) if i == 0 or entries[i - 1] != entry]
         timestamps = [float(x.split(' ')[0]) for x in posY_entries if len(x.split(' ')) > 1]
         values = [float(x.split(' ')[1]) for x in posY_entries if len(x.split(' ')) > 1]
-        TEACHER.add_signal([SignalPoint(timestamps[i], 1, values[i]) for i in range(len(timestamps))])
+        TEACHER.add_signal([SignalPoint(timestamps[i], 1, values[i]) for i in range(len(timestamps))], trace)
 
     # IDENTIFY EVENTS:
     # (Updates Teacher's knowledge of system behavior)
     TEACHER.find_chg_pts(driver_timestamps, driver_values)
-    TEACHER.identify_events()
-    TEACHER.plot_trace('TRACE {}'.format(trace + 1), 't [s]', 'F [%]')
+    TEACHER.identify_events(trace)
+    TEACHER.plot_trace(trace, 'TRACE {}'.format(trace + 1), 't [s]', 'F [%]')
 
-    # RUN LEARNING ALGORITHM:
-    LEARNED_HA = LEARNER.run_hl_star(filter_empty=True)
-    ha_pltr.plot_ha(LEARNED_HA, 'hyp_ha_{}'.format(trace), view=True)
+# RUN LEARNING ALGORITHM:
+LEARNED_HA = LEARNER.run_hl_star(filter_empty=True)
+ha_pltr.plot_ha(LEARNED_HA, 'H_{}_{}'.format(sys.argv[1], CS_VERSION), view=True)
