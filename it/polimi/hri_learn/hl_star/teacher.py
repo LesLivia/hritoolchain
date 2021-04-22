@@ -1,11 +1,11 @@
-from typing import Tuple, List, Dict
+from functools import reduce
+from typing import Tuple, List
 
 import matplotlib.pyplot as plt
 
 from domain.sigfeatures import SignalPoint
 from hri_learn.hl_star.evt_id import EventFactory, DEFAULT_DISTR, DEFAULT_MODEL, DRIVER_SIGNAL, MODEL_TO_DISTR_MAP
 from hri_learn.hl_star.logger import Logger
-from functools import reduce
 
 LOGGER = Logger()
 
@@ -169,30 +169,45 @@ class Teacher:
         else:
             return None
 
+    @staticmethod
+    def derivative(t: List[float], values: List[float]):
+        try:
+            increments = [(v - values[i - 1]) / (t[i] - t[i - 1]) for (i, v) in enumerate(values) if i > 0]
+        except ZeroDivisionError:
+            avg_dt = sum([x - t[i - 1] for (i, x) in enumerate(t) if i > 0]) / (len(t) - 1)
+            increments = [(v - values[i - 1]) / avg_dt for (i, v) in enumerate(values) if i > 0]
+        finally:
+            return increments
+
     def mf_query(self, word: str):
         if word == '':
             return DEFAULT_MODEL
         else:
             segment = self.cut_segment(word)
             if segment is not None:
+                interval = [pt.timestamp for pt in segment]
+                real_behavior = [pt.value for pt in segment]
+                real_der = self.derivative(interval, real_behavior)
                 min_distance = 10000
+                min_der_distance = 10000
                 best_fit = None
+
                 for (m_i, model) in enumerate(self.get_models()):
-                    interval = [pt.timestamp for pt in segment]
                     ideal_model = model(interval, segment[0].value)
-                    real_behavior = [pt.value for pt in segment]
-                    # plt.figure()
-                    # plt.plot(interval, ideal_model, 'b', interval, real_behavior, 'r')
-                    # plt.show()
                     distances = [abs(i - real_behavior[index]) for (index, i) in enumerate(ideal_model)]
                     avg_distance = sum(distances) / len(distances)
-                    avg_ideal_dts = sum([v - ideal_model[i - 1] for (i, v) in enumerate(ideal_model) if i > 0]) / len(
-                        ideal_model)
-                    avg_real_dts = sum(
-                        [v - real_behavior[i - 1] for (i, v) in enumerate(real_behavior) if i > 0]) / len(
-                        real_behavior)
-                    if avg_distance < min_distance and avg_ideal_dts * avg_real_dts > 0:
+
+                    ideal_der = self.derivative(interval, ideal_model)
+                    der_distances = [abs(i - real_der[index]) for (index, i) in enumerate(ideal_der)]
+                    avg_der_distance = sum(der_distances) / len(der_distances)
+
+                    dist_is_closer = avg_distance < min_distance
+                    der_is_closer = avg_der_distance < min_der_distance
+                    der_same_sign = sum([v * ideal_der[i] for (i, v) in enumerate(real_der)]) / len(real_der) > 0
+
+                    if dist_is_closer and der_is_closer and der_same_sign:
                         min_distance = avg_distance
+                        min_der_distance = avg_der_distance
                         best_fit = m_i
                 else:
                     return best_fit
