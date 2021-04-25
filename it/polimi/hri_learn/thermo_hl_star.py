@@ -18,7 +18,7 @@ CS_VERSION = sys.argv[2]
 if CS_VERSION == 'a':
     LOG_PATH = 'resources/uppaal_logs/thermo.txt'
 else:
-    LOG_PATH = 'resources/uppaal_logs/thermo2.txt'
+    LOG_PATH = 'resources/uppaal_logs/thermo4.txt'
 LOGGER = Logger()
 
 UNCONTR_EVTS = {'w': 'window_is_open'}
