@@ -16,18 +16,18 @@ CS_VERSION = sys.argv[2]
 if CS_VERSION == 'a':
     LOG_PATH = 'resources/uppaal_logs/test.txt'
     UNCONTR_EVTS = {'e': 'in_waiting_room'}  # , 'r': 'is_running', 'o': 'enter_office'}
-    IDLE_DISTR = (0.003328, 0.001342)
-    BUSY_DISTR = (0.004538, 0.00065)
+    IDLE_DISTR = (0.003328, 0.001342, 100)
+    BUSY_DISTR = (0.004538, 0.00065, 100)
 elif CS_VERSION == 'b':
     LOG_PATH = 'resources/uppaal_logs/test2.txt'
     UNCONTR_EVTS = {'e': 'in_waiting_room'}  # , 'r': 'is_running', 'o': 'enter_office'}
-    IDLE_DISTR = (0.003328, 0.001342)
-    BUSY_DISTR = (0.004538, 0.00065)
+    IDLE_DISTR = (0.003328, 0.001342, 100)
+    BUSY_DISTR = (0.004538, 0.00065, 100)
 else:
-    LOG_PATH = 'resources/uppaal_logs/cons_bis.txt'
+    LOG_PATH = 'resources/uppaal_logs/cons.txt'
     UNCONTR_EVTS = {'e': 'in_waiting_room', 'o': 'in_office'}  # , 'r': 'is_running',
-    IDLE_DISTR = (0.003328, 0.001342)
-    BUSY_DISTR = (0.004538, 0.00650)
+    IDLE_DISTR = (0.003328, 0.001342, 100)
+    BUSY_DISTR = (0.004538, 0.00650, 100)
     SWITCH_TIME = 94.1
 
 LOGGER = Logger()

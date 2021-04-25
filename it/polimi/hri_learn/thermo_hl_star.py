@@ -24,8 +24,8 @@ LOGGER = Logger()
 UNCONTR_EVTS = {'w': 'window_is_open'}
 CONTR_EVTS = {'h': 'turn_on_heat', 'c': 'turn_off_heat'}
 CLOSED_R = 100.0
-OFF_DISTR = (100.0, 5.0)
-ON_DISTR = (0.5, 0.066)
+OFF_DISTR = (100.0, 5.0, 100)
+ON_DISTR = (0.5, 0.066, 100)
 
 PROB_DISTR = [OFF_DISTR, ON_DISTR]
 

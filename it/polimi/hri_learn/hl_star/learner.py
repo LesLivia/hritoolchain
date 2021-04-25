@@ -303,8 +303,12 @@ class Learner:
                 if low_obs[s_i][t_i][0] is not None and low_obs[s_i][t_i][1] is not None:
                     word = s_word + t_word
                     entry_word = word[:-3]
-                    start_row_index = self.get_table().get_S().index(entry_word)
-                    start_row = unique_sequences.index(upp_obs[start_row_index])
+                    try:
+                        start_row_index = self.get_table().get_S().index(entry_word)
+                        start_row = unique_sequences.index(upp_obs[start_row_index])
+                    except ValueError:
+                        start_row_index = self.get_table().get_low_S().index(entry_word)
+                        start_row = unique_sequences.index(low_obs[start_row_index])
                     start_loc = locations[start_row]
                     dest_row = [obs[0] for obs in upp_obs].index(low_obs[s_i][t_i])
                     dest_loc = locations[dest_row]

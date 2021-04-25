@@ -146,16 +146,13 @@ class EventFactory:
     def get_thermo_metric(self, segment: List[SignalPoint], word: str):
         try:
             t = [pt.timestamp for pt in segment]
-            dts = [v - t[i - 1] for i, v in enumerate(t) if i > 0]
-            avg_dt = sum(dts) / len(dts)
-
             dt = TimeInterval(segment[0].timestamp, segment[-1].timestamp)
             params, x_fore, fore = sig_mgr.n_predictions(segment, dt, 10, show_formula=False)
             if word[-3:].__contains__('h'):
-                LOGGER.debug('Estimating rate with heat on ({})'.format(word))
-                est_rate = (params[0] / (1 - params[1]))*(1/ON_R) if params[1] != 1.0 else 0.0
+                LOGGER.info('Estimating rate with heat on ({})'.format(word))
+                est_rate = (params[0] / (1 - params[1])) * (1 / ON_R) if params[1] != 1.0 else 0.0
             else:
-                LOGGER.debug('Estimating rate with heat off ({})'.format(word))
+                LOGGER.info('Estimating rate with heat off ({})'.format(word))
                 est_rate = 1 / -math.log(params[1]) if params[1] != 0.0 else 0.0
             return est_rate
         except ValueError:

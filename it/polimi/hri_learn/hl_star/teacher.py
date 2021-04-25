@@ -1,6 +1,7 @@
+import math
 from functools import reduce
 from typing import Tuple, List
-import math
+
 import matplotlib.pyplot as plt
 
 from domain.sigfeatures import SignalPoint
@@ -174,6 +175,7 @@ class Teacher:
 
     @staticmethod
     def derivative(t: List[float], values: List[float]):
+        increments = []
         try:
             increments = [(v - values[i - 1]) / (t[i] - t[i - 1]) for (i, v) in enumerate(values) if i > 0]
         except ZeroDivisionError:
@@ -219,7 +221,7 @@ class Teacher:
 
                 for (i, m) in enumerate(fits):
                     if i > 0 and m != fits[i - 1]:
-                        LOGGER.error("!! INCOSISTENT PHYSICAL BEHAVIOR !!");
+                        LOGGER.error("!! INCONSISTENT PHYSICAL BEHAVIOR !!")
                         return None
                 else:
                     return fits[0]
@@ -248,7 +250,7 @@ class Teacher:
                     metric = self.evt_factory.get_ht_metric(segment, word)
                     metrics.append(metric)
                     if metric is not None:
-                        LOGGER.debug('EST. RATE for {}: {}'.format(word, metric))
+                        LOGGER.info('EST. RATE for {}: {}'.format(word, metric))
                         # performs hyp. testing on all eligible distributions
                         for (i, d) in enumerate(eligible_distributions):
                             distr: tuple = distributions[d]
@@ -269,12 +271,17 @@ class Teacher:
                 std_dev_metrics = math.sqrt(var_metrics)
                 for (i, d) in enumerate(eligible_distributions):
                     if p_value[i] >= 0.5:
-                        # TODO: d should be updated
+                        distr: tuple = distributions[d]
+                        new_avg = (distr[0] * distr[2] + avg_metrics * len(metrics)) / (distr[2] + len(metrics))
+                        new_std_dev = (distr[1] * distr[2] + std_dev_metrics * len(metrics)) / (distr[2] + len(metrics))
+                        self.get_distributions()[d] = (new_avg, new_std_dev, distr[2] + len(metrics))
+                        LOGGER.debug("Accepting N_{} with p-value: {}".format(d, p_value[i]))
                         return d
                 else:
+                    LOGGER.debug("Rejecting H_0 with p-value: {}".format(p_value))
                     # if no distribution is found that passes the hyp. test,
                     # a new distribution is created...
-                    self.get_distributions().append((avg_metrics, std_dev_metrics))
+                    self.get_distributions().append((avg_metrics, std_dev_metrics, len(metrics)))
                     # and added to the map of eligible distr. for the selected model
                     new_distr_index = len(self.get_distributions()) - 1
                     MODEL_TO_DISTR_MAP[new_distr_index] = model
