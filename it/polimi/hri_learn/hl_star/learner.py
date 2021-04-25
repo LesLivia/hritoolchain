@@ -347,7 +347,6 @@ class Learner:
                     self.make_closed(initial_low_s_words)
                     LOGGER.msg('CLOSED OBSERVATION TABLE')
                     self.get_table().print(filter_empty)
-                closedness_check = self.get_table().is_closed()
 
                 # Check if obs. table is consistent
                 if not consistency_check:
@@ -357,6 +356,7 @@ class Learner:
                     LOGGER.msg('CONSISTENT OBSERVATION TABLE')
                     self.get_table().print(filter_empty)
 
+                closedness_check = self.get_table().is_closed()
                 consistency_check, discriminating_symbol = self.get_table().is_consistent(self.get_symbols())
 
             [initial_low_s_words.remove(s_word) for s_word in self.get_table().get_S() if s_word in initial_low_s_words]
