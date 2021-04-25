@@ -15,7 +15,7 @@ SETUP LEARNING PROCEDURE
 warnings.filterwarnings('ignore')
 
 CS_VERSION = sys.argv[2]
-if (CS_VERSION == 'a'):
+if CS_VERSION == 'a':
     LOG_PATH = 'resources/uppaal_logs/thermo.txt'
 else:
     LOG_PATH = 'resources/uppaal_logs/thermo2.txt'
@@ -25,7 +25,7 @@ UNCONTR_EVTS = {'w': 'window_is_open'}
 CONTR_EVTS = {'h': 'turn_on_heat', 'c': 'turn_off_heat'}
 CLOSED_R = 100.0
 OFF_DISTR = (100.0, 5.0)
-ON_DISTR = (0.5, 0.05)
+ON_DISTR = (0.5, 0.066)
 
 PROB_DISTR = [OFF_DISTR, ON_DISTR]
 
@@ -60,7 +60,7 @@ wOpen = [variables[i] for i in range(len(variables)) if variables[i - 1].__conta
 LOGGER.info("TRACES TO ANALYZE-> {}\n".format(len(temp)))
 
 for trace in range(len(temp)):
-    LOGGER.info("ANALYZING TRACE {}:\n".format(trace + 1))
+    LOGGER.info("ANALYZING TRACE {}...\n".format(trace + 1))
     TEACHER.clear()
 
     '''
@@ -88,7 +88,7 @@ for trace in range(len(temp)):
     # (Updates Teacher's knowledge of system behavior)
     TEACHER.find_chg_pts(timestamps, values)
     TEACHER.identify_events(trace)
-    TEACHER.plot_trace(trace, 'TRACE {}'.format(trace + 1), 't [min]', 'T [°C]')
+    # TEACHER.plot_trace(trace, 'TRACE {}'.format(trace + 1), 't [min]', 'T [°C]')
 
 # RUN LEARNING ALGORITHM:
 LEARNED_HA = LEARNER.run_hl_star(filter_empty=True)

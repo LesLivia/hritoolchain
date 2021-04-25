@@ -144,30 +144,33 @@ class Teacher:
         trace_events: List[str] = []
         for trace in range(len(self.get_events())):
             trace_events.append(reduce(lambda x, y: x + y, list(self.get_events()[trace].values())))
-        trace = None
+        traces = []
         for (i, event_str) in enumerate(trace_events):
             if word in event_str:
-                trace = i
-        if trace is None:
-            return None
+                traces.append(i)
+        if len(traces) == 0:
+            return []
 
-        main_sig = self.get_signals()[trace][DRIVER_SIGNAL]
-        events_in_word = []
-        for i in range(0, len(word), 3):
-            events_in_word.append(word[i:i + 3])
+        segments = []
+        for trace in traces:
+            main_sig = self.get_signals()[trace][DRIVER_SIGNAL]
+            events_in_word = []
+            for i in range(0, len(word), 3):
+                events_in_word.append(word[i:i + 3])
 
-        last_event = events_in_word[-1]
-        for (index, event) in enumerate(self.get_events()[trace].values()):
-            if event == last_event:
-                start_timestamp = list(self.get_events()[trace].keys())[index]
-                end_timestamp: float
-                if index < len(self.get_events()[trace]) - 1:
-                    end_timestamp = list(self.get_events()[trace].keys())[index + 1]
-                else:
-                    end_timestamp = main_sig[-1].timestamp
-                return list(filter(lambda pt: start_timestamp <= pt.timestamp <= end_timestamp, main_sig))
-        else:
-            return None
+            last_event = events_in_word[-1]
+            for (index, event) in enumerate(self.get_events()[trace].values()):
+                if event == last_event:
+                    start_timestamp = list(self.get_events()[trace].keys())[index]
+                    end_timestamp: float
+                    if index < len(self.get_events()[trace]) - 1:
+                        end_timestamp = list(self.get_events()[trace].keys())[index + 1]
+                    else:
+                        end_timestamp = main_sig[-1].timestamp
+                    segment = list(filter(lambda pt: start_timestamp <= pt.timestamp <= end_timestamp, main_sig))
+                    segments.append(segment)
+            else:
+                return segments
 
     @staticmethod
     def derivative(t: List[float], values: List[float]):
@@ -183,34 +186,43 @@ class Teacher:
         if word == '':
             return DEFAULT_MODEL
         else:
-            segment = self.cut_segment(word)
-            if segment is not None:
-                interval = [pt.timestamp for pt in segment]
-                real_behavior = [pt.value for pt in segment]
-                real_der = self.derivative(interval, real_behavior)
-                min_distance = 10000
-                min_der_distance = 10000
-                best_fit = None
+            segments = self.cut_segment(word)
+            if len(segments) > 0:
+                fits = []
+                for segment in segments:
+                    interval = [pt.timestamp for pt in segment]
+                    real_behavior = [pt.value for pt in segment]
+                    real_der = self.derivative(interval, real_behavior)
+                    min_distance = 10000
+                    min_der_distance = 10000
+                    best_fit = None
 
-                for (m_i, model) in enumerate(self.get_models()):
-                    ideal_model = model(interval, segment[0].value)
-                    distances = [abs(i - real_behavior[index]) for (index, i) in enumerate(ideal_model)]
-                    avg_distance = sum(distances) / len(distances)
+                    for (m_i, model) in enumerate(self.get_models()):
+                        ideal_model = model(interval, segment[0].value)
+                        distances = [abs(i - real_behavior[index]) for (index, i) in enumerate(ideal_model)]
+                        avg_distance = sum(distances) / len(distances)
 
-                    ideal_der = self.derivative(interval, ideal_model)
-                    der_distances = [abs(i - real_der[index]) for (index, i) in enumerate(ideal_der)]
-                    avg_der_distance = sum(der_distances) / len(der_distances)
+                        ideal_der = self.derivative(interval, ideal_model)
+                        der_distances = [abs(i - real_der[index]) for (index, i) in enumerate(ideal_der)]
+                        avg_der_distance = sum(der_distances) / len(der_distances)
 
-                    dist_is_closer = avg_distance < min_distance
-                    der_is_closer = avg_der_distance < min_der_distance
-                    der_same_sign = sum([v * ideal_der[i] for (i, v) in enumerate(real_der)]) / len(real_der) > 0
+                        dist_is_closer = avg_distance < min_distance
+                        der_is_closer = avg_der_distance < min_der_distance
+                        der_same_sign = sum([v * ideal_der[i] for (i, v) in enumerate(real_der)]) / len(real_der) > 0
 
-                    if dist_is_closer and der_is_closer and der_same_sign:
-                        min_distance = avg_distance
-                        min_der_distance = avg_der_distance
-                        best_fit = m_i
+                        if dist_is_closer and der_is_closer and der_same_sign:
+                            min_distance = avg_distance
+                            min_der_distance = avg_der_distance
+                            best_fit = m_i
+                    else:
+                        fits.append(best_fit)
+
+                for (i, m) in enumerate(fits):
+                    if i > 0 and m != fits[i - 1]:
+                        LOGGER.error("!! INCOSISTENT PHYSICAL BEHAVIOR !!");
+                        return None
                 else:
-                    return best_fit
+                    return fits[0]
             else:
                 return None
 
@@ -221,9 +233,9 @@ class Teacher:
         if word == '':
             return DEFAULT_DISTR
         else:
-            segment = self.cut_segment(word)
-            if segment is not None:
-                metric = self.evt_factory.get_ht_metric(segment, word)
+            segments = self.cut_segment(word)
+            if len(segments) > 0:
+                metric = self.evt_factory.get_ht_metric(segments[0], word)
                 if metric is not None:
                     LOGGER.debug('EST. RATE for {}: {}'.format(word, metric))
                     distributions = self.get_distributions()
