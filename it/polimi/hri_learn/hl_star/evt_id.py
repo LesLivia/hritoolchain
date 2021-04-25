@@ -20,10 +20,11 @@ if CASE_STUDY == 'hri':
     DEFAULT_DISTR = 0
     MODEL_TO_DISTR_MAP = {0: 0, 1: 1}  # <- HRI
 else:
+    ON_R = 100.0
     DRIVER_SIGNAL = 0
     DEFAULT_MODEL = 0
     DEFAULT_DISTR = 0
-    MODEL_TO_DISTR_MAP = {0: 0, 1: 0}  # <- THERMOSTAT
+    MODEL_TO_DISTR_MAP = {0: 0, 1: 1}  # <- THERMOSTAT
 
 
 class EventFactory:
@@ -152,10 +153,10 @@ class EventFactory:
             params, x_fore, fore = sig_mgr.n_predictions(segment, dt, 10, show_formula=False)
             if word[-3:].__contains__('h'):
                 LOGGER.debug('Estimating rate with heat on ({})'.format(word))
-                est_rate = math.fabs(math.log(params[1])) / avg_dt * 2 if params[1] != 0.0 else 0.0
+                est_rate = (params[0] / (1 - params[1]))*(1/ON_R) if params[1] != 1.0 else 0.0
             else:
                 LOGGER.debug('Estimating rate with heat off ({})'.format(word))
-                est_rate = 1 / -math.log(params[1])
+                est_rate = 1 / -math.log(params[1]) if params[1] != 0.0 else 0.0
             return est_rate
         except ValueError:
             return None

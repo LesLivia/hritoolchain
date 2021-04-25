@@ -173,7 +173,7 @@ class Learner:
                 # asks teacher to answer queries
                 # and fills cell with answers
                 if upp_obs[i][j][0] is None:
-                    identified_model = self.TEACHER.mf_query(s_word + t_word)
+                    identified_model = self.TEACHER.mi_query(s_word + t_word)
                     identified_distr = self.TEACHER.ht_query(s_word + t_word, identified_model)
                     cell = (identified_model, identified_distr)
                     row[j] = cell
@@ -188,7 +188,7 @@ class Learner:
                 # asks teacher to answer queries
                 # and fills cell with answers
                 if low_obs[i][j][0] is None and low_obs[i][j][1] is None and s_word not in initial_low_s_words:
-                    identified_model = self.TEACHER.mf_query(s_word + t_word)
+                    identified_model = self.TEACHER.mi_query(s_word + t_word)
                     identified_distr = self.TEACHER.ht_query(s_word + t_word, identified_model)
                     cell = (identified_model, identified_distr)
                     row[j] = cell
@@ -235,7 +235,7 @@ class Learner:
         for (s_i, s_word) in enumerate(init_words):
             new_row: List[Tuple] = []
             for (t_i, t_word) in enumerate(self.get_table().get_T()):
-                identified_model = self.TEACHER.mf_query(s_word + t_word)
+                identified_model = self.TEACHER.mi_query(s_word + t_word)
                 identified_distr = self.TEACHER.ht_query(s_word + t_word, identified_model)
                 LOGGER.debug('QUERY RESULTS FOR {}: ({}, {})'.format(s_word + t_word,
                                                                      MODEL_FORMATTER.format(identified_model),

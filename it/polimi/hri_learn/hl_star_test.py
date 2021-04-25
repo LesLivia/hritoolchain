@@ -15,17 +15,17 @@ warnings.filterwarnings('ignore')
 CS_VERSION = sys.argv[2]
 if CS_VERSION == 'a':
     LOG_PATH = 'resources/uppaal_logs/test.txt'
-    UNCONTR_EVTS = {'e': 'enter_area_2'}  # , 'r': 'is_running', 'o': 'enter_office'}
+    UNCONTR_EVTS = {'e': 'in_waiting_room'}  # , 'r': 'is_running', 'o': 'enter_office'}
     IDLE_DISTR = (0.003328, 0.001342)
     BUSY_DISTR = (0.004538, 0.00065)
 elif CS_VERSION == 'b':
     LOG_PATH = 'resources/uppaal_logs/test2.txt'
-    UNCONTR_EVTS = {'e': 'enter_area_2'}  # , 'r': 'is_running', 'o': 'enter_office'}
+    UNCONTR_EVTS = {'e': 'in_waiting_room'}  # , 'r': 'is_running', 'o': 'enter_office'}
     IDLE_DISTR = (0.003328, 0.001342)
     BUSY_DISTR = (0.004538, 0.00065)
 else:
-    LOG_PATH = 'resources/uppaal_logs/cons.txt'
-    UNCONTR_EVTS = {'e': 'enter_area_2', 'o': 'enter_office'}  # , 'r': 'is_running',
+    LOG_PATH = 'resources/uppaal_logs/cons_bis.txt'
+    UNCONTR_EVTS = {'e': 'in_waiting_room', 'o': 'in_office'}  # , 'r': 'is_running',
     IDLE_DISTR = (0.003328, 0.001342)
     BUSY_DISTR = (0.004538, 0.00650)
     SWITCH_TIME = 94.1

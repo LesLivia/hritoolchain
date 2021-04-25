@@ -179,7 +179,7 @@ class Teacher:
         finally:
             return increments
 
-    def mf_query(self, word: str):
+    def mi_query(self, word: str):
         if word == '':
             return DEFAULT_MODEL
         else:

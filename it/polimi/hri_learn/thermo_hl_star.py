@@ -24,8 +24,8 @@ LOGGER = Logger()
 UNCONTR_EVTS = {'w': 'window_is_open'}
 CONTR_EVTS = {'h': 'turn_on_heat', 'c': 'turn_off_heat'}
 CLOSED_R = 100.0
-OFF_DISTR = (100.0, 20.0)
-ON_DISTR = (0.3, 0.01)
+OFF_DISTR = (100.0, 5.0)
+ON_DISTR = (0.5, 0.05)
 
 PROB_DISTR = [OFF_DISTR, ON_DISTR]
 
@@ -35,7 +35,7 @@ def off_model(interval: List[float], T_0: float):
 
 
 def on_model(interval: List[float], T_0: float):
-    return [CLOSED_R * ON_DISTR[0] - T_0 * math.exp(-1 / CLOSED_R * (t - interval[0])) for t in interval]
+    return [CLOSED_R * ON_DISTR[0] - T_0 * math.exp(-(1 / CLOSED_R) * (t - interval[0])) for t in interval]
 
 
 MODELS = [off_model, on_model]
