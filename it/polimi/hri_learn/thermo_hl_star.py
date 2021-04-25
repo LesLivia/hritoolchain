@@ -1,7 +1,9 @@
 import math
+import sys
 import warnings
 from typing import List
 
+import pltr.ha_pltr as ha_pltr
 from domain.sigfeatures import SignalPoint
 from hri_learn.hl_star.learner import Learner
 from hri_learn.hl_star.logger import Logger
@@ -12,24 +14,28 @@ SETUP LEARNING PROCEDURE
 '''
 warnings.filterwarnings('ignore')
 
-LOG_PATH = 'resources/uppaal_logs/thermo.txt'
+CS_VERSION = sys.argv[2]
+if (CS_VERSION == 'a'):
+    LOG_PATH = 'resources/uppaal_logs/thermo.txt'
+else:
+    LOG_PATH = 'resources/uppaal_logs/thermo2.txt'
 LOGGER = Logger()
 
 UNCONTR_EVTS = {'w': 'window_is_open'}
 CONTR_EVTS = {'h': 'turn_on_heat', 'c': 'turn_off_heat'}
 CLOSED_R = 100.0
-OFF_DISTR = (100.0, 0.01)
-ON_DISTR = (100.0, 0.01)
+OFF_DISTR = (100.0, 20.0)
+ON_DISTR = (0.3, 0.01)
 
 PROB_DISTR = [OFF_DISTR, ON_DISTR]
 
 
 def off_model(interval: List[float], T_0: float):
-    return [T_0 * math.exp(-1 / CLOSED_R * (t - interval[0])) for t in interval]
+    return [T_0 * math.exp(-1 / OFF_DISTR[0] * (t - interval[0])) for t in interval]
 
 
 def on_model(interval: List[float], T_0: float):
-    return [CLOSED_R * OFF_DISTR[0] - T_0 * math.exp(-1 / CLOSED_R * (t - interval[0])) for t in interval]
+    return [CLOSED_R * ON_DISTR[0] - T_0 * math.exp(-1 / CLOSED_R * (t - interval[0])) for t in interval]
 
 
 MODELS = [off_model, on_model]
@@ -64,25 +70,26 @@ for trace in range(len(temp)):
     temp_entries = [entry for (i, entry) in enumerate(entries) if i == 0 or entries[i - 1] != entry]
     timestamps = [float(x.split(' ')[0]) for x in temp_entries if len(x.split(' ')) > 1]
     values = [float(x.split(' ')[1]) for x in temp_entries if len(x.split(' ')) > 1]
-    TEACHER.add_signal([SignalPoint(timestamps[i], 1, values[i]) for i in range(len(timestamps))])
+    TEACHER.add_signal([SignalPoint(timestamps[i], 1, values[i]) for i in range(len(timestamps))], trace)
 
     entries = wOpen[trace].split('\n')[1:]
     wOpen_entries = [entry for (i, entry) in enumerate(entries) if i == 0 or entries[i - 1] != entry]
     timestamps = [float(x.split(' ')[0]) for x in wOpen_entries if len(x.split(' ')) > 1]
     values = [float(x.split(' ')[1]) for x in wOpen_entries if len(x.split(' ')) > 1]
-    TEACHER.add_signal([SignalPoint(timestamps[i], 1, values[i]) for i in range(len(timestamps))])
+    TEACHER.add_signal([SignalPoint(timestamps[i], 1, values[i]) for i in range(len(timestamps))], trace)
 
     entries = hOn[trace].split('\n')[1:]
     hOn_entries = [entry for (i, entry) in enumerate(entries) if i == 0 or entries[i - 1] != entry]  # DRIVER OVERLAY
     timestamps = [float(x.split(' ')[0]) for x in hOn_entries if len(x.split(' ')) > 1]
     values = [float(x.split(' ')[1]) for x in hOn_entries if len(x.split(' ')) > 1]
-    TEACHER.add_signal([SignalPoint(timestamps[i], 1, values[i]) for i in range(len(timestamps))])
+    TEACHER.add_signal([SignalPoint(timestamps[i], 1, values[i]) for i in range(len(timestamps))], trace)
 
     # IDENTIFY EVENTS:
     # (Updates Teacher's knowledge of system behavior)
     TEACHER.find_chg_pts(timestamps, values)
-    TEACHER.identify_events()
-    TEACHER.plot_trace('TRACE {}'.format(trace + 1), 't [min]', 'T [°C]')
+    TEACHER.identify_events(trace)
+    TEACHER.plot_trace(trace, 'TRACE {}'.format(trace + 1), 't [min]', 'T [°C]')
 
-    # RUN LEARNING ALGORITHM:
-    LEARNER.run_hl_star()
+# RUN LEARNING ALGORITHM:
+LEARNED_HA = LEARNER.run_hl_star(filter_empty=True)
+ha_pltr.plot_ha(LEARNED_HA, 'H_{}_{}'.format(sys.argv[1], CS_VERSION), view=True)

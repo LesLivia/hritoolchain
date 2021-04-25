@@ -4,12 +4,14 @@ from typing import List
 
 import mgrs.sig_mgr as sig_mgr
 from domain.sigfeatures import SignalPoint, TimeInterval
+from hl_star.logger import Logger
 
 '''
 WARNING! 
         These constants may change if the system changes:
         default model and distr. for empty string.
 '''
+LOGGER = Logger()
 CASE_STUDY = sys.argv[1]
 CS_VERSION = sys.argv[2]
 if CASE_STUDY == 'hri':
@@ -117,7 +119,13 @@ class EventFactory:
             returns metric for HT queries.
     '''
 
-    def get_ht_metric(self, segment: List[SignalPoint]):
+    def get_ht_metric(self, segment: List[SignalPoint], word):
+        if CASE_STUDY == 'hri':
+            return self.get_ftg_metric(segment)
+        else:
+            return self.get_thermo_metric(segment, word)
+
+    def get_ftg_metric(self, segment: List[SignalPoint]):
         try:
             if len(segment) <= 100:
                 differences = [pt.value - segment[i - 1].value for (i, pt) in enumerate(segment) if i > 0]
@@ -134,15 +142,20 @@ class EventFactory:
         except ValueError:
             return None
 
-    # def get_ht_metric(self, segment: List[SignalPoint]):
-    #     try:
-    #         t = [pt.timestamp for pt in segment]
-    #         dts = [v - t[i - 1] for i, v in enumerate(t) if i > 0]
-    #         avg_dt = sum(dts) / len(dts)
-    #
-    #         dt = TimeInterval(segment[0].timestamp, segment[-1].timestamp)
-    #         params, x_fore, fore = sig_mgr.n_predictions(segment, dt, 10, show_formula=False)
-    #         est_rate = math.fabs(math.log(params[1])) / avg_dt * 2 if params[1] != 0.0 else 0.0
-    #         return est_rate
-    #     except ValueError:
-    #         return None
+    def get_thermo_metric(self, segment: List[SignalPoint], word: str):
+        try:
+            t = [pt.timestamp for pt in segment]
+            dts = [v - t[i - 1] for i, v in enumerate(t) if i > 0]
+            avg_dt = sum(dts) / len(dts)
+
+            dt = TimeInterval(segment[0].timestamp, segment[-1].timestamp)
+            params, x_fore, fore = sig_mgr.n_predictions(segment, dt, 10, show_formula=False)
+            if word[-3:].__contains__('h'):
+                LOGGER.debug('Estimating rate with heat on ({})'.format(word))
+                est_rate = math.fabs(math.log(params[1])) / avg_dt * 2 if params[1] != 0.0 else 0.0
+            else:
+                LOGGER.debug('Estimating rate with heat off ({})'.format(word))
+                est_rate = 1 / -math.log(params[1])
+            return est_rate
+        except ValueError:
+            return None

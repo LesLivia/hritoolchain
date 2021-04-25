@@ -223,7 +223,7 @@ class Teacher:
         else:
             segment = self.cut_segment(word)
             if segment is not None:
-                metric = self.evt_factory.get_ht_metric(segment)
+                metric = self.evt_factory.get_ht_metric(segment, word)
                 if metric is not None:
                     LOGGER.debug('EST. RATE for {}: {}'.format(word, metric))
                     distributions = self.get_distributions()
