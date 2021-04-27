@@ -291,7 +291,7 @@ class Teacher:
                 theta_z = None
                 alpha = 0.00
                 while theta_z is None:
-                    alpha += 0.1
+                    alpha += 0.05
                     theta_z = self.get_theta_th(0.05, len(metrics), alpha)
 
                 if min_Y * len(metrics) <= theta_z:
