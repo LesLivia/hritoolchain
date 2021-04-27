@@ -3,6 +3,7 @@ from functools import reduce
 from typing import Tuple, List
 
 import matplotlib.pyplot as plt
+import scipy.special as sci
 
 from domain.sigfeatures import SignalPoint
 from hri_learn.hl_star.evt_id import EventFactory, DEFAULT_DISTR, DEFAULT_MODEL, DRIVER_SIGNAL, MODEL_TO_DISTR_MAP
@@ -170,8 +171,8 @@ class Teacher:
                         end_timestamp = main_sig[-1].timestamp
                     segment = list(filter(lambda pt: start_timestamp <= pt.timestamp <= end_timestamp, main_sig))
                     segments.append(segment)
-            else:
-                return segments
+        else:
+            return segments
 
     @staticmethod
     def derivative(t: List[float], values: List[float]):
@@ -228,6 +229,17 @@ class Teacher:
             else:
                 return None
 
+    @staticmethod
+    def get_theta_th(P_0: float, N: int, alpha: float = 0.05):
+        for theta in range(0, N, 1):
+            alpha_th = 0
+            for K in range(theta, N, 1):
+                binom = sci.binom(N, K)
+                alpha_th += binom * (P_0 ** K) * ((1 - P_0) ** (N - K))
+            if alpha_th <= alpha:
+                return theta
+        return None
+
     def ht_query(self, word: str, model=DEFAULT_MODEL):
         if model is None:
             return None
@@ -254,14 +266,14 @@ class Teacher:
                         # performs hyp. testing on all eligible distributions
                         for (i, d) in enumerate(eligible_distributions):
                             distr: tuple = distributions[d]
-                            minus_sigma = max(distr[0] - 3 * distr[1], 0)
-                            plus_sigma = distr[0] + 3 * distr[1]
+                            minus_sigma = max(distr[0] - 2 * distr[1], 0)
+                            plus_sigma = distr[0] + 2 * distr[1]
                             successes[i].append(minus_sigma <= metric <= plus_sigma)
 
                 p_value = [0] * len(eligible_distributions)
                 for (i, d) in enumerate(eligible_distributions):
                     for x in successes[i]:
-                        if x:
+                        if not x:
                             p_value[i] += 1
                     p_value[i] /= len(successes[i])
 
@@ -269,16 +281,28 @@ class Teacher:
                 avg_metrics = sum(metrics) / len(metrics)
                 var_metrics = sum([(m - avg_metrics) ** 2 for m in metrics]) / len(metrics)
                 std_dev_metrics = math.sqrt(var_metrics)
+                min_Y = None
+                best_D = None
                 for (i, d) in enumerate(eligible_distributions):
-                    if p_value[i] >= 0.5:
-                        distr: tuple = distributions[d]
-                        new_avg = (distr[0] * distr[2] + avg_metrics * len(metrics)) / (distr[2] + len(metrics))
-                        new_std_dev = (distr[1] * distr[2] + std_dev_metrics * len(metrics)) / (distr[2] + len(metrics))
-                        self.get_distributions()[d] = (new_avg, new_std_dev, distr[2] + len(metrics))
-                        LOGGER.debug("Accepting N_{} with p-value: {}".format(d, p_value[i]))
-                        return d
+                    if min_Y is None or p_value[i] < min_Y:
+                        best_D = d
+                        min_Y = p_value[i]
+
+                theta_z = None
+                alpha = 0.00
+                while theta_z is None:
+                    alpha += 0.1
+                    theta_z = self.get_theta_th(0.05, len(metrics), alpha)
+
+                if min_Y * len(metrics) <= theta_z:
+                    # distr: tuple = distributions[d]
+                    # new_avg = (distr[0] * distr[2] + avg_metrics * len(metrics)) / (distr[2] + len(metrics))
+                    # new_std_dev = (distr[1] * distr[2] + std_dev_metrics * len(metrics)) / (distr[2] + len(metrics))
+                    # self.get_distributions()[d] = (new_avg, new_std_dev, distr[2] + len(metrics))
+                    LOGGER.debug("Accepting N_{} with Y: {} with confidence: {}".format(best_D, min_Y, 1 - alpha))
+                    return best_D
                 else:
-                    LOGGER.debug("Rejecting H_0 with p-value: {}".format(p_value))
+                    LOGGER.debug("Rejecting H_0 with Y: {} with confidence: {}".format(min_Y, 1 - alpha))
                     # if no distribution is found that passes the hyp. test,
                     # a new distribution is created...
                     self.get_distributions().append((avg_metrics, std_dev_metrics, len(metrics)))

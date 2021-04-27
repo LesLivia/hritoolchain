@@ -16,16 +16,17 @@ warnings.filterwarnings('ignore')
 
 CS_VERSION = sys.argv[2]
 if CS_VERSION == 'a':
-    LOG_PATH = 'resources/uppaal_logs/thermo.txt'
-else:
+    UNCONTR_EVTS = {'o': 'one_window_open'}
     LOG_PATH = 'resources/uppaal_logs/thermo4.txt'
+else:
+    UNCONTR_EVTS = {'o': 'one_window_open', 't': 'two_windows_open'}
+    LOG_PATH = 'resources/uppaal_logs/thermo_ter.txt'
 LOGGER = Logger()
 
-UNCONTR_EVTS = {'w': 'window_is_open'}
 CONTR_EVTS = {'h': 'turn_on_heat', 'c': 'turn_off_heat'}
 CLOSED_R = 100.0
-OFF_DISTR = (100.0, 5.0, 200)
-ON_DISTR = (0.5, 0.066, 200)
+OFF_DISTR = (100.0, 1.0, 200)
+ON_DISTR = (0.7, 0.01, 200)
 
 PROB_DISTR = [OFF_DISTR, ON_DISTR]
 

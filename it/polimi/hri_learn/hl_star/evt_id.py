@@ -99,6 +99,9 @@ class EventFactory:
             '''
             curr_wOpen = list(filter(lambda x: x.timestamp <= timestamp, wOpen))[-1]
             identified_guard += self.get_guards()[0] if curr_wOpen.value == 1.0 else '!' + self.get_guards()[0]
+            if CS_VERSION == 'b':
+                identified_guard += self.get_guards()[1] if curr_wOpen.value == 2.0 else '!' + self.get_guards()[1]
+                # identified_guard += self.get_guards()[2] if curr_wOpen.value == 0.0 else '!' + self.get_guards()[2]
 
             '''
             Repeat for every channel in the system
@@ -145,15 +148,28 @@ class EventFactory:
 
     def get_thermo_metric(self, segment: List[SignalPoint], word: str):
         try:
-            t = [pt.timestamp for pt in segment]
+            val = [pt.value for pt in segment]
             dt = TimeInterval(segment[0].timestamp, segment[-1].timestamp)
             params, x_fore, fore = sig_mgr.n_predictions(segment, dt, 10, show_formula=False)
             if word[-3:].__contains__('h'):
+                increments = []
+                for (i, pt) in enumerate(val):
+                    if i > 0 and not i % 2 == 0:
+                        increments.append(pt - val[i - 1] * math.exp(-1 / ON_R))
+                Ks = [delta_t / (ON_R * (1 - math.exp(-1 / ON_R))) for delta_t in increments]
+
                 LOGGER.info('Estimating rate with heat on ({})'.format(word))
-                est_rate = (params[0] / (1 - params[1])) * (1 / ON_R) if params[1] != 1.0 else 0.0
+                est_rate = sum(Ks) / len(Ks)
             else:
+                increments = []
+                for (i, pt) in enumerate(val):
+                    if i > 0:
+                        increments.append(pt / val[i - 1])
+
+                Rs = [-1 / math.log(delta_t) for delta_t in increments if delta_t != 1]
+
                 LOGGER.info('Estimating rate with heat off ({})'.format(word))
-                est_rate = 1 / -math.log(params[1]) if params[1] != 0.0 else 0.0
+                est_rate = sum(Rs) / len(Rs)
             return est_rate
         except ValueError:
             return None
