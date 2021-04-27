@@ -17,17 +17,17 @@ if CS_VERSION == 'a':
     LOG_PATH = 'resources/uppaal_logs/test.txt'
     UNCONTR_EVTS = {'e': 'in_waiting_room'}  # , 'r': 'is_running', 'o': 'enter_office'}
     IDLE_DISTR = (0.003328, 0.001342, 100)
-    BUSY_DISTR = (0.004538, 0.00065, 100)
+    BUSY_DISTR = (0.004538, 0.000469, 100)
 elif CS_VERSION == 'b':
     LOG_PATH = 'resources/uppaal_logs/test2.txt'
     UNCONTR_EVTS = {'e': 'in_waiting_room'}  # , 'r': 'is_running', 'o': 'enter_office'}
     IDLE_DISTR = (0.003328, 0.001342, 100)
-    BUSY_DISTR = (0.004538, 0.00065, 100)
+    BUSY_DISTR = (0.004538, 0.000469, 100)
 else:
     LOG_PATH = 'resources/uppaal_logs/cons.txt'
     UNCONTR_EVTS = {'e': 'in_waiting_room', 'o': 'in_office'}  # , 'r': 'is_running',
     IDLE_DISTR = (0.003328, 0.001342, 100)
-    BUSY_DISTR = (0.004538, 0.00650, 100)
+    BUSY_DISTR = (0.004538, 0.000469, 100)
     SWITCH_TIME = 94.1
 
 LOGGER = Logger()
@@ -125,8 +125,9 @@ for trace in range(len(ftg)):
     # (Updates Teacher's knowledge of system behavior)
     TEACHER.find_chg_pts(driver_timestamps, driver_values)
     TEACHER.identify_events(trace)
-    TEACHER.plot_trace(trace, 'TRACE {}'.format(trace + 1), 't [s]', 'F [%]')
+    # TEACHER.plot_trace(trace, 'TRACE {}'.format(trace + 1), 't [s]', 'F [%]')
 
 # RUN LEARNING ALGORITHM:
 LEARNED_HA = LEARNER.run_hl_star(filter_empty=True)
 ha_pltr.plot_ha(LEARNED_HA, 'H_{}_{}'.format(sys.argv[1], CS_VERSION), view=True)
+TEACHER.plot_distributions()
