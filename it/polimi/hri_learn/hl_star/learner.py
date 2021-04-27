@@ -291,9 +291,9 @@ class Learner:
                     else:
                         dest_row = [obs[0] for obs in unique_sequences].index(upp_obs[s_i][t_i])
                         dest_loc = locations[dest_row]
-                    # labels = self.get_symbols()[word[-3:]].split(' and ') if word != '' else ['', EMPTY_STRING]
-                    labels = word[-3:] if word != '' else EMPTY_STRING
-                    new_edge = Edge(start_loc, dest_loc, sync=labels)  # , sync=labels[1])
+                    labels = self.get_symbols()[word[-3:]].split(' and ') if word != '' else ['', EMPTY_STRING]
+                    # labels = word[-3:] if word != '' else EMPTY_STRING
+                    new_edge = Edge(start_loc, dest_loc, guard=labels[0], sync=labels[1])
                     if new_edge not in edges:
                         edges.append(new_edge)
 
@@ -313,12 +313,12 @@ class Learner:
                     dest_row = [obs[0] for obs in upp_obs].index(low_obs[s_i][t_i])
                     dest_loc = locations[dest_row]
                     if word != '':
-                        # labels = self.get_symbols()[word.replace(entry_word, '')].split(' and ')
-                        labels = word.replace(entry_word, '')
+                        labels = self.get_symbols()[word.replace(entry_word, '')].split(' and ')
+                        #labels = word.replace(entry_word, '')
                     else:
-                        # labels = ['', EMPTY_STRING]
-                        labels = EMPTY_STRING
-                    new_edge = Edge(start_loc, dest_loc, sync=labels)  # [0], sync=labels[1])
+                        labels = ['', EMPTY_STRING]
+                        #labels = EMPTY_STRING
+                    new_edge = Edge(start_loc, dest_loc, guard=labels[0], sync=labels[1])
                     if new_edge not in edges:
                         edges.append(new_edge)
 

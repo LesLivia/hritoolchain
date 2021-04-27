@@ -94,3 +94,4 @@ for trace in range(len(temp)):
 # RUN LEARNING ALGORITHM:
 LEARNED_HA = LEARNER.run_hl_star(filter_empty=True)
 ha_pltr.plot_ha(LEARNED_HA, 'H_{}_{}'.format(sys.argv[1], CS_VERSION), view=True)
+TEACHER.plot_distributions()

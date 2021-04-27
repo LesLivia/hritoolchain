@@ -3,7 +3,9 @@ from functools import reduce
 from typing import Tuple, List
 
 import matplotlib.pyplot as plt
+import numpy as np
 import scipy.special as sci
+import scipy.stats as stats
 
 from domain.sigfeatures import SignalPoint
 from hri_learn.hl_star.evt_id import EventFactory, DEFAULT_DISTR, DEFAULT_MODEL, DRIVER_SIGNAL, MODEL_TO_DISTR_MAP
@@ -141,6 +143,20 @@ class Teacher:
 
     def get_distributions(self):
         return self.distributions
+
+    def plot_distributions(self):
+        for (i_m, m) in enumerate(self.get_models()):
+            plt.figure()
+            plt.title("Distributions for f_{}".format(i_m))
+            related_distributions = list(filter(lambda k: MODEL_TO_DISTR_MAP[k] == i_m, MODEL_TO_DISTR_MAP.keys()))
+            for d in related_distributions:
+                distr = self.get_distributions()[d]
+                mu = distr[0]
+                sigma = distr[1]
+                x = np.linspace(mu - 3 * sigma, mu + 3 * sigma, 200)
+                plt.plot(x, stats.norm.pdf(x, mu, sigma), label='N_{}({:.2f}, {:.2f})'.format(d, mu, sigma))
+            plt.legend()
+            plt.show()
 
     def cut_segment(self, word: str):
         trace_events: List[str] = []
