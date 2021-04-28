@@ -20,7 +20,7 @@ if CS_VERSION == 'a':
     LOG_PATH = 'resources/uppaal_logs/thermo_3.txt'
 else:
     UNCONTR_EVTS = {'o': 'one_window_open', 't': 'two_windows_open'}
-    LOG_PATH = 'resources/uppaal_logs/thermo_ter.txt'
+    LOG_PATH = 'resources/uppaal_logs/thermo4.txt'
 LOGGER = Logger()
 
 CONTR_EVTS = {'h': 'turn_on_heat', 'c': 'turn_off_heat'}

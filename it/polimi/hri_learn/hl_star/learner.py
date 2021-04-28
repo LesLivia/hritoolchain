@@ -164,7 +164,7 @@ class Learner:
     def get_table(self):
         return self.obs_table
 
-    def fill_table(self, initial_low_s_words: List[str]):
+    def fill_table(self):
         upp_obs: List[List[Tuple]] = self.get_table().get_upper_observations()
         for (i, s_word) in enumerate(self.get_table().get_S()):
             row: List[Tuple] = upp_obs[i].copy()
@@ -187,7 +187,7 @@ class Learner:
                 # if cell is yet to be filled,
                 # asks teacher to answer queries
                 # and fills cell with answers
-                if low_obs[i][j][0] is None and low_obs[i][j][1] is None and s_word not in initial_low_s_words:
+                if low_obs[i][j][0] is None and low_obs[i][j][1] is None:
                     identified_model = self.TEACHER.mi_query(s_word + t_word)
                     identified_distr = self.TEACHER.ht_query(s_word + t_word, identified_model)
                     cell = (identified_model, identified_distr)
@@ -195,7 +195,7 @@ class Learner:
             low_obs[i] = row.copy()
         self.get_table().set_lower_observations(low_obs)
 
-    def make_closed(self, initial_low_s_words: List[str]):
+    def make_closed(self):
         upp_obs: List[List[Tuple]] = self.get_table().get_upper_observations()
         low_S = self.get_table().get_low_S()
         low_obs: List[List[Tuple]] = self.get_table().get_lower_observations()
@@ -217,9 +217,9 @@ class Learner:
                     low_obs.append(new_row)
         self.get_table().set_upper_observations(upp_obs)
         self.get_table().set_lower_observations(low_obs)
-        self.fill_table(initial_low_s_words)
+        self.fill_table()
 
-    def make_consistent(self, discr_sym: str, initial_low_s_words: List[str]):
+    def make_consistent(self, discr_sym: str):
         self.get_table().add_T(discr_sym)
         upp_obs = self.get_table().get_upper_observations()
         low_obs = self.get_table().get_lower_observations()
@@ -227,42 +227,28 @@ class Learner:
             upp_obs[s_i].append((None, None))
         for s_i in range(len(low_obs)):
             low_obs[s_i].append((None, None))
-        self.fill_table(initial_low_s_words)
+        self.fill_table()
 
-    def get_counterexamples(self, init_words: List[str]):
+    def add_counterexample(self, counterexample: str):
         upp_obs = self.get_table().get_upper_observations()
         low_obs = self.get_table().get_lower_observations()
-        for (s_i, s_word) in enumerate(init_words):
-            new_row: List[Tuple] = []
-            for (t_i, t_word) in enumerate(self.get_table().get_T()):
-                identified_model = self.TEACHER.mi_query(s_word + t_word)
-                identified_distr = self.TEACHER.ht_query(s_word + t_word, identified_model)
-                LOGGER.debug('QUERY RESULTS FOR {}: ({}, {})'.format(s_word + t_word,
-                                                                     MODEL_FORMATTER.format(identified_model),
-                                                                     DISTR_FORMATTER.format(identified_distr)))
-                new_row.append((identified_model, identified_distr))
-            existing_row = low_obs[s_i]
-            ex_row_populated = all([existing_row[t_i][0] is not None and existing_row[t_i][1] is not None
-                                    for s_i in range(len(init_words)) for t_i in range(len(self.get_table().get_T()))])
-            new_row_populated = all([new_row[t_i][0] is not None and new_row[t_i][1] is not None
-                                     for s_i in range(len(init_words)) for t_i in range(len(self.get_table().get_T()))])
-            if new_row_populated and new_row != low_obs[s_i]:
-                if not ex_row_populated:
-                    upp_obs.append(new_row)
-                    self.get_table().add_S(s_word)
-                    self.get_table().del_low_S(s_i)
-                    low_obs.pop(s_i)
-                    # lower portion is then updated with all combinations of
-                    # new S word and all possible symbols
-                    for symbol in self.get_symbols():
-                        self.get_table().add_low_S(s_word + symbol)
-                        new_row: List[Tuple] = [(None, None)] * len(self.get_table().get_T())
-                        low_obs.append(new_row)
-                    return s_word
-                else:
-                    LOGGER.warn('CONFLICT DETECTED FOR {}'.format(s_word))
-        else:
-            return None
+
+        # add counterexample and all its prefixes to S
+        for i in range(3, len(counterexample), 3):
+            if counterexample[:i] not in self.get_table().get_S():
+                self.get_table().get_S().append(counterexample[:i])
+                upp_obs.append([])
+                # add empty cells to T
+                for j in range(len(self.get_table().get_T())):
+                    upp_obs[len(self.get_table().get_S()) - 1].append((None, None))
+
+                # add 1-step away words to low_S
+                for a in self.get_symbols():
+                    self.get_table().get_low_S().append(counterexample[:i] + a)
+                    low_obs.append([])
+                    # add empty cells to T
+                    for j in range(len(self.get_table().get_T())):
+                        low_obs[len(self.get_table().get_low_S()) - 1].append((None, None))
 
     def build_hyp_aut(self):
         locations: List[Location] = []
@@ -291,9 +277,9 @@ class Learner:
                     else:
                         dest_row = [obs[0] for obs in unique_sequences].index(upp_obs[s_i][t_i])
                         dest_loc = locations[dest_row]
-                    labels = self.get_symbols()[word[-3:]].split(' and ') if word != '' else ['', EMPTY_STRING]
-                    # labels = word[-3:] if word != '' else EMPTY_STRING
-                    new_edge = Edge(start_loc, dest_loc, guard=labels[0], sync=labels[1])
+                    # labels = self.get_symbols()[word[-3:]].split(' and ') if word != '' else ['', EMPTY_STRING]
+                    labels = word[-3:] if word != '' else EMPTY_STRING
+                    new_edge = Edge(start_loc, dest_loc, sync=labels)  # guard=labels[0], sync=labels[1])
                     if new_edge not in edges:
                         edges.append(new_edge)
 
@@ -313,25 +299,24 @@ class Learner:
                     dest_row = [obs[0] for obs in upp_obs].index(low_obs[s_i][t_i])
                     dest_loc = locations[dest_row]
                     if word != '':
-                        labels = self.get_symbols()[word.replace(entry_word, '')].split(' and ')
-                        #labels = word.replace(entry_word, '')
+                        # labels = self.get_symbols()[word.replace(entry_word, '')].split(' and ')
+                        labels = word.replace(entry_word, '')
                     else:
-                        labels = ['', EMPTY_STRING]
-                        #labels = EMPTY_STRING
-                    new_edge = Edge(start_loc, dest_loc, guard=labels[0], sync=labels[1])
+                        # labels = ['', EMPTY_STRING]
+                        labels = EMPTY_STRING
+                    new_edge = Edge(start_loc, dest_loc, sync=labels)  # guard=labels[0], sync=labels[1])
                     if new_edge not in edges:
                         edges.append(new_edge)
 
         return HybridAutomaton(locations, edges)
 
     def run_hl_star(self, debug_print=True, filter_empty=False):
-        initial_low_s_words = self.get_table().get_low_S().copy()
         # Fill Observation Table with Answers to Queries (from TEACHER)
-        counterexample = self.get_counterexamples(initial_low_s_words)
+        counterexample = self.TEACHER.get_counterexample(self.get_table())
         while counterexample is not None:
             LOGGER.warn('FOUND COUNTEREXAMPLE: {}'.format(counterexample))
-            initial_low_s_words.remove(counterexample)
-            self.fill_table(initial_low_s_words)
+            self.add_counterexample(counterexample)
+            self.fill_table()
 
             if debug_print:
                 LOGGER.info('OBSERVATION TABLE')
@@ -344,7 +329,7 @@ class Learner:
                 if not closedness_check:
                     LOGGER.warn('!!TABLE IS NOT CLOSED!!')
                     # If not, make closed
-                    self.make_closed(initial_low_s_words)
+                    self.make_closed()
                     LOGGER.msg('CLOSED OBSERVATION TABLE')
                     self.get_table().print(filter_empty)
 
@@ -352,15 +337,14 @@ class Learner:
                 if not consistency_check:
                     LOGGER.warn('!!TABLE IS NOT CONSISTENT!!')
                     # If not, make consistent
-                    self.make_consistent(discriminating_symbol, initial_low_s_words)
+                    self.make_consistent(discriminating_symbol)
                     LOGGER.msg('CONSISTENT OBSERVATION TABLE')
                     self.get_table().print(filter_empty)
 
                 closedness_check = self.get_table().is_closed()
                 consistency_check, discriminating_symbol = self.get_table().is_consistent(self.get_symbols())
 
-            [initial_low_s_words.remove(s_word) for s_word in self.get_table().get_S() if s_word in initial_low_s_words]
-            counterexample = self.get_counterexamples(initial_low_s_words)
+            counterexample = self.TEACHER.get_counterexample(self.get_table())
 
         if debug_print:
             LOGGER.msg('FINAL OBSERVATION TABLE')

@@ -7,6 +7,7 @@ import numpy as np
 import scipy.special as sci
 import scipy.stats as stats
 
+from hri_learn.hl_star.learner import ObsTable
 from domain.sigfeatures import SignalPoint
 from hri_learn.hl_star.evt_id import EventFactory, DEFAULT_DISTR, DEFAULT_MODEL, DRIVER_SIGNAL, MODEL_TO_DISTR_MAP
 from hri_learn.hl_star.logger import Logger
@@ -164,7 +165,7 @@ class Teacher:
             trace_events.append(reduce(lambda x, y: x + y, list(self.get_events()[trace].values())))
         traces = []
         for (i, event_str) in enumerate(trace_events):
-            if word in event_str:
+            if event_str.startswith(word):
                 traces.append(i)
         if len(traces) == 0:
             return []
@@ -176,17 +177,14 @@ class Teacher:
             for i in range(0, len(word), 3):
                 events_in_word.append(word[i:i + 3])
 
-            last_event = events_in_word[-1]
-            for (index, event) in enumerate(self.get_events()[trace].values()):
-                if event == last_event:
-                    start_timestamp = list(self.get_events()[trace].keys())[index]
-                    end_timestamp: float
-                    if index < len(self.get_events()[trace]) - 1:
-                        end_timestamp = list(self.get_events()[trace].keys())[index + 1]
-                    else:
-                        end_timestamp = main_sig[-1].timestamp
-                    segment = list(filter(lambda pt: start_timestamp <= pt.timestamp <= end_timestamp, main_sig))
-                    segments.append(segment)
+            start_timestamp = list(self.get_events()[trace].keys())[len(events_in_word) - 1]
+            if len(events_in_word) < len(self.get_events()[trace]):
+                end_timestamp = list(self.get_events()[trace].keys())[len(events_in_word)]
+            else:
+                end_timestamp = main_sig[-1].timestamp
+
+            segment = list(filter(lambda pt: start_timestamp <= pt.timestamp <= end_timestamp, main_sig))
+            segments.append(segment)
         else:
             return segments
 
@@ -296,7 +294,7 @@ class Teacher:
                 metrics = list(filter(lambda m: m is not None, metrics))
                 avg_metrics = sum(metrics) / len(metrics)
                 var_metrics = sum([(m - avg_metrics) ** 2 for m in metrics]) / len(metrics)
-                std_dev_metrics = math.sqrt(var_metrics)
+                std_dev_metrics = math.sqrt(var_metrics) if var_metrics != 0 else avg_metrics / 10
                 min_Y = None
                 best_D = None
                 for (i, d) in enumerate(eligible_distributions):
@@ -309,16 +307,22 @@ class Teacher:
                 while theta_z is None:
                     alpha += 0.05
                     theta_z = self.get_theta_th(0.05, len(metrics), alpha)
+                    if alpha > 0.1:
+                        return None
 
                 if min_Y * len(metrics) <= theta_z:
                     # distr: tuple = distributions[d]
                     # new_avg = (distr[0] * distr[2] + avg_metrics * len(metrics)) / (distr[2] + len(metrics))
                     # new_std_dev = (distr[1] * distr[2] + std_dev_metrics * len(metrics)) / (distr[2] + len(metrics))
                     # self.get_distributions()[d] = (new_avg, new_std_dev, distr[2] + len(metrics))
-                    LOGGER.debug("Accepting N_{} with Y: {} with confidence: {}".format(best_D, min_Y, 1 - alpha))
+                    LOGGER.debug(
+                        "Accepting N_{} with Y: {:.0f}({}), confidence: {}".format(best_D, min_Y * len(metrics),
+                                                                                   len(metrics), 1 - alpha))
                     return best_D
                 else:
-                    LOGGER.debug("Rejecting H_0 with Y: {} with confidence: {}".format(min_Y, 1 - alpha))
+                    LOGGER.debug(
+                        "Rejecting H_0 with Y: {:.0f}({}), confidence: {}".format(min_Y * len(metrics),
+                                                                                  len(metrics), 1 - alpha))
                     # if no distribution is found that passes the hyp. test,
                     # a new distribution is created...
                     self.get_distributions().append((avg_metrics, std_dev_metrics, len(metrics)))
@@ -328,3 +332,20 @@ class Teacher:
                     return new_distr_index
             else:
                 return None
+
+    def get_counterexample(self, table: ObsTable):
+        S = table.get_S()
+        low_S = table.get_low_S()
+        trace_events: List[str] = []
+        for trace in range(len(self.get_events())):
+            trace_events.append(reduce(lambda x, y: x + y, list(self.get_events()[trace].values())))
+
+        for (i, event_str) in enumerate(trace_events):
+            for j in range(3, len(event_str), 3):
+                if event_str[:j] not in S and event_str[:j] not in low_S:
+                    id_model = self.mi_query(event_str[:j])
+                    id_distr = self.ht_query(event_str[:j])
+                    if id_model is not None and id_distr is not None:
+                        return event_str[:j]
+        else:
+            return None

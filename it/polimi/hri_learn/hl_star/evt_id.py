@@ -150,7 +150,6 @@ class EventFactory:
         try:
             val = [pt.value for pt in segment]
             dt = TimeInterval(segment[0].timestamp, segment[-1].timestamp)
-            params, x_fore, fore = sig_mgr.n_predictions(segment, dt, 10, show_formula=False)
             if word[-3:].__contains__('h'):
                 increments = []
                 for (i, pt) in enumerate(val):
