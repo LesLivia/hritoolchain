@@ -254,7 +254,7 @@ class Teacher:
                 return theta
         return None
 
-    def ht_query(self, word: str, model=DEFAULT_MODEL):
+    def ht_query(self, word: str, model=DEFAULT_MODEL, save=True):
         if model is None:
             return None
 
@@ -292,9 +292,6 @@ class Teacher:
                     p_value[i] /= len(successes[i])
 
                 metrics = list(filter(lambda m: m is not None, metrics))
-                avg_metrics = sum(metrics) / len(metrics)
-                var_metrics = sum([(m - avg_metrics) ** 2 for m in metrics]) / len(metrics)
-                std_dev_metrics = math.sqrt(var_metrics) if var_metrics != 0 else avg_metrics / 10
                 min_Y = None
                 best_D = None
                 for (i, d) in enumerate(eligible_distributions):
@@ -311,10 +308,6 @@ class Teacher:
                         return None
 
                 if min_Y * len(metrics) <= theta_z:
-                    # distr: tuple = distributions[d]
-                    # new_avg = (distr[0] * distr[2] + avg_metrics * len(metrics)) / (distr[2] + len(metrics))
-                    # new_std_dev = (distr[1] * distr[2] + std_dev_metrics * len(metrics)) / (distr[2] + len(metrics))
-                    # self.get_distributions()[d] = (new_avg, new_std_dev, distr[2] + len(metrics))
                     LOGGER.debug(
                         "Accepting N_{} with Y: {:.0f}({}), confidence: {}".format(best_D, min_Y * len(metrics),
                                                                                    len(metrics), 1 - alpha))
@@ -323,12 +316,19 @@ class Teacher:
                     LOGGER.debug(
                         "Rejecting H_0 with Y: {:.0f}({}), confidence: {}".format(min_Y * len(metrics),
                                                                                   len(metrics), 1 - alpha))
-                    # if no distribution is found that passes the hyp. test,
-                    # a new distribution is created...
-                    self.get_distributions().append((avg_metrics, std_dev_metrics, len(metrics)))
-                    # and added to the map of eligible distr. for the selected model
-                    new_distr_index = len(self.get_distributions()) - 1
-                    MODEL_TO_DISTR_MAP[new_distr_index] = model
+                    if save:
+                        # if no distribution is found that passes the hyp. test,
+                        # a new distribution is created...
+                        avg_metrics = sum(metrics) / len(metrics)
+                        var_metrics = sum([(m - avg_metrics) ** 2 for m in metrics]) / len(metrics)
+                        std_dev_metrics = math.sqrt(var_metrics) if var_metrics != 0 else avg_metrics / 10
+                        self.get_distributions().append((avg_metrics, std_dev_metrics, len(metrics)))
+                        # and added to the map of eligible distr. for the selected model
+                        new_distr_index = len(self.get_distributions()) - 1
+                        MODEL_TO_DISTR_MAP[new_distr_index] = model
+                    else:
+                        new_distr_index = len(self.get_distributions()) + 1
+
                     return new_distr_index
             else:
                 return None
@@ -344,7 +344,7 @@ class Teacher:
             for j in range(3, len(event_str), 3):
                 if event_str[:j] not in S and event_str[:j] not in low_S:
                     id_model = self.mi_query(event_str[:j])
-                    id_distr = self.ht_query(event_str[:j])
+                    id_distr = self.ht_query(event_str[:j], id_model, save=False)
                     if id_model is not None and id_distr is not None:
                         return event_str[:j]
         else:
