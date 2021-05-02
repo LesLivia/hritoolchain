@@ -61,10 +61,10 @@ class ObsTable:
 
     def is_closed(self):
         for row in self.get_lower_observations():
-            row_is_filled = True
+            row_is_filled = False
             for tup in row:
-                if tup[0] is None or tup[1] is None:
-                    row_is_filled = False
+                if tup[0] is not None and tup[1] is not None:
+                    row_is_filled = True
             row_is_in_upper = row in self.get_upper_observations()
             if row_is_filled and not row_is_in_upper:
                 return False
@@ -109,8 +109,8 @@ class ObsTable:
                 return True, None
 
     def print(self, filter_empty=False):
-        max_s = max(len(word) / 3 for word in self.get_S())
-        max_low_s = max(len(word) / 3 for word in self.get_low_S())
+        max_s = max([len(word) / 3 for word in self.get_S()])
+        max_low_s = max([len(word) / 3 for word in self.get_low_S()])
         max_tabs = int(max(max_s, max_low_s))
 
         HEADER = '\t' * max_tabs + '|\t\t'
@@ -125,7 +125,8 @@ class ObsTable:
         for (i, s_word) in enumerate(self.get_S()):
             ROW = s_word if s_word != '' else EMPTY_STRING
             len_word = int(len(s_word) / 3) if s_word != '' else 1
-            ROW += '\t' * (max_tabs + 1 - len_word) + '|\t'
+            ROW += '\t' * (max_tabs + 1 - len_word) + '|\t' if len_word < max_tabs - 1 or max_tabs <= 4 \
+                else '\t' * (max_tabs + 2 - len_word) + '|\t'
             for (j, t_word) in enumerate(self.get_T()):
                 ROW += ObsTable.tuple_to_str(self.get_upper_observations()[i][j])
                 ROW += '\t|\t'
@@ -138,7 +139,9 @@ class ObsTable:
                 pass
             else:
                 ROW = s_word if s_word != '' else EMPTY_STRING
-                ROW += '\t' * (max_tabs + 1 - int(len(s_word) / 3)) + '|\t'
+                len_word = int(len(s_word) / 3)
+                ROW += '\t' * (max_tabs + 1 - len_word) + '|\t' if len_word < max_tabs - 1 or max_tabs <= 4 \
+                    else '\t' * (max_tabs + 2 - len_word) + '|\t'
                 for (j, t_word) in enumerate(self.get_T()):
                     ROW += ObsTable.tuple_to_str(self.get_lower_observations()[i][j])
                     ROW += '\t|\t'
@@ -175,6 +178,9 @@ class Learner:
                 if upp_obs[i][j][0] is None:
                     identified_model = self.TEACHER.mi_query(s_word + t_word)
                     identified_distr = self.TEACHER.ht_query(s_word + t_word, identified_model)
+                    if identified_model is None or identified_distr is None:
+                        identified_model = None
+                        identified_distr = None
                     cell = (identified_model, identified_distr)
                     row[j] = cell
             upp_obs[i] = row.copy()
@@ -190,6 +196,9 @@ class Learner:
                 if low_obs[i][j][0] is None and low_obs[i][j][1] is None:
                     identified_model = self.TEACHER.mi_query(s_word + t_word)
                     identified_distr = self.TEACHER.ht_query(s_word + t_word, identified_model)
+                    if identified_model is None or identified_distr is None:
+                        identified_model = None
+                        identified_distr = None
                     cell = (identified_model, identified_distr)
                     row[j] = cell
             low_obs[i] = row.copy()
@@ -200,7 +209,7 @@ class Learner:
         low_S = self.get_table().get_low_S()
         low_obs: List[List[Tuple]] = self.get_table().get_lower_observations()
         for (index, row) in enumerate(low_obs):
-            row_is_populated = all([cell[0] is not None and cell[1] is not None for cell in row])
+            row_is_populated = any([cell[0] is not None and cell[1] is not None for cell in row])
             # if there is a populated row in lower portion that is not in the upper portion
             # the corresponding word is added to the S word set
             if row_is_populated and row not in upp_obs:
@@ -234,7 +243,7 @@ class Learner:
         low_obs = self.get_table().get_lower_observations()
 
         # add counterexample and all its prefixes to S
-        for i in range(3, len(counterexample), 3):
+        for i in range(3, len(counterexample) + 1, 3):
             if counterexample[:i] not in self.get_table().get_S():
                 self.get_table().get_S().append(counterexample[:i])
                 upp_obs.append([])
@@ -242,8 +251,15 @@ class Learner:
                 for j in range(len(self.get_table().get_T())):
                     upp_obs[len(self.get_table().get_S()) - 1].append((None, None))
 
-                # add 1-step away words to low_S
-                for a in self.get_symbols():
+            if counterexample[:i] in self.get_table().get_low_S():
+                row_index = self.get_table().get_low_S().index(counterexample[:i])
+                self.get_table().get_lower_observations().pop(row_index)
+                self.get_table().get_low_S().pop(row_index)
+
+            # add 1-step away words to low_S
+            for a in self.get_symbols():
+                if counterexample[:i] + a not in self.get_table().get_low_S() \
+                        and counterexample[:i] + a not in self.get_table().get_S():
                     self.get_table().get_low_S().append(counterexample[:i] + a)
                     low_obs.append([])
                     # add empty cells to T
@@ -253,6 +269,7 @@ class Learner:
     def build_hyp_aut(self):
         locations: List[Location] = []
         upp_obs = self.get_table().get_upper_observations()
+        low_obs: List[List[Tuple]] = self.get_table().get_lower_observations()
         unique_sequences: List[List[Tuple]] = []
         for row in upp_obs:
             if row not in unique_sequences:
@@ -275,7 +292,12 @@ class Learner:
                         dest_row = unique_sequences.index(upp_obs[s_i])
                         dest_loc = locations[dest_row]
                     else:
-                        dest_row = [obs[0] for obs in unique_sequences].index(upp_obs[s_i][t_i])
+                        try:
+                            dest_row_index = self.get_table().get_S().index(word)
+                            dest_row = unique_sequences.index(upp_obs[dest_row_index])
+                        except ValueError:
+                            dest_row_index = self.get_table().get_low_S().index(word)
+                            dest_row = unique_sequences.index(low_obs[dest_row_index])
                         dest_loc = locations[dest_row]
                     # labels = self.get_symbols()[word[-3:]].split(' and ') if word != '' else ['', EMPTY_STRING]
                     labels = word[-3:] if word != '' else EMPTY_STRING
@@ -283,7 +305,6 @@ class Learner:
                     if new_edge not in edges:
                         edges.append(new_edge)
 
-        low_obs: List[List[Tuple]] = self.get_table().get_lower_observations()
         for (s_i, s_word) in enumerate(self.get_table().get_low_S()):
             for (t_i, t_word) in enumerate(self.get_table().get_T()):
                 if low_obs[s_i][t_i][0] is not None and low_obs[s_i][t_i][1] is not None:
@@ -296,7 +317,7 @@ class Learner:
                         start_row_index = self.get_table().get_low_S().index(entry_word)
                         start_row = unique_sequences.index(low_obs[start_row_index])
                     start_loc = locations[start_row]
-                    dest_row = [obs[0] for obs in upp_obs].index(low_obs[s_i][t_i])
+                    dest_row = [obs[0] for obs in unique_sequences].index(low_obs[s_i][t_i])
                     dest_loc = locations[dest_row]
                     if word != '':
                         # labels = self.get_symbols()[word.replace(entry_word, '')].split(' and ')

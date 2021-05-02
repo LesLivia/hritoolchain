@@ -307,15 +307,16 @@ class Teacher:
                     if alpha > 0.1:
                         return None
 
-                if min_Y * len(metrics) <= theta_z:
+                if min_Y is not None and min_Y * len(metrics) <= theta_z:
                     LOGGER.debug(
                         "Accepting N_{} with Y: {:.0f}({}), confidence: {}".format(best_D, min_Y * len(metrics),
                                                                                    len(metrics), 1 - alpha))
                     return best_D
                 else:
                     LOGGER.debug(
-                        "Rejecting H_0 with Y: {:.0f}({}), confidence: {}".format(min_Y * len(metrics),
-                                                                                  len(metrics), 1 - alpha))
+                        "Rejecting H_0 with Y: {:.0f}({}), confidence: {}".format(
+                            min_Y * len(metrics) if min_Y is not None else 0,
+                            len(metrics), 1 - alpha))
                     if save:
                         # if no distribution is found that passes the hyp. test,
                         # a new distribution is created...
@@ -341,11 +342,23 @@ class Teacher:
             trace_events.append(reduce(lambda x, y: x + y, list(self.get_events()[trace].values())))
 
         for (i, event_str) in enumerate(trace_events):
-            for j in range(3, len(event_str), 3):
+            for j in range(3, len(event_str) - 3, 3):
                 if event_str[:j] not in S and event_str[:j] not in low_S:
-                    id_model = self.mi_query(event_str[:j])
-                    id_distr = self.ht_query(event_str[:j], id_model, save=False)
-                    if id_model is not None and id_distr is not None:
-                        return event_str[:j]
+                    word = event_str[:j]
+                    if len(word) % 2 == 0 and word[:int(len(word) / 2)] == word[int(len(word) / 2):]:
+                        pass
+                    elif len(word) % 2 != 0 \
+                            and (word[3:3 + math.ceil(len(word) / 2)] == word[3 + math.ceil(len(word) / 2):]
+                                 or word[:math.ceil(len(word) / 2)] == word[math.ceil(len(word) / 2):len(word) - 3]):
+                        pass
+                    else:
+                        id_model = self.mi_query(event_str[:j])
+                        id_distr = self.ht_query(event_str[:j], id_model, save=False)
+                        if id_model is not None and id_distr is not None:
+                            for a in self.get_symbols():
+                                id_model = self.mi_query(event_str[:j] + a)
+                                id_distr = self.ht_query(event_str[:j] + a, id_model, save=False)
+                                if id_model is not None and id_distr is not None:
+                                    return event_str[:j]
         else:
             return None
