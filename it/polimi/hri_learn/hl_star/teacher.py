@@ -337,28 +337,55 @@ class Teacher:
     def get_counterexample(self, table: ObsTable):
         S = table.get_S()
         low_S = table.get_low_S()
+
         trace_events: List[str] = []
         for trace in range(len(self.get_events())):
             trace_events.append(reduce(lambda x, y: x + y, list(self.get_events()[trace].values())))
 
+        max_events = int(max([len(t) for t in trace_events]))
+
+        unique_seq = []
+        for (s_i, s_word) in enumerate(S):
+            row = table.get_upper_observations()[s_i]
+            row_is_filled = any([t[0] is not None and t[1] is not None for t in row])
+            if row_is_filled and row not in unique_seq:
+                unique_seq.append(row)
+
         for (i, event_str) in enumerate(trace_events):
-            for j in range(3, len(event_str) - 3, 3):
+            for j in range(3, max_events, 3):
                 if event_str[:j] not in S and event_str[:j] not in low_S:
-                    word = event_str[:j]
-                    if len(word) % 2 == 0 and word[:int(len(word) / 2)] == word[int(len(word) / 2):]:
-                        pass
-                    elif len(word) % 2 != 0 \
-                            and (word[3:3 + math.ceil(len(word) / 2)] == word[3 + math.ceil(len(word) / 2):]
-                                 or word[:math.ceil(len(word) / 2)] == word[math.ceil(len(word) / 2):len(word) - 3]):
-                        pass
-                    else:
-                        id_model = self.mi_query(event_str[:j])
-                        id_distr = self.ht_query(event_str[:j], id_model, save=False)
+                    new_row = []
+                    for (e_i, e_word) in enumerate(table.get_T()):
+                        word = event_str[:j] + e_word
+                        id_model = self.mi_query(word)
+                        id_distr = self.ht_query(word, id_model, save=False)
                         if id_model is not None and id_distr is not None:
+                            new_row.append((id_model, id_distr))
+                        else:
+                            new_row.append((None, None))
+                    new_row_is_filled = any([t[0] is not None and t[1] is not None for t in new_row])
+                    if new_row_is_filled:
+                        new_row_is_present = any([ObsTable.eq_rows(new_row, row2) for row2 in unique_seq])
+                        if new_row and not new_row_is_present:
                             for a in self.get_symbols():
                                 id_model = self.mi_query(event_str[:j] + a)
                                 id_distr = self.ht_query(event_str[:j] + a, id_model, save=False)
                                 if id_model is not None and id_distr is not None:
                                     return event_str[:j]
+                        else:
+                            for (s_i, s_word) in enumerate(S):
+                                old_row = table.get_upper_observations()[s_i] if s_i < len(S) else \
+                                    table.get_lower_observations()[s_i - len(S)]
+                                if ObsTable.eq_rows(old_row, new_row):
+                                    for a in self.get_symbols():
+                                        id_model_1 = self.mi_query(s_word + a)
+                                        id_distr_1 = self.ht_query(s_word + a, id_model_1, save=False)
+                                        one_is_filled = id_model_1 is not None and id_distr_1 is not None
+                                        id_model_2 = self.mi_query(event_str[:j] + a)
+                                        id_distr_2 = self.ht_query(event_str[:j] + a, id_model_2, save=False)
+                                        two_is_filled = id_model_2 is not None and id_distr_2 is not None
+                                        if one_is_filled and two_is_filled and \
+                                                (id_model_1 != id_model_2 or id_distr_1 != id_distr_2):
+                                            return event_str[:j]
         else:
             return None

@@ -59,13 +59,17 @@ class ObsTable:
         else:
             return '({}, {})'.format(MODEL_FORMATTER.format(tup[0]), DISTR_FORMATTER.format(tup[1]))
 
+    @staticmethod
+    def eq_rows(row1: List[Tuple], row2: List[Tuple]):
+        return row1[0] == row2[0]
+
     def is_closed(self):
         for row in self.get_lower_observations():
             row_is_filled = False
             for tup in row:
                 if tup[0] is not None and tup[1] is not None:
                     row_is_filled = True
-            row_is_in_upper = row in self.get_upper_observations()
+            row_is_in_upper = any([ObsTable.eq_rows(row, row2) for row2 in self.get_upper_observations()])
             if row_is_filled and not row_is_in_upper:
                 return False
         else:
@@ -212,7 +216,8 @@ class Learner:
             row_is_populated = any([cell[0] is not None and cell[1] is not None for cell in row])
             # if there is a populated row in lower portion that is not in the upper portion
             # the corresponding word is added to the S word set
-            if row_is_populated and row not in upp_obs:
+            row_not_present = all([not ObsTable.eq_rows(row, row2) for row2 in upp_obs])
+            if row_is_populated and row_not_present:
                 upp_obs.append(row)
                 new_s_word = low_S[index]
                 self.get_table().add_S(new_s_word)
@@ -297,7 +302,9 @@ class Learner:
                             dest_row = unique_sequences.index(upp_obs[dest_row_index])
                         except ValueError:
                             dest_row_index = self.get_table().get_low_S().index(word)
-                            dest_row = unique_sequences.index(low_obs[dest_row_index])
+                            eq_row = \
+                            list(filter(lambda r: ObsTable.eq_rows(r, low_obs[dest_row_index]), unique_sequences))[0]
+                            dest_row = unique_sequences.index(eq_row)
                         dest_loc = locations[dest_row]
                     # labels = self.get_symbols()[word[-3:]].split(' and ') if word != '' else ['', EMPTY_STRING]
                     labels = word[-3:] if word != '' else EMPTY_STRING
