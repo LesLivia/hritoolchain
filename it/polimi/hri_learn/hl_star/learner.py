@@ -59,61 +59,6 @@ class ObsTable:
         else:
             return '({}, {})'.format(MODEL_FORMATTER.format(tup[0]), DISTR_FORMATTER.format(tup[1]))
 
-    @staticmethod
-    def eq_rows(row1: List[Tuple], row2: List[Tuple]):
-        return row1[0] == row2[0]
-
-    def is_closed(self):
-        for row in self.get_lower_observations():
-            row_is_filled = False
-            for tup in row:
-                if tup[0] is not None and tup[1] is not None:
-                    row_is_filled = True
-            row_is_in_upper = any([ObsTable.eq_rows(row, row2) for row2 in self.get_upper_observations()])
-            if row_is_filled and not row_is_in_upper:
-                return False
-        else:
-            return True
-
-    def is_consistent(self, symbols):
-        upp_obs = self.get_upper_observations()
-        pairs: List[Tuple] = []
-        # FIXME: each pair shows up twice, duplicates should be cleared
-        for (index, row) in enumerate(upp_obs):
-            equal_rows = [i for (i, r) in enumerate(upp_obs) if index != i and r == row]
-            equal_pairs = [(self.get_S()[index], self.get_S()[equal_i]) for equal_i in equal_rows]
-            pairs += equal_pairs
-        if len(pairs) == 0:
-            return True, None
-        else:
-            for pair in pairs:
-                for symbol in symbols.keys():
-                    try:
-                        new_pair_1 = self.get_S().index(pair[0] + symbol)
-                        new_row_1 = self.get_upper_observations()[new_pair_1]
-                    except ValueError:
-                        new_pair_1 = self.get_low_S().index(pair[0] + symbol)
-                        new_row_1 = self.get_lower_observations()[new_pair_1]
-
-                    try:
-                        new_pair_2 = self.get_S().index(pair[1] + symbol)
-                        new_row_2 = self.get_upper_observations()[new_pair_2]
-                    except ValueError:
-                        new_pair_2 = self.get_low_S().index(pair[1] + symbol)
-                        new_row_2 = self.get_lower_observations()[new_pair_2]
-
-                    new_1_populated = all([new_row_1[i][0] is not None and new_row_1[i][1] is not None
-                                           for i in range(len(self.get_E()))])
-                    new_2_populated = all([new_row_2[i][0] is not None and new_row_2[i][1] is not None
-                                           for i in range(len(self.get_E()))])
-
-                    if new_1_populated and new_2_populated and new_row_1 != new_row_2:
-                        for (e_i, e_word) in enumerate(self.get_E()):
-                            if new_row_1[e_i] != new_row_2[e_i]:
-                                return False, symbol + e_word
-            else:
-                return True, None
-
     def print(self, filter_empty=False):
         max_s = max([len(word) / 3 for word in self.get_S()])
         max_low_s = max([len(word) / 3 for word in self.get_low_S()])
@@ -210,6 +155,60 @@ class Learner:
             low_obs[i] = row.copy()
         self.get_table().set_lower_observations(low_obs)
 
+    def is_closed(self):
+        upp_obs = self.get_table().get_upper_observations()
+        low_obs = self.get_table().get_lower_observations()
+        for row in low_obs:
+            row_is_filled = False
+            for tup in row:
+                if tup[0] is not None and tup[1] is not None:
+                    row_is_filled = True
+            row_is_in_upper = any([self.TEACHER.eqr_query(row, row2) for row2 in upp_obs])
+            if row_is_filled and not row_is_in_upper:
+                return False
+        else:
+            return True
+
+    def is_consistent(self, symbols):
+        upp_obs = self.get_table().get_upper_observations()
+        pairs: List[Tuple] = []
+        # FIXME: each pair shows up twice, duplicates should be cleared
+        for (index, row) in enumerate(upp_obs):
+            equal_rows = [i for (i, r) in enumerate(upp_obs) if index != i and r == row]
+            S = self.get_table().get_S()
+            equal_pairs = [(S[index], S[equal_i]) for equal_i in equal_rows]
+            pairs += equal_pairs
+        if len(pairs) == 0:
+            return True, None
+        else:
+            for pair in pairs:
+                for symbol in symbols.keys():
+                    try:
+                        new_pair_1 = self.get_table().get_S().index(pair[0] + symbol)
+                        new_row_1 = self.get_table().get_upper_observations()[new_pair_1]
+                    except ValueError:
+                        new_pair_1 = self.get_table().get_low_S().index(pair[0] + symbol)
+                        new_row_1 = self.get_table().get_lower_observations()[new_pair_1]
+
+                    try:
+                        new_pair_2 = self.get_table().get_S().index(pair[1] + symbol)
+                        new_row_2 = self.get_table().get_upper_observations()[new_pair_2]
+                    except ValueError:
+                        new_pair_2 = self.get_table().get_low_S().index(pair[1] + symbol)
+                        new_row_2 = self.get_table().get_lower_observations()[new_pair_2]
+
+                    new_1_populated = all([new_row_1[i][0] is not None and new_row_1[i][1] is not None
+                                           for i in range(len(self.get_table().get_E()))])
+                    new_2_populated = all([new_row_2[i][0] is not None and new_row_2[i][1] is not None
+                                           for i in range(len(self.get_table().get_E()))])
+
+                    if new_1_populated and new_2_populated and new_row_1 != new_row_2:
+                        for (e_i, e_word) in enumerate(self.get_table().get_E()):
+                            if new_row_1[e_i] != new_row_2[e_i]:
+                                return False, symbol + e_word
+            else:
+                return True, None
+
     def make_closed(self):
         upp_obs: List[List[Tuple]] = self.get_table().get_upper_observations()
         low_S = self.get_table().get_low_S()
@@ -218,7 +217,7 @@ class Learner:
             row_is_populated = any([cell[0] is not None and cell[1] is not None for cell in row])
             # if there is a populated row in lower portion that is not in the upper portion
             # the corresponding word is added to the S word set
-            row_not_present = all([not ObsTable.eq_rows(row, row2) for row2 in upp_obs])
+            row_not_present = all([not self.TEACHER.eqr_query(row, row2) for row2 in upp_obs])
             if row_is_populated and row_not_present:
                 upp_obs.append(row)
                 new_s_word = low_S[index]
@@ -306,13 +305,13 @@ class Learner:
                         try:
                             dest_row_index = self.get_table().get_S().index(word)
                             eq_row = \
-                                list(filter(lambda r: ObsTable.eq_rows(r, upp_obs[dest_row_index]), unique_sequences))[
+                                list(filter(lambda r: self.TEACHER.eqr_query(r, upp_obs[dest_row_index]), unique_sequences))[
                                     0]
                         except ValueError:
                             if word in self.get_table().get_low_S():
                                 dest_row_index = self.get_table().get_low_S().index(word)
                                 eq_row = \
-                                    list(filter(lambda r: ObsTable.eq_rows(r, low_obs[dest_row_index]),
+                                    list(filter(lambda r: self.TEACHER.eqr_query(r, low_obs[dest_row_index]),
                                                 unique_sequences))[
                                         0]
                             else:
@@ -367,8 +366,8 @@ class Learner:
                 self.get_table().print(filter_empty)
 
             # Check if obs. table is closed
-            closedness_check = self.get_table().is_closed()
-            consistency_check, discriminating_symbol = self.get_table().is_consistent(self.get_symbols())
+            closedness_check = self.is_closed()
+            consistency_check, discriminating_symbol = self.is_consistent(self.get_symbols())
             while not (closedness_check and consistency_check):
                 if not closedness_check:
                     LOGGER.warn('!!TABLE IS NOT CLOSED!!')
@@ -385,8 +384,8 @@ class Learner:
                     LOGGER.msg('CONSISTENT OBSERVATION TABLE')
                     self.get_table().print(filter_empty)
 
-                closedness_check = self.get_table().is_closed()
-                consistency_check, discriminating_symbol = self.get_table().is_consistent(self.get_symbols())
+                closedness_check = self.is_closed()
+                consistency_check, discriminating_symbol = self.is_consistent(self.get_symbols())
 
             counterexample = self.TEACHER.get_counterexample(self.get_table())
 

@@ -334,6 +334,9 @@ class Teacher:
             else:
                 return None
 
+    def eqr_query(self, row1: List[Tuple], row2: List[Tuple]):
+        return row1[0] == row2[0]
+
     def get_counterexample(self, table: ObsTable):
         S = table.get_S()
         low_S = table.get_low_S()
@@ -365,7 +368,7 @@ class Teacher:
                             new_row.append((None, None))
                     new_row_is_filled = any([t[0] is not None and t[1] is not None for t in new_row])
                     if new_row_is_filled:
-                        new_row_is_present = any([ObsTable.eq_rows(new_row, row2) for row2 in unique_seq])
+                        new_row_is_present = any([self.eqr_query(new_row, row2) for row2 in unique_seq])
                         if new_row and not new_row_is_present:
                             for a in self.get_symbols():
                                 id_model = self.mi_query(event_str[:j] + a)
@@ -376,7 +379,7 @@ class Teacher:
                             for (s_i, s_word) in enumerate(S):
                                 old_row = table.get_upper_observations()[s_i] if s_i < len(S) else \
                                     table.get_lower_observations()[s_i - len(S)]
-                                if ObsTable.eq_rows(old_row, new_row):
+                                if self.eqr_query(old_row, new_row):
                                     for a in self.get_symbols():
                                         id_model_1 = self.mi_query(s_word + a)
                                         id_distr_1 = self.ht_query(s_word + a, id_model_1, save=False)
