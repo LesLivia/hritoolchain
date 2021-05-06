@@ -12,12 +12,12 @@ LOGGER = Logger()
 
 
 class ObsTable:
-    def __init__(self, s: List[str], t: List[str], low_s: List[str]):
+    def __init__(self, s: List[str], e: List[str], low_s: List[str]):
         self.__S = s
         self.__low_S = low_s
-        self.__T = t
-        self.__upp_obs: List[List[Tuple]] = [[(None, None)] * len(t)] * len(s)
-        self.__low_obs: List[List[Tuple]] = [[(None, None)] * len(t)] * len(low_s)
+        self.__E = e
+        self.__upp_obs: List[List[Tuple]] = [[(None, None)] * len(e)] * len(s)
+        self.__low_obs: List[List[Tuple]] = [[(None, None)] * len(e)] * len(low_s)
 
     def get_S(self):
         return self.__S
@@ -25,11 +25,11 @@ class ObsTable:
     def add_S(self, word: str):
         self.__S.append(word)
 
-    def get_T(self):
-        return self.__T
+    def get_E(self):
+        return self.__E
 
-    def add_T(self, word: str):
-        self.__T.append(word)
+    def add_E(self, word: str):
+        self.__E.append(word)
 
     def get_low_S(self):
         return self.__low_S
@@ -103,12 +103,14 @@ class ObsTable:
                         new_row_2 = self.get_lower_observations()[new_pair_2]
 
                     new_1_populated = all([new_row_1[i][0] is not None and new_row_1[i][1] is not None
-                                           for i in range(len(self.get_T()))])
+                                           for i in range(len(self.get_E()))])
                     new_2_populated = all([new_row_2[i][0] is not None and new_row_2[i][1] is not None
-                                           for i in range(len(self.get_T()))])
+                                           for i in range(len(self.get_E()))])
 
                     if new_1_populated and new_2_populated and new_row_1 != new_row_2:
-                        return False, symbol
+                        for (e_i, e_word) in enumerate(self.get_E()):
+                            if new_row_1[e_i] != new_row_2[e_i]:
+                                return False, symbol + e_word
             else:
                 return True, None
 
@@ -118,12 +120,12 @@ class ObsTable:
         max_tabs = int(max(max_s, max_low_s))
 
         HEADER = '\t' * max_tabs + '|\t\t'
-        for t_word in self.get_T():
+        for t_word in self.get_E():
             HEADER += t_word if t_word != '' else EMPTY_STRING
             HEADER += '\t\t|\t\t'
         print(HEADER)
 
-        SEPARATOR = '----' * max_tabs + '+' + '---------------+' * len(self.get_T())
+        SEPARATOR = '----' * max_tabs + '+' + '---------------+' * len(self.get_E())
 
         print(SEPARATOR)
         for (i, s_word) in enumerate(self.get_S()):
@@ -131,14 +133,14 @@ class ObsTable:
             len_word = int(len(s_word) / 3) if s_word != '' else 1
             ROW += '\t' * (max_tabs + 1 - len_word) + '|\t' if len_word < max_tabs - 1 or max_tabs <= 4 \
                 else '\t' * (max_tabs + 2 - len_word) + '|\t'
-            for (j, t_word) in enumerate(self.get_T()):
+            for (j, t_word) in enumerate(self.get_E()):
                 ROW += ObsTable.tuple_to_str(self.get_upper_observations()[i][j])
                 ROW += '\t|\t'
             print(ROW)
         print(SEPARATOR)
         for (i, s_word) in enumerate(self.get_low_S()):
             row = self.get_lower_observations()[i]
-            row_is_populated = any([row[j][0] is not None and row[j][1] is not None for j in range(len(self.get_T()))])
+            row_is_populated = any([row[j][0] is not None and row[j][1] is not None for j in range(len(self.get_E()))])
             if filter_empty and not row_is_populated:
                 pass
             else:
@@ -146,7 +148,7 @@ class ObsTable:
                 len_word = int(len(s_word) / 3)
                 ROW += '\t' * (max_tabs + 1 - len_word) + '|\t' if len_word < max_tabs - 1 or max_tabs <= 4 \
                     else '\t' * (max_tabs + 2 - len_word) + '|\t'
-                for (j, t_word) in enumerate(self.get_T()):
+                for (j, t_word) in enumerate(self.get_E()):
                     ROW += ObsTable.tuple_to_str(self.get_lower_observations()[i][j])
                     ROW += '\t|\t'
                 print(ROW)
@@ -175,7 +177,7 @@ class Learner:
         upp_obs: List[List[Tuple]] = self.get_table().get_upper_observations()
         for (i, s_word) in enumerate(self.get_table().get_S()):
             row: List[Tuple] = upp_obs[i].copy()
-            for (j, t_word) in enumerate(self.get_table().get_T()):
+            for (j, t_word) in enumerate(self.get_table().get_E()):
                 # if cell is yet to be filled,
                 # asks teacher to answer queries
                 # and fills cell with answers
@@ -193,7 +195,7 @@ class Learner:
         low_obs: List[List[Tuple]] = self.get_table().get_lower_observations()
         for (i, s_word) in enumerate(self.get_table().get_low_S()):
             row: List[Tuple] = low_obs[i].copy()
-            for (j, t_word) in enumerate(self.get_table().get_T()):
+            for (j, t_word) in enumerate(self.get_table().get_E()):
                 # if cell is yet to be filled,
                 # asks teacher to answer queries
                 # and fills cell with answers
@@ -227,14 +229,14 @@ class Learner:
                 # new S word and all possible symbols
                 for symbol in self.get_symbols():
                     self.get_table().add_low_S(new_s_word + symbol)
-                    new_row: List[Tuple] = [(None, None)] * len(self.get_table().get_T())
+                    new_row: List[Tuple] = [(None, None)] * len(self.get_table().get_E())
                     low_obs.append(new_row)
         self.get_table().set_upper_observations(upp_obs)
         self.get_table().set_lower_observations(low_obs)
         self.fill_table()
 
     def make_consistent(self, discr_sym: str):
-        self.get_table().add_T(discr_sym)
+        self.get_table().add_E(discr_sym)
         upp_obs = self.get_table().get_upper_observations()
         low_obs = self.get_table().get_lower_observations()
         for s_i in range(len(upp_obs)):
@@ -253,7 +255,7 @@ class Learner:
                 self.get_table().get_S().append(counterexample[:i])
                 upp_obs.append([])
                 # add empty cells to T
-                for j in range(len(self.get_table().get_T())):
+                for j in range(len(self.get_table().get_E())):
                     upp_obs[len(self.get_table().get_S()) - 1].append((None, None))
 
             if counterexample[:i] in self.get_table().get_low_S():
@@ -268,7 +270,7 @@ class Learner:
                     self.get_table().get_low_S().append(counterexample[:i] + a)
                     low_obs.append([])
                     # add empty cells to T
-                    for j in range(len(self.get_table().get_T())):
+                    for j in range(len(self.get_table().get_E())):
                         low_obs[len(self.get_table().get_low_S()) - 1].append((None, None))
 
     def build_hyp_aut(self):
@@ -286,12 +288,16 @@ class Learner:
 
         edges: List[Edge] = []
         for (s_i, s_word) in enumerate(self.get_table().get_S()):
-            for (t_i, t_word) in enumerate(self.get_table().get_T()):
+            for (t_i, t_word) in enumerate(self.get_table().get_E()):
                 if upp_obs[s_i][t_i][0] is not None and upp_obs[s_i][t_i][1] is not None:
                     word: str = s_word + t_word
                     entry_word = word[:-3] if t_word != '' else s_word[:-3]
-                    start_row_index = self.get_table().get_S().index(entry_word)
-                    start_row = unique_sequences.index(upp_obs[start_row_index])
+                    try:
+                        start_row_index = self.get_table().get_S().index(entry_word)
+                        start_row = unique_sequences.index(upp_obs[start_row_index])
+                    except ValueError:
+                        start_row_index = self.get_table().get_low_S().index(entry_word)
+                        start_row = unique_sequences.index(low_obs[start_row_index])
                     start_loc = locations[start_row]
                     if t_word == '':
                         dest_row = unique_sequences.index(upp_obs[s_i])
@@ -299,12 +305,19 @@ class Learner:
                     else:
                         try:
                             dest_row_index = self.get_table().get_S().index(word)
-                            dest_row = unique_sequences.index(upp_obs[dest_row_index])
-                        except ValueError:
-                            dest_row_index = self.get_table().get_low_S().index(word)
                             eq_row = \
-                            list(filter(lambda r: ObsTable.eq_rows(r, low_obs[dest_row_index]), unique_sequences))[0]
-                            dest_row = unique_sequences.index(eq_row)
+                                list(filter(lambda r: ObsTable.eq_rows(r, upp_obs[dest_row_index]), unique_sequences))[
+                                    0]
+                        except ValueError:
+                            if word in self.get_table().get_low_S():
+                                dest_row_index = self.get_table().get_low_S().index(word)
+                                eq_row = \
+                                    list(filter(lambda r: ObsTable.eq_rows(r, low_obs[dest_row_index]),
+                                                unique_sequences))[
+                                        0]
+                            else:
+                                continue
+                        dest_row = unique_sequences.index(eq_row)
                         dest_loc = locations[dest_row]
                     # labels = self.get_symbols()[word[-3:]].split(' and ') if word != '' else ['', EMPTY_STRING]
                     labels = word[-3:] if word != '' else EMPTY_STRING
@@ -313,7 +326,7 @@ class Learner:
                         edges.append(new_edge)
 
         for (s_i, s_word) in enumerate(self.get_table().get_low_S()):
-            for (t_i, t_word) in enumerate(self.get_table().get_T()):
+            for (t_i, t_word) in enumerate(self.get_table().get_E()):
                 if low_obs[s_i][t_i][0] is not None and low_obs[s_i][t_i][1] is not None:
                     word = s_word + t_word
                     entry_word = word[:-3]
@@ -321,8 +334,11 @@ class Learner:
                         start_row_index = self.get_table().get_S().index(entry_word)
                         start_row = unique_sequences.index(upp_obs[start_row_index])
                     except ValueError:
-                        start_row_index = self.get_table().get_low_S().index(entry_word)
-                        start_row = unique_sequences.index(low_obs[start_row_index])
+                        if entry_word in self.get_table().get_low_S():
+                            start_row_index = self.get_table().get_low_S().index(entry_word)
+                            start_row = unique_sequences.index(low_obs[start_row_index])
+                        else:
+                            continue
                     start_loc = locations[start_row]
                     dest_row = [obs[0] for obs in unique_sequences].index(low_obs[s_i][t_i])
                     dest_loc = locations[dest_row]

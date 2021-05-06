@@ -6,10 +6,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.special as sci
 import scipy.stats as stats
+from tqdm import tqdm
 
-from hri_learn.hl_star.learner import ObsTable
 from domain.sigfeatures import SignalPoint
 from hri_learn.hl_star.evt_id import EventFactory, DEFAULT_DISTR, DEFAULT_MODEL, DRIVER_SIGNAL, MODEL_TO_DISTR_MAP
+from hri_learn.hl_star.learner import ObsTable
 from hri_learn.hl_star.logger import Logger
 
 LOGGER = Logger()
@@ -30,9 +31,6 @@ class Teacher:
 
     def clear(self):
         self.signals.append([])
-        # self.events = None
-        # self.chg_pts = None
-        # self.signals: List[List[List[SignalPoint]]] = []
         self.evt_factory.clear()
 
     # SYMBOLS
@@ -159,7 +157,7 @@ class Teacher:
             plt.legend()
             plt.show()
 
-    def cut_segment(self, word: str):
+    def get_segments(self, word: str):
         trace_events: List[str] = []
         for trace in range(len(self.get_events())):
             trace_events.append(reduce(lambda x, y: x + y, list(self.get_events()[trace].values())))
@@ -203,10 +201,12 @@ class Teacher:
         if word == '':
             return DEFAULT_MODEL
         else:
-            segments = self.cut_segment(word)
+            segments = self.get_segments(word)
             if len(segments) > 0:
                 fits = []
                 for segment in segments:
+                    if len(segment) < 10:
+                        continue
                     interval = [pt.timestamp for pt in segment]
                     real_behavior = [pt.value for pt in segment]
                     real_der = self.derivative(interval, real_behavior)
@@ -239,7 +239,7 @@ class Teacher:
                         LOGGER.error("!! INCONSISTENT PHYSICAL BEHAVIOR !!")
                         return None
                 else:
-                    return fits[0]
+                    return fits[0] if len(fits) > 0 else None
             else:
                 return None
 
@@ -261,7 +261,7 @@ class Teacher:
         if word == '':
             return DEFAULT_DISTR
         else:
-            segments = self.cut_segment(word)
+            segments = self.get_segments(word)
             if len(segments) > 0:
                 successes = []
 
@@ -351,11 +351,11 @@ class Teacher:
             if row_is_filled and row not in unique_seq:
                 unique_seq.append(row)
 
-        for (i, event_str) in enumerate(trace_events):
-            for j in range(3, max_events, 3):
+        for (i, event_str) in tqdm(enumerate(trace_events), total=len(trace_events)):
+            for j in range(3, max_events + 1, 3):
                 if event_str[:j] not in S and event_str[:j] not in low_S:
                     new_row = []
-                    for (e_i, e_word) in enumerate(table.get_T()):
+                    for (e_i, e_word) in enumerate(table.get_E()):
                         word = event_str[:j] + e_word
                         id_model = self.mi_query(word)
                         id_distr = self.ht_query(word, id_model, save=False)
