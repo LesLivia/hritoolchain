@@ -334,8 +334,17 @@ class Teacher:
             else:
                 return None
 
-    def eqr_query(self, row1: List[Tuple], row2: List[Tuple]):
-        return row1[0] == row2[0]
+    def eqr_query(self, row1: List[Tuple], row2: List[Tuple], strict=False):
+        if strict:
+            return row1 == row2
+
+        match = True
+        for (c_i, cell) in enumerate(row1):
+            cell_is_filled = cell[0] is not None and cell[1] is not None
+            cell2_is_filled = row2[c_i][0] is not None and row2[c_i][1] is not None
+            if cell_is_filled and cell2_is_filled and cell != row2[c_i]:
+                match = False
+        return match
 
     def get_counterexample(self, table: ObsTable):
         S = table.get_S()
