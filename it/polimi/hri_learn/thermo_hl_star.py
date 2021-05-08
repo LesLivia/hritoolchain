@@ -15,20 +15,11 @@ SETUP LEARNING PROCEDURE
 warnings.filterwarnings('ignore')
 
 CS_VERSION = sys.argv[2]
-if CS_VERSION == 'a':
-    UNCONTR_EVTS = {'o': 'one_window_open'}
-    LOG_PATH = 'resources/uppaal_logs/thermo_six.txt'
-else:
-    UNCONTR_EVTS = {'o': 'one_window_open', 't': 'two_windows_open'}
-    LOG_PATH = 'resources/uppaal_logs/thermo_ter.txt'
-LOGGER = Logger()
 
 CONTR_EVTS = {'h': 'turn_on_heat', 'c': 'turn_off_heat'}
 CLOSED_R = 100.0
 OFF_DISTR = (100.0, 1.0, 200)
 ON_DISTR = (0.7, 0.01, 200)
-
-PROB_DISTR = [OFF_DISTR, ON_DISTR]
 
 
 def off_model(interval: List[float], T_0: float):
@@ -36,10 +27,35 @@ def off_model(interval: List[float], T_0: float):
 
 
 def on_model(interval: List[float], T_0: float):
-    return [CLOSED_R * ON_DISTR[0] - T_0 * math.exp(-(1 / CLOSED_R) * (t - interval[0])) for t in interval]
+    coeff = CLOSED_R * ON_DISTR[0]
+    return [coeff - (coeff - T_0) * math.exp(-(1 / CLOSED_R) * (t - interval[0])) for t in interval]
 
 
-MODELS = [off_model, on_model]
+def off_model_2(interval: List[float], T_0: float):
+    return [T_0 - 1 / OFF_DISTR[0] * (t - interval[0]) for t in interval]
+
+
+def on_model_2(interval: List[float], T_0: float):
+    return [T_0 + ON_DISTR[0] * (t - interval[0]) for t in interval]
+
+
+if CS_VERSION == 'a':
+    UNCONTR_EVTS = {'o': 'one_window_open'}
+    LOG_PATH = 'resources/uppaal_logs/thermo_six.txt'
+    MODELS = [off_model, on_model]
+    PROB_DISTR = [OFF_DISTR, ON_DISTR]
+elif CS_VERSION == 'b':
+    UNCONTR_EVTS = {'o': 'one_window_open', 't': 'two_windows_open'}
+    LOG_PATH = 'resources/uppaal_logs/thermo_ter.txt'
+    MODELS = [off_model, on_model]
+    PROB_DISTR = [OFF_DISTR, ON_DISTR]
+elif CS_VERSION == 'c':
+    UNCONTR_EVTS = {'o': 'one_window_open', 't': 'two_windows_open'}
+    LOG_PATH = 'resources/uppaal_logs/thermo_eight.txt'
+    MODELS = [off_model, on_model, off_model_2, on_model_2]
+    PROB_DISTR = [OFF_DISTR, ON_DISTR, OFF_DISTR, ON_DISTR]
+
+LOGGER = Logger()
 
 TEACHER = Teacher(MODELS, PROB_DISTR)
 TEACHER.compute_symbols(list(UNCONTR_EVTS.keys()), list(CONTR_EVTS.keys()))

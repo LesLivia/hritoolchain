@@ -234,12 +234,18 @@ class Teacher:
                     else:
                         fits.append(best_fit)
 
-                for (i, m) in enumerate(fits):
-                    if i > 0 and m != fits[i - 1]:
-                        LOGGER.error("!! INCONSISTENT PHYSICAL BEHAVIOR !!")
-                        return None
+                unique_fits = set(fits)
+                freq = -1
+                best_fit = None
+                for f in unique_fits:
+                    matches = sum([x == f for x in fits]) / len(fits)
+                    if matches > freq:
+                        freq = matches
+                        best_fit = f
+                if freq > 0.9:
+                    return best_fit
                 else:
-                    return fits[0] if len(fits) > 0 else None
+                    return None
             else:
                 return None
 

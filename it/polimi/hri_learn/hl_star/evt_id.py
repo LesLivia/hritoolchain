@@ -22,9 +22,14 @@ if CASE_STUDY == 'hri':
 else:
     ON_R = 100.0
     DRIVER_SIGNAL = 0
-    DEFAULT_MODEL = 0
-    DEFAULT_DISTR = 0
-    MODEL_TO_DISTR_MAP = {0: 0, 1: 1}  # <- THERMOSTAT
+    if CS_VERSION == 'a' or CS_VERSION == 'b':
+        MODEL_TO_DISTR_MAP = {0: 0, 1: 1}  # <- THERMOSTAT
+        DEFAULT_MODEL = 0
+        DEFAULT_DISTR = 0
+    else:
+        MODEL_TO_DISTR_MAP = {0: 0, 1: 1, 2: 2, 3: 3}
+        DEFAULT_MODEL = 2
+        DEFAULT_DISTR = 2
 
 
 class EventFactory:
@@ -99,7 +104,7 @@ class EventFactory:
             '''
             curr_wOpen = list(filter(lambda x: x.timestamp <= timestamp, wOpen))[-1]
             identified_guard += self.get_guards()[0] if curr_wOpen.value == 1.0 else '!' + self.get_guards()[0]
-            if CS_VERSION == 'b':
+            if CS_VERSION == 'b' or CS_VERSION == 'c':
                 identified_guard += self.get_guards()[1] if curr_wOpen.value == 2.0 else '!' + self.get_guards()[1]
                 # identified_guard += self.get_guards()[2] if curr_wOpen.value == 0.0 else '!' + self.get_guards()[2]
 
@@ -151,24 +156,44 @@ class EventFactory:
             val = [pt.value for pt in segment]
             dt = TimeInterval(segment[0].timestamp, segment[-1].timestamp)
             if word[-3:].__contains__('h'):
-                increments = []
-                for (i, pt) in enumerate(val):
-                    if i > 0 and not i % 2 == 0:
-                        increments.append(pt - val[i - 1] * math.exp(-1 / ON_R))
-                Ks = [delta_t / (ON_R * (1 - math.exp(-1 / ON_R))) for delta_t in increments]
+                if CS_VERSION != 'c' or (CS_VERSION == 'c' and word[-3:] != 'h_4'):
+                    increments = []
+                    for (i, pt) in enumerate(val):
+                        if i > 0 and not i % 2 == 0:
+                            increments.append(pt - val[i - 1] * math.exp(-1 / ON_R))
+                    Ks = [delta_t / (ON_R * (1 - math.exp(-1 / ON_R))) for delta_t in increments]
 
-                LOGGER.info('Estimating rate with heat on ({})'.format(word))
-                est_rate = sum(Ks) / len(Ks)
+                    LOGGER.info('Estimating rate with heat on ({})'.format(word))
+                    est_rate = sum(Ks) / len(Ks)
+                else:
+                    increments = []
+                    for (i, pt) in enumerate(val):
+                        if i > 0 and not i % 2 == 0:
+                            increments.append(pt - val[i - 1])
+
+                    LOGGER.info('Estimating rate with heat on ({})'.format(word))
+                    est_rate = sum(increments) / len(increments)
             else:
-                increments = []
-                for (i, pt) in enumerate(val):
-                    if i > 0:
-                        increments.append(pt / val[i - 1])
+                if CS_VERSION != 'c' or (CS_VERSION == 'c' and word[-3:] != 'c_4'):
+                    increments = []
+                    for (i, pt) in enumerate(val):
+                        if i > 0:
+                            increments.append(pt / val[i - 1])
 
-                Rs = [-1 / math.log(delta_t) for delta_t in increments if delta_t != 1]
+                    Rs = [-1 / math.log(delta_t) for delta_t in increments if delta_t != 1]
 
-                LOGGER.info('Estimating rate with heat off ({})'.format(word))
-                est_rate = sum(Rs) / len(Rs)
+                    LOGGER.info('Estimating rate with heat off ({})'.format(word))
+                    est_rate = sum(Rs) / len(Rs)
+                else:
+                    increments = []
+                    for (i, pt) in enumerate(val):
+                        if i > 0:
+                            increments.append(pt - val[i - 1])
+                    Rs = [-1 / i for i in increments if i != 0]
+
+                    LOGGER.info('Estimating rate with heat off ({})'.format(word))
+                    est_rate = sum(Rs) / len(Rs)
+
             return est_rate
         except ValueError:
             return None
