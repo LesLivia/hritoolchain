@@ -223,6 +223,12 @@ class Teacher:
                         der_distances = [abs(i - real_der[index]) for (index, i) in enumerate(ideal_der)]
                         avg_der_distance = sum(der_distances) / len(der_distances)
 
+                        # if word == 'h_3c_2h_4c_4':
+                        #     plt.figure()
+                        #     plt.title(m_i)
+                        #     plt.plot(interval, real_behavior, 'r', interval, ideal_model, 'b')
+                        #     plt.show()
+
                         dist_is_closer = avg_distance < min_distance
                         der_is_closer = avg_der_distance < min_der_distance
                         der_same_sign = sum([v * ideal_der[i] for (i, v) in enumerate(real_der)]) / len(real_der) > 0
@@ -242,9 +248,10 @@ class Teacher:
                     if matches > freq:
                         freq = matches
                         best_fit = f
-                if freq > 0.9:
+                if freq > 0.75:
                     return best_fit
                 else:
+                    LOGGER.info("!! INCONSISTENT PHYSICAL BEHAVIOR !!")
                     return None
             else:
                 return None
@@ -279,7 +286,7 @@ class Teacher:
 
                 metrics = []
                 for segment in segments:
-                    metric = self.evt_factory.get_ht_metric(segment, word)
+                    metric = self.evt_factory.get_ht_metric(segment, model)
                     metrics.append(metric)
                     if metric is not None:
                         LOGGER.info('EST. RATE for {}: {}'.format(word, metric))
@@ -323,10 +330,14 @@ class Teacher:
                         "Rejecting H_0 with Y: {:.0f}({}), confidence: {}".format(
                             min_Y * len(metrics) if min_Y is not None else 0,
                             len(metrics), 1 - alpha))
+                    # if no distribution is found that passes the hyp. test,
+                    # a new distribution is created...
+                    avg_metrics = sum(metrics) / len(metrics)
+                    for d in eligible_distributions:
+                        old_avg: float = (self.get_distributions()[d])[0]
+                        if abs(avg_metrics - old_avg) < old_avg / 10:
+                            return d
                     if save:
-                        # if no distribution is found that passes the hyp. test,
-                        # a new distribution is created...
-                        avg_metrics = sum(metrics) / len(metrics)
                         var_metrics = sum([(m - avg_metrics) ** 2 for m in metrics]) / len(metrics)
                         std_dev_metrics = math.sqrt(var_metrics) if var_metrics != 0 else avg_metrics / 10
                         self.get_distributions().append((avg_metrics, std_dev_metrics, len(metrics)))

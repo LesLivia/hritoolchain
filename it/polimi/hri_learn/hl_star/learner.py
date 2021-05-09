@@ -144,7 +144,8 @@ class Learner:
                 # if cell is yet to be filled,
                 # asks teacher to answer queries
                 # and fills cell with answers
-                if low_obs[i][j][0] is None and low_obs[i][j][1] is None:
+                go_on = j == 0 or (j > 0 and low_obs[i][0] != (None, None))
+                if go_on and low_obs[i][j] == (None, None):
                     identified_model = self.TEACHER.mi_query(s_word + t_word)
                     identified_distr = self.TEACHER.ht_query(s_word + t_word, identified_model)
                     if identified_model is None or identified_distr is None:
@@ -375,6 +376,7 @@ class Learner:
 
     def run_hl_star(self, debug_print=True, filter_empty=False):
         # Fill Observation Table with Answers to Queries (from TEACHER)
+        self.fill_table()
         counterexample = self.TEACHER.get_counterexample(self.get_table())
         while counterexample is not None:
             LOGGER.warn('FOUND COUNTEREXAMPLE: {}'.format(counterexample))

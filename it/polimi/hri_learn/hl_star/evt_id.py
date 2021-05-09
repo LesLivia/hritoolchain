@@ -27,9 +27,9 @@ else:
         DEFAULT_MODEL = 0
         DEFAULT_DISTR = 0
     else:
-        MODEL_TO_DISTR_MAP = {0: 0, 1: 1, 2: 2, 3: 3}
+        MODEL_TO_DISTR_MAP = {0: 2, 1: 3}
         DEFAULT_MODEL = 2
-        DEFAULT_DISTR = 2
+        DEFAULT_DISTR = 0
 
 
 class EventFactory:
@@ -128,11 +128,11 @@ class EventFactory:
             returns metric for HT queries.
     '''
 
-    def get_ht_metric(self, segment: List[SignalPoint], word):
+    def get_ht_metric(self, segment: List[SignalPoint], model=None):
         if CASE_STUDY == 'hri':
             return self.get_ftg_metric(segment)
         else:
-            return self.get_thermo_metric(segment, word)
+            return self.get_thermo_metric(segment, model)
 
     def get_ftg_metric(self, segment: List[SignalPoint]):
         try:
@@ -151,30 +151,29 @@ class EventFactory:
         except ValueError:
             return None
 
-    def get_thermo_metric(self, segment: List[SignalPoint], word: str):
+    def get_thermo_metric(self, segment: List[SignalPoint], model: int):
         try:
             val = [pt.value for pt in segment]
-            dt = TimeInterval(segment[0].timestamp, segment[-1].timestamp)
-            if word[-3:].__contains__('h'):
-                if CS_VERSION != 'c' or (CS_VERSION == 'c' and word[-3:] != 'h_4'):
+            if model in [1, 3]:
+                if CS_VERSION != 'c' or (CS_VERSION == 'c' and model == 1):
                     increments = []
                     for (i, pt) in enumerate(val):
-                        if i > 0 and not i % 2 == 0:
+                        if i > 0:
                             increments.append(pt - val[i - 1] * math.exp(-1 / ON_R))
-                    Ks = [delta_t / (ON_R * (1 - math.exp(-1 / ON_R))) for delta_t in increments]
+                    Ks = [delta_t / (ON_R * (1 - math.exp(-1 / ON_R))) for delta_t in increments if delta_t != 0]
 
-                    LOGGER.info('Estimating rate with heat on ({})'.format(word))
+                    LOGGER.info('Estimating rate with heat on ({})'.format(model))
                     est_rate = sum(Ks) / len(Ks)
                 else:
                     increments = []
                     for (i, pt) in enumerate(val):
-                        if i > 0 and not i % 2 == 0:
+                        if i > 0:
                             increments.append(pt - val[i - 1])
-
-                    LOGGER.info('Estimating rate with heat on ({})'.format(word))
+                    increments = [i for i in increments if i != 0]
+                    LOGGER.info('Estimating rate with heat on ({})'.format(model))
                     est_rate = sum(increments) / len(increments)
             else:
-                if CS_VERSION != 'c' or (CS_VERSION == 'c' and word[-3:] != 'c_4'):
+                if CS_VERSION != 'c' or (CS_VERSION == 'c' and model == 0):
                     increments = []
                     for (i, pt) in enumerate(val):
                         if i > 0:
@@ -182,7 +181,7 @@ class EventFactory:
 
                     Rs = [-1 / math.log(delta_t) for delta_t in increments if delta_t != 1]
 
-                    LOGGER.info('Estimating rate with heat off ({})'.format(word))
+                    LOGGER.info('Estimating rate with heat off ({})'.format(model))
                     est_rate = sum(Rs) / len(Rs)
                 else:
                     increments = []
@@ -191,7 +190,7 @@ class EventFactory:
                             increments.append(pt - val[i - 1])
                     Rs = [-1 / i for i in increments if i != 0]
 
-                    LOGGER.info('Estimating rate with heat off ({})'.format(word))
+                    LOGGER.info('Estimating rate with heat off ({})'.format(model))
                     est_rate = sum(Rs) / len(Rs)
 
             return est_rate
