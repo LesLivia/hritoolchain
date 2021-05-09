@@ -41,7 +41,7 @@ def on_model_2(interval: List[float], T_0: float):
 
 if CS_VERSION == 'a':
     UNCONTR_EVTS = {'o': 'one_window_open'}
-    LOG_PATH = 'resources/uppaal_logs/thermo_six.txt'
+    LOG_PATH = 'resources/uppaal_logs/thermo_five.txt'
     MODELS = [off_model, on_model]
     PROB_DISTR = [OFF_DISTR, ON_DISTR]
 elif CS_VERSION == 'b':

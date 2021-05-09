@@ -159,12 +159,15 @@ class Learner:
     def is_closed(self):
         upp_obs = self.get_table().get_upper_observations()
         low_obs = self.get_table().get_lower_observations()
-        for row in low_obs:
+        for (l_i, row) in enumerate(low_obs):
             row_is_filled = False
             for tup in row:
                 if tup[0] is not None and tup[1] is not None:
                     row_is_filled = True
-            row_is_in_upper = any([self.TEACHER.eqr_query(row, row2) for row2 in upp_obs])
+            row_is_in_upper = False
+            for (s_i, s_word) in enumerate(self.get_table().get_S()):
+                if self.TEACHER.eqr_query(self.get_table().get_low_S()[l_i], s_word, row, upp_obs[s_i]):
+                    row_is_in_upper = True
             if row_is_filled and not row_is_in_upper:
                 return False
         else:
@@ -218,8 +221,12 @@ class Learner:
             row_is_populated = any([cell[0] is not None and cell[1] is not None for cell in row])
             # if there is a populated row in lower portion that is not in the upper portion
             # the corresponding word is added to the S word set
-            row_not_present = all([not self.TEACHER.eqr_query(row, row2) for row2 in upp_obs])
-            if row_is_populated and row_not_present:
+            row_present = False
+            for (s_i, s_word) in enumerate(self.get_table().get_S()):
+                if self.TEACHER.eqr_query(low_S[index], self.get_table().get_S()[s_i], row, upp_obs[s_i]):
+                    row_present = True
+                    break
+            if row_is_populated and not row_present:
                 upp_obs.append(row)
                 new_s_word = low_S[index]
                 self.get_table().add_S(new_s_word)
@@ -278,8 +285,13 @@ class Learner:
         upp_obs = self.get_table().get_upper_observations()
         low_obs: List[List[Tuple]] = self.get_table().get_lower_observations()
         unique_sequences: List[List[Tuple]] = []
-        for row in upp_obs:
-            row_already_present = any([self.TEACHER.eqr_query(seq, row) for seq in unique_sequences])
+        for (i, row) in enumerate(upp_obs):
+            row_already_present = False
+            for seq in unique_sequences:
+                s_word = self.get_table().get_S()[upp_obs.index(seq)]
+                if self.TEACHER.eqr_query(s_word, self.get_table().get_S()[i], seq, row):
+                    row_already_present = True
+                    break
             if not row_already_present:
                 unique_sequences.append(row)
         for (index, seq) in enumerate(unique_sequences):
@@ -304,21 +316,22 @@ class Learner:
                             continue
                     start_loc = locations[start_row]
                     if t_word == '':
-                        eq_row = list(filter(lambda r: self.TEACHER.eqr_query(r, upp_obs[s_i]), unique_sequences))[0]
+                        eq_row = \
+                        list(filter(lambda r: self.TEACHER.eqr_query('', '', r, upp_obs[s_i]), unique_sequences))[0]
                         dest_row = unique_sequences.index(eq_row)
                         dest_loc = locations[dest_row]
                     else:
                         try:
                             dest_row_index = self.get_table().get_S().index(word)
                             eq_row = \
-                                list(filter(lambda r: self.TEACHER.eqr_query(r, upp_obs[dest_row_index]),
+                                list(filter(lambda r: self.TEACHER.eqr_query('', '', r, upp_obs[dest_row_index]),
                                             unique_sequences))[
                                     0]
                         except ValueError:
                             if word in self.get_table().get_low_S():
                                 dest_row_index = self.get_table().get_low_S().index(word)
                                 eq_row = \
-                                    list(filter(lambda r: self.TEACHER.eqr_query(r, low_obs[dest_row_index]),
+                                    list(filter(lambda r: self.TEACHER.eqr_query('', '', r, low_obs[dest_row_index]),
                                                 unique_sequences))[0]
                             else:
                                 continue
@@ -345,19 +358,17 @@ class Learner:
                         else:
                             continue
                     start_loc = locations[start_row]
-                    # dest_row = list(filter(lambda r: self.TEACHER.eqr_query(r, low_obs[s_i]), unique_sequences))[0]
-                    # dest_loc = locations[unique_sequences.index(dest_row)]
                     try:
                         dest_row_index = self.get_table().get_S().index(word)
                         eq_row = \
-                            list(filter(lambda r: self.TEACHER.eqr_query(r, upp_obs[dest_row_index]),
+                            list(filter(lambda r: self.TEACHER.eqr_query('', '', r, upp_obs[dest_row_index]),
                                         unique_sequences))[
                                 0]
                     except ValueError:
                         if word in self.get_table().get_low_S():
                             dest_row_index = self.get_table().get_low_S().index(word)
                             eq_row = \
-                                list(filter(lambda r: self.TEACHER.eqr_query(r, low_obs[dest_row_index]),
+                                list(filter(lambda r: self.TEACHER.eqr_query('', '', r, low_obs[dest_row_index]),
                                             unique_sequences))[0]
                         else:
                             continue
