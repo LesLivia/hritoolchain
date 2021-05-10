@@ -163,7 +163,7 @@ class EventFactory:
                     Ks = [delta_t / (ON_R * (1 - math.exp(-1 / ON_R))) for delta_t in increments if delta_t != 0]
 
                     LOGGER.info('Estimating rate with heat on ({})'.format(model))
-                    est_rate = sum(Ks) / len(Ks)
+                    est_rate = sum(Ks) / len(Ks) if len(Ks) > 0 else None
                 else:
                     increments = []
                     for (i, pt) in enumerate(val):

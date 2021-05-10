@@ -51,7 +51,7 @@ elif CS_VERSION == 'b':
     PROB_DISTR = [OFF_DISTR, ON_DISTR]
 elif CS_VERSION == 'c':
     UNCONTR_EVTS = {'o': 'one_window_open', 't': 'two_windows_open'}
-    LOG_PATH = 'resources/uppaal_logs/thermo_ten.txt'
+    LOG_PATH = 'resources/uppaal_logs/thermo_ten3.txt'
     MODELS = [off_model, on_model, off_model_2, on_model_2]
     PROB_DISTR = [OFF_DISTR, ON_DISTR]
 

@@ -312,7 +312,11 @@ class Learner:
                     except ValueError:
                         if entry_word in self.get_table().get_low_S():
                             start_row_index = self.get_table().get_low_S().index(entry_word)
-                            start_row = unique_sequences.index(low_obs[start_row_index])
+                            row_is_filled = all([cell != (None, None) for cell in low_obs[start_row_index]])
+                            if row_is_filled:
+                                start_row = unique_sequences.index(low_obs[start_row_index])
+                            else:
+                                continue
                         else:
                             continue
                     start_loc = locations[start_row]
@@ -366,7 +370,13 @@ class Learner:
                     except ValueError:
                         if entry_word in self.get_table().get_low_S():
                             start_row_index = self.get_table().get_low_S().index(entry_word)
-                            start_row = unique_sequences.index(low_obs[start_row_index])
+                            eq_rows = []
+                            for seq in unique_sequences:
+                                s1 = self.get_table().get_S()[upp_obs.index(seq)]
+                                s2 = self.get_table().get_low_S()[start_row_index]
+                                if self.TEACHER.eqr_query(s1, s2, seq, low_obs[start_row_index]):
+                                    eq_rows.append(seq)
+                            start_row = unique_sequences.index(eq_rows[0])
                         else:
                             continue
                     start_loc = locations[start_row]
@@ -388,7 +398,10 @@ class Learner:
                                 s2 = self.get_table().get_S()[upp_obs.index(seq)]
                                 if self.TEACHER.eqr_query(s1, s2, low_obs[dest_row_index], seq):
                                     eq_rows.append(seq)
-                            eq_row = eq_rows[0]
+                            if len(eq_rows) > 1 and eq_rows[0] != eq_rows[1]:
+                                continue
+                            else:
+                                eq_row = eq_rows[0]
                         else:
                             continue
                     dest_loc = locations[unique_sequences.index(eq_row)]

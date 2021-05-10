@@ -355,13 +355,33 @@ class Teacher:
         if strict:
             return row1 == row2
 
-        match = True
         for (c_i, cell) in enumerate(row1):
             cell_is_filled = cell[0] is not None and cell[1] is not None
             cell2_is_filled = row2[c_i][0] is not None and row2[c_i][1] is not None
+            # if both rows have filled cells which differ from each other,
+            # the two rows are not equivalent
             if cell_is_filled and cell2_is_filled and cell != row2[c_i]:
-                match = False
-        return match
+                return False
+            # if one row has a filled cell and the other is undefined,
+            # they might be equivalent only if corresponding s_words
+            # are "compatible"
+            # if (cell_is_filled and not cell2_is_filled) or (not cell_is_filled and cell2_is_filled):
+            #     shortest_word = s1 if len(s1) < len(s2) else s2
+            #     longest_word = s1 if len(s1) >= len(s2) else s2
+            #     events_1 = [shortest_word[i:i + 3] for i in range(0, len(shortest_word), 3)]
+            #     events_1 = [events_1[0], events_1[-1]] if shortest_word!='' else []
+            #     events_2 = [longest_word[i:i + 3] for i in range(0, len(longest_word), 3)]
+            #     last = -1
+            #     for e1 in events_1:
+            #         found = False
+            #         for (i, e2) in enumerate(events_2):
+            #             if e1 == e2 and i >= last:
+            #                 last = i
+            #                 found = True
+            #         if not found:
+            #             return False
+
+        return True
 
     def get_counterexample(self, table: ObsTable):
         S = table.get_S()
@@ -380,9 +400,10 @@ class Teacher:
             if row_is_filled and row not in unique_seq:
                 unique_seq.append(row)
 
+        not_counter = []
         for (i, event_str) in tqdm(enumerate(trace_events), total=len(trace_events)):
             for j in range(3, max_events + 1, 3):
-                if event_str[:j] not in S and event_str[:j] not in low_S:
+                if event_str[:j] not in S and event_str[:j] not in low_S and event_str[:j] not in not_counter:
                     new_row = []
                     for (e_i, e_word) in enumerate(table.get_E()):
                         word = event_str[:j] + e_word
@@ -421,5 +442,7 @@ class Teacher:
                                         if one_is_filled and two_is_filled and \
                                                 (id_model_1 != id_model_2 or id_distr_1 != id_distr_2):
                                             return event_str[:j]
+                            else:
+                                not_counter.append(event_str[:j])
         else:
             return None
