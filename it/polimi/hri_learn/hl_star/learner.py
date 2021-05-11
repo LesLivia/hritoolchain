@@ -452,6 +452,8 @@ class Learner:
                 closedness_check = self.is_closed()
                 consistency_check, discriminating_symbol = self.is_consistent(self.get_symbols())
 
+            self.TEACHER.ref_query(self.get_table())
+            self.fill_table()
             counterexample = self.TEACHER.get_counterexample(self.get_table())
 
         if debug_print:

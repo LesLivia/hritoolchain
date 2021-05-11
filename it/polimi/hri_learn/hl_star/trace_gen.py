@@ -8,7 +8,7 @@ from hl_star.logger import Logger
 UPP_MODEL_PATH = '/Users/lestingi/Desktop/phd-workspace/hri-models/uppaal-models/thermostat.xml'
 UPP_QUERY_PATH = '/Users/lestingi/Desktop/phd-workspace/hri-models/uppaal-models/thermostat.q'
 UPP_EXE_PATH = '/Applications/Dev/uppaal64-4.1.24/bin-Darwin'
-UPP_OUT_PATH = '/Users/lestingi/PycharmProjects/hritoolchain/resources/uppaal_logs/{}_out'
+UPP_OUT_PATH = '/Users/lestingi/PycharmProjects/hritoolchain/resources/uppaal_logs/rt_traces/{}.txt'
 SCRIPT_PATH = '/Users/lestingi/PycharmProjects/hritoolchain/resources/scripts/verify.sh'
 MAX_E = 15
 
@@ -16,12 +16,14 @@ LOGGER = Logger()
 
 
 class TraceGenerator:
-    def __init__(self, word: str):
+    def __init__(self, word: str = None):
         self.word = word
         self.events: List[str] = []
         self.evt_int: List[int] = []
 
     def set_word(self, w: str):
+        self.events = []
+        self.evt_int = []
         self.word = w
 
     def split_word(self):
@@ -85,6 +87,8 @@ class TraceGenerator:
         s = '{}_{}_{}'.format(case_study, version, n)
         FNULL = open(os.devnull, 'w')
         LOGGER.warn('!! GENERATING NEW TRACES FOR: {} !!'.format(self.word))
-        out = subprocess.call([SCRIPT_PATH, UPP_EXE_PATH, UPP_MODEL_PATH, UPP_QUERY_PATH, UPP_OUT_PATH.format(s)],
-                              stdout=FNULL)
-        LOGGER.warn('TRACES SAVED TO ' + s)
+        p = subprocess.Popen([SCRIPT_PATH, UPP_EXE_PATH, UPP_MODEL_PATH, UPP_QUERY_PATH, UPP_OUT_PATH.format(s)],
+                             stdout=FNULL)
+        p.wait()
+        if p.returncode == 0:
+            LOGGER.warn('TRACES SAVED TO ' + s)

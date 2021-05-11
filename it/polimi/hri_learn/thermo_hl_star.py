@@ -8,7 +8,6 @@ from domain.sigfeatures import SignalPoint
 from hri_learn.hl_star.learner import Learner
 from hri_learn.hl_star.logger import Logger
 from hri_learn.hl_star.teacher import Teacher
-from hri_learn.hl_star.trace_gen import TraceGenerator
 
 '''
 SETUP LEARNING PROCEDURE
@@ -39,6 +38,7 @@ def off_model_2(interval: List[float], T_0: float):
 def on_model_2(interval: List[float], T_0: float):
     return [T_0 + ON_DISTR[0] * (t - interval[0]) for t in interval]
 
+
 LOG_PATH = 'resources/uppaal_logs/thermo_{}.txt'.format(sys.argv[3])
 if CS_VERSION == 'a':
     UNCONTR_EVTS = {'o': 'one_window_open'}
@@ -60,9 +60,6 @@ TEACHER.compute_symbols(list(UNCONTR_EVTS.keys()), list(CONTR_EVTS.keys()))
 print(TEACHER.get_symbols())
 
 LEARNER = Learner(TEACHER)
-
-test = TraceGenerator('h_3c_2h_4c_4')
-test.get_traces()
 
 '''
 ACQUIRE TRACES

@@ -12,8 +12,10 @@ from domain.sigfeatures import SignalPoint
 from hri_learn.hl_star.evt_id import EventFactory, DEFAULT_DISTR, DEFAULT_MODEL, DRIVER_SIGNAL, MODEL_TO_DISTR_MAP
 from hri_learn.hl_star.learner import ObsTable
 from hri_learn.hl_star.logger import Logger
+from hri_learn.hl_star.trace_gen import TraceGenerator
 
 LOGGER = Logger()
+TG = TraceGenerator()
 
 
 class Teacher:
@@ -382,6 +384,51 @@ class Teacher:
             #             return False
 
         return True
+
+    def ref_query(self, table: ObsTable):
+        S = table.get_S()
+        upp_obs = table.get_upper_observations()
+        lS = table.get_low_S()
+        low_obs = table.get_lower_observations()
+
+        # find all words which are ambiguous
+        # (equivalent to multiple rows)
+        unknown_words = []
+        for (i, row) in enumerate(upp_obs):
+            eq_rows = []
+            if row[0] == (None, None):
+                continue
+
+            for (j, row_2) in enumerate(upp_obs):
+                if i != j and self.eqr_query(S[i], S[j], row, row_2):
+                    eq_rows.append(row_2)
+            uq = []
+            for eq in eq_rows:
+                if eq not in uq:
+                    uq.append(eq)
+
+            if len(uq) > 1:
+                unknown_words.append(S[i])
+
+        for (i, row) in enumerate(low_obs):
+            eq_rows = []
+            if row[0] == (None, None):
+                continue
+
+            for (j, row_2) in enumerate(upp_obs):
+                if i != j and self.eqr_query(lS[i], S[j], row, row_2):
+                    eq_rows.append(row_2)
+            uq = []
+            for eq in eq_rows:
+                if eq not in uq:
+                    uq.append(eq)
+
+            if len(uq) > 1:
+                unknown_words.append(lS[i])
+
+        for word in unknown_words:
+            TG.set_word(word)
+            TG.get_traces()
 
     def get_counterexample(self, table: ObsTable):
         S = table.get_S()
