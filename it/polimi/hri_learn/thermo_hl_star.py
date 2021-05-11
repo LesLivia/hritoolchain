@@ -8,6 +8,7 @@ from domain.sigfeatures import SignalPoint
 from hri_learn.hl_star.learner import Learner
 from hri_learn.hl_star.logger import Logger
 from hri_learn.hl_star.teacher import Teacher
+from hri_learn.hl_star.trace_gen import TraceGenerator
 
 '''
 SETUP LEARNING PROCEDURE
@@ -38,20 +39,17 @@ def off_model_2(interval: List[float], T_0: float):
 def on_model_2(interval: List[float], T_0: float):
     return [T_0 + ON_DISTR[0] * (t - interval[0]) for t in interval]
 
-
+LOG_PATH = 'resources/uppaal_logs/thermo_{}.txt'.format(sys.argv[3])
 if CS_VERSION == 'a':
     UNCONTR_EVTS = {'o': 'one_window_open'}
-    LOG_PATH = 'resources/uppaal_logs/thermo_six.txt'
     MODELS = [off_model, on_model]
     PROB_DISTR = [OFF_DISTR, ON_DISTR]
 elif CS_VERSION == 'b':
     UNCONTR_EVTS = {'o': 'one_window_open', 't': 'two_windows_open'}
-    LOG_PATH = 'resources/uppaal_logs/thermo_ter.txt'
     MODELS = [off_model, on_model]
     PROB_DISTR = [OFF_DISTR, ON_DISTR]
 elif CS_VERSION == 'c':
     UNCONTR_EVTS = {'o': 'one_window_open', 't': 'two_windows_open'}
-    LOG_PATH = 'resources/uppaal_logs/thermo_ten3.txt'
     MODELS = [off_model, on_model, off_model_2, on_model_2]
     PROB_DISTR = [OFF_DISTR, ON_DISTR]
 
@@ -62,6 +60,9 @@ TEACHER.compute_symbols(list(UNCONTR_EVTS.keys()), list(CONTR_EVTS.keys()))
 print(TEACHER.get_symbols())
 
 LEARNER = Learner(TEACHER)
+
+test = TraceGenerator('h_3c_2h_4c_4')
+test.get_traces()
 
 '''
 ACQUIRE TRACES
@@ -109,5 +110,5 @@ for trace in range(len(temp)):
 
 # RUN LEARNING ALGORITHM:
 LEARNED_HA = LEARNER.run_hl_star(filter_empty=True)
-ha_pltr.plot_ha(LEARNED_HA, 'H_{}_{}'.format(sys.argv[1], CS_VERSION), view=True)
+ha_pltr.plot_ha(LEARNED_HA, 'H_{}_{}{}'.format(sys.argv[1], CS_VERSION, sys.argv[3]), view=True)
 TEACHER.plot_distributions()

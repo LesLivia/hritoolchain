@@ -1,8 +1,8 @@
 import sys
 from enum import Enum
 
-if len(sys.argv) > 3:
-    MIN_LOG_LEVEL = int(sys.argv[3])
+if len(sys.argv) > 4:
+    MIN_LOG_LEVEL = int(sys.argv[4])
 else:
     MIN_LOG_LEVEL = 3
 
