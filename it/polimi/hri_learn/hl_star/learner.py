@@ -398,10 +398,7 @@ class Learner:
                                 s2 = self.get_table().get_S()[upp_obs.index(seq)]
                                 if self.TEACHER.eqr_query(s1, s2, low_obs[dest_row_index], seq):
                                     eq_rows.append(seq)
-                            if len(eq_rows) > 1 and eq_rows[0] != eq_rows[1]:
-                                continue
-                            else:
-                                eq_row = eq_rows[0]
+                            eq_row = eq_rows[0]
                         else:
                             continue
                     dest_loc = locations[unique_sequences.index(eq_row)]
@@ -453,7 +450,6 @@ class Learner:
                 consistency_check, discriminating_symbol = self.is_consistent(self.get_symbols())
 
             self.TEACHER.ref_query(self.get_table())
-            self.fill_table()
             counterexample = self.TEACHER.get_counterexample(self.get_table())
 
         if debug_print:

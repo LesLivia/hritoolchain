@@ -50,7 +50,7 @@ elif CS_VERSION == 'b':
     PROB_DISTR = [OFF_DISTR, ON_DISTR]
 elif CS_VERSION == 'c':
     UNCONTR_EVTS = {'o': 'one_window_open', 't': 'two_windows_open'}
-    MODELS = [off_model, on_model, off_model_2, on_model_2]
+    MODELS = [off_model, on_model, on_model_2]
     PROB_DISTR = [OFF_DISTR, ON_DISTR]
 
 LOGGER = Logger()
@@ -81,6 +81,14 @@ for trace in range(len(temp)):
     '''
     PARSE TRACES
     '''
+    entries = hOn[trace].split('\n')[1:]
+    hOn_entries = [entry for (i, entry) in enumerate(entries) if i == 0 or entries[i - 1] != entry]  # DRIVER OVERLAY
+    timestamps = [float(x.split(' ')[0]) for x in hOn_entries if len(x.split(' ')) > 1]
+    values = [float(x.split(' ')[1]) for x in hOn_entries if len(x.split(' ')) > 1]
+    driver_t = timestamps
+    driver_v = values
+    TEACHER.add_signal([SignalPoint(timestamps[i], 1, values[i]) for i in range(len(timestamps))], trace)
+
     entries = temp[trace].split('\n')[1:]
     temp_entries = [entry for (i, entry) in enumerate(entries) if i == 0 or entries[i - 1] != entry]
     timestamps = [float(x.split(' ')[0]) for x in temp_entries if len(x.split(' ')) > 1]
@@ -93,15 +101,9 @@ for trace in range(len(temp)):
     values = [float(x.split(' ')[1]) for x in wOpen_entries if len(x.split(' ')) > 1]
     TEACHER.add_signal([SignalPoint(timestamps[i], 1, values[i]) for i in range(len(timestamps))], trace)
 
-    entries = hOn[trace].split('\n')[1:]
-    hOn_entries = [entry for (i, entry) in enumerate(entries) if i == 0 or entries[i - 1] != entry]  # DRIVER OVERLAY
-    timestamps = [float(x.split(' ')[0]) for x in hOn_entries if len(x.split(' ')) > 1]
-    values = [float(x.split(' ')[1]) for x in hOn_entries if len(x.split(' ')) > 1]
-    TEACHER.add_signal([SignalPoint(timestamps[i], 1, values[i]) for i in range(len(timestamps))], trace)
-
     # IDENTIFY EVENTS:
     # (Updates Teacher's knowledge of system behavior)
-    TEACHER.find_chg_pts(timestamps, values)
+    TEACHER.find_chg_pts(driver_t, driver_v)
     TEACHER.identify_events(trace)
     # TEACHER.plot_trace(trace, 'TRACE {}'.format(trace + 1), 't [min]', 'T [°C]')
 

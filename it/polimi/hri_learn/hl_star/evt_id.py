@@ -21,14 +21,14 @@ if CASE_STUDY == 'hri':
     MODEL_TO_DISTR_MAP = {0: 0, 1: 1}  # <- HRI
 else:
     ON_R = 100.0
-    DRIVER_SIGNAL = 0
+    DRIVER_SIGNAL = 1
     if CS_VERSION == 'a' or CS_VERSION == 'b':
         MODEL_TO_DISTR_MAP = {0: 0, 1: 1}  # <- THERMOSTAT
         DEFAULT_MODEL = 0
         DEFAULT_DISTR = 0
     else:
-        MODEL_TO_DISTR_MAP = {0: 2, 1: 3}
-        DEFAULT_MODEL = 2
+        MODEL_TO_DISTR_MAP = {0: 0, 1: 2}
+        DEFAULT_MODEL = 0
         DEFAULT_DISTR = 0
 
 
@@ -95,8 +95,8 @@ class EventFactory:
             curr_mov = list(filter(lambda x: x.timestamp == timestamp, moving))[0]
             identified_channel = self.get_channels()[0] if curr_mov.value == 1 else self.get_channels()[1]
         else:
-            wOpen = self.get_signals()[trace][1]
-            heatOn = self.get_signals()[trace][2]
+            wOpen = self.get_signals()[trace][2]
+            heatOn = self.get_signals()[trace][0]
 
             identified_guard = ''
             '''
@@ -154,7 +154,7 @@ class EventFactory:
     def get_thermo_metric(self, segment: List[SignalPoint], model: int):
         try:
             val = [pt.value for pt in segment]
-            if model in [1, 3]:
+            if model in [1, 2]:
                 if CS_VERSION != 'c' or (CS_VERSION == 'c' and model == 1):
                     increments = []
                     for (i, pt) in enumerate(val):
@@ -171,7 +171,7 @@ class EventFactory:
                             increments.append(pt - val[i - 1])
                     increments = [i for i in increments if i != 0]
                     LOGGER.info('Estimating rate with heat on ({})'.format(model))
-                    est_rate = sum(increments) / len(increments)
+                    est_rate = sum(increments) / len(increments) if len(increments) > 0 else None
             else:
                 if CS_VERSION != 'c' or (CS_VERSION == 'c' and model == 0):
                     increments = []
@@ -182,7 +182,7 @@ class EventFactory:
                     Rs = [-1 / math.log(delta_t) for delta_t in increments if delta_t != 1]
 
                     LOGGER.info('Estimating rate with heat off ({})'.format(model))
-                    est_rate = sum(Rs) / len(Rs)
+                    est_rate = sum(Rs) / len(Rs) if len(Rs) > 0 else None
                 else:
                     increments = []
                     for (i, pt) in enumerate(val):

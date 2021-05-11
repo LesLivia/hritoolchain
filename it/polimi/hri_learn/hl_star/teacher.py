@@ -385,6 +385,37 @@ class Teacher:
 
         return True
 
+    def parse_traces(self, path: str):
+        f = open(path, 'r')
+        variables = ['t.ON', 'T_r', 'r.open']
+        lines = f.readlines()
+        split_indexes = [lines.index(k + ':\n') for k in variables]
+        split_lines = [lines[i + 1:split_indexes[ind + 1]] for (ind, i) in enumerate(split_indexes) if
+                       i != split_indexes[-1]]
+        split_lines.append(lines[split_indexes[-1] + 1:len(lines)])
+        traces = len(split_lines[0])
+        prev_traces = len(self.get_signals())
+        for trace in range(traces):
+            self.clear()
+            driver_t = []
+            driver_v = []
+            for (i, v) in enumerate(variables):
+                entries = split_lines[i][trace].split(' ')
+                entries = entries[1:]
+                for e in entries:
+                    new = e.replace('(', '')
+                    new = new.replace(')', '')
+                    entries[entries.index(e)] = new
+                t = [float(x.split(',')[0]) for x in entries]
+                v = [float(x.split(',')[1]) for x in entries]
+                if i == 0:
+                    driver_t = t
+                    driver_v = v
+                signal = [SignalPoint(t[i], 1, v[i]) for i in range(len(t))]
+                self.add_signal(signal, trace + prev_traces)
+            self.find_chg_pts(driver_t, driver_v)
+            self.identify_events(trace + prev_traces)
+
     def ref_query(self, table: ObsTable):
         S = table.get_S()
         upp_obs = table.get_upper_observations()
@@ -400,7 +431,8 @@ class Teacher:
                 continue
 
             for (j, row_2) in enumerate(upp_obs):
-                if i != j and self.eqr_query(S[i], S[j], row, row_2):
+                row_2_populated = row_2[0] != (None, None)
+                if row_2_populated and i != j and self.eqr_query(S[i], S[j], row, row_2):
                     eq_rows.append(row_2)
             uq = []
             for eq in eq_rows:
@@ -416,7 +448,8 @@ class Teacher:
                 continue
 
             for (j, row_2) in enumerate(upp_obs):
-                if i != j and self.eqr_query(lS[i], S[j], row, row_2):
+                row_2_populated = row_2[0] != (None, None)
+                if row_2_populated and i != j and self.eqr_query(lS[i], S[j], row, row_2):
                     eq_rows.append(row_2)
             uq = []
             for eq in eq_rows:
@@ -426,9 +459,13 @@ class Teacher:
             if len(uq) > 1:
                 unknown_words.append(lS[i])
 
-        for word in unknown_words:
+        for word in tqdm(unknown_words, total=len(unknown_words)):
             TG.set_word(word)
-            TG.get_traces()
+            path = TG.get_traces()
+            if path is not None:
+                self.parse_traces(path)
+            else:
+                LOGGER.debug('!! An error occurred while generating traces !!')
 
     def get_counterexample(self, table: ObsTable):
         S = table.get_S()
