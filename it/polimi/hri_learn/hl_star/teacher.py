@@ -225,12 +225,6 @@ class Teacher:
                         der_distances = [abs(i - real_der[index]) for (index, i) in enumerate(ideal_der)]
                         avg_der_distance = sum(der_distances) / len(der_distances)
 
-                        # if word == 'h_3c_2h_4c_4':
-                        #     plt.figure()
-                        #     plt.title(m_i)
-                        #     plt.plot(interval, real_behavior, 'r', interval, ideal_model, 'b')
-                        #     plt.show()
-
                         dist_is_closer = avg_distance < min_distance
                         der_is_closer = avg_der_distance < min_der_distance
                         der_same_sign = sum([v * ideal_der[i] for (i, v) in enumerate(real_der)]) / len(real_der) > 0
@@ -339,7 +333,8 @@ class Teacher:
                         old_avg: float = (self.get_distributions()[d])[0]
                         if abs(avg_metrics - old_avg) < old_avg / 10:
                             return d
-                    if len(self.get_distributions()) >= 7:
+                    #FIXME
+                    if len(self.get_distributions()) >= 8:
                         return None
                     if save:
                         var_metrics = sum([(m - avg_metrics) ** 2 for m in metrics]) / len(metrics)
@@ -471,14 +466,19 @@ class Teacher:
                 uq.append(w)
 
         for word in tqdm(uq, total=len(uq)):
-            TG.set_word(word)
-            path = TG.get_traces()
-            if path is not None:
-                self.parse_traces(path)
-            else:
-                LOGGER.debug('!! An error occurred while generating traces !!')
+            for e in table.get_E():
+                TG.set_word(word + e)
+                path = TG.get_traces()
+                if path is not None:
+                    self.parse_traces(path)
+                else:
+                    LOGGER.debug('!! An error occurred while generating traces !!')
 
     def get_counterexample(self, table: ObsTable):
+        #FIXME
+        if len(self.get_signals()) > 1000:
+            return None
+
         S = table.get_S()
         low_S = table.get_low_S()
 

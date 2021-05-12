@@ -11,6 +11,7 @@ UPP_EXE_PATH = '/Applications/Dev/uppaal64-4.1.24/bin-Darwin'
 UPP_OUT_PATH = '/Users/lestingi/PycharmProjects/hritoolchain/resources/uppaal_logs/rt_traces/{}.txt'
 SCRIPT_PATH = '/Users/lestingi/PycharmProjects/hritoolchain/resources/scripts/verify.sh'
 MAX_E = 15
+CS_VERSION = int(sys.argv[3])
 
 LOGGER = Logger()
 
@@ -32,14 +33,20 @@ class TraceGenerator:
 
     def evts_to_ints(self):
         for evt in self.events:
-            if evt in ['h_1', 'c_1']:
-                self.evt_int.append(-1)
-            elif evt in ['h_2', 'c_2']:
-                self.evt_int.append(1)
-            elif evt in ['h_3', 'c_3']:
-                self.evt_int.append(2)
-            elif evt in ['h_4', 'c_4']:
-                self.evt_int.append(0)
+            if CS_VERSION < 8:
+                if evt in ['h_1', 'c_1']:
+                    self.evt_int.append(1)
+                elif evt in ['h_2', 'c_2']:
+                    self.evt_int.append(0)
+            else:
+                if evt in ['h_1', 'c_1']:
+                    self.evt_int.append(-1)
+                elif evt in ['h_2', 'c_2']:
+                    self.evt_int.append(1)
+                elif evt in ['h_3', 'c_3']:
+                    self.evt_int.append(2)
+                elif evt in ['h_4', 'c_4']:
+                    self.evt_int.append(0)
 
     def get_evt_str(self):
         self.split_word()
@@ -62,15 +69,24 @@ class TraceGenerator:
         new_line_1 = 'bool force_exe = true;\n'
         values = self.get_evt_str()
         new_line_2 = 'int force_open[MAX_E] = ' + values
+        tau = len(self.evt_int) * 70
+        new_line_3 = 'const int TAU = {};\n'.format(tau)
+        new_line_4 = 'r = Room_{}(15.2);\n'.format(CS_VERSION)
 
         lines = m_r.readlines()
-        found = False
+        found = [False, False, False]
         for line in lines:
-            if line.startswith('bool force_exe') and not found:
+            if line.startswith('bool force_exe') and not found[0]:
                 lines[lines.index(line)] = new_line_1
-                found = True
-            elif line.startswith('int force_open'):
+                found[0] = True
+            elif line.startswith('int force_open') and not found[1]:
                 lines[lines.index(line)] = new_line_2
+                found[1] = True
+            elif line.startswith('const int TAU') and not found[2]:
+                lines[lines.index(line)] = new_line_3
+                found[2] = True
+            elif line.startswith('r = Room'):
+                lines[lines.index(line)] = new_line_4
                 break
 
         m_r.close()

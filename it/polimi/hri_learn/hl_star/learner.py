@@ -460,6 +460,8 @@ class Learner:
             self.fill_table()
             counterexample = self.TEACHER.get_counterexample(self.get_table())
 
+        self.TEACHER.ref_query(self.get_table())
+        self.fill_table()
         if debug_print:
             LOGGER.msg('FINAL OBSERVATION TABLE')
             self.get_table().print(filter_empty)
