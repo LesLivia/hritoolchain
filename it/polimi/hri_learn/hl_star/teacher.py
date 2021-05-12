@@ -339,6 +339,8 @@ class Teacher:
                         old_avg: float = (self.get_distributions()[d])[0]
                         if abs(avg_metrics - old_avg) < old_avg / 10:
                             return d
+                    if len(self.get_distributions()) >= 7:
+                        return None
                     if save:
                         var_metrics = sum([(m - avg_metrics) ** 2 for m in metrics]) / len(metrics)
                         std_dev_metrics = math.sqrt(var_metrics) if var_metrics != 0 else avg_metrics / 10
@@ -459,7 +461,16 @@ class Teacher:
             if len(uq) > 1:
                 unknown_words.append(lS[i])
 
-        for word in tqdm(unknown_words, total=len(unknown_words)):
+        uq = []
+        for (i, w) in enumerate(unknown_words):
+            is_prefix = False
+            for (j, w2) in enumerate(unknown_words):
+                if i != j and w2.startswith(w):
+                    is_prefix = True
+            if not is_prefix:
+                uq.append(w)
+
+        for word in tqdm(uq, total=len(uq)):
             TG.set_word(word)
             path = TG.get_traces()
             if path is not None:
@@ -500,31 +511,54 @@ class Teacher:
                     new_row_is_filled = any([t[0] is not None and t[1] is not None for t in new_row])
                     if new_row_is_filled:
                         new_row_is_present = False
+                        eq_rows = []
                         for (s_i, s_word) in enumerate(S):
                             row = table.get_upper_observations()[s_i]
                             if self.eqr_query(event_str[:j], s_word, new_row, row):
                                 new_row_is_present = True
+                                eq_rows.append(row)
+                        uq = []
+                        for e in eq_rows:
+                            if e not in uq:
+                                uq.append(e)
+                        not_ambiguous = len(uq) <= 1
 
                         if new_row and not new_row_is_present:
                             for a in self.get_symbols():
                                 id_model = self.mi_query(event_str[:j] + a)
                                 id_distr = self.ht_query(event_str[:j] + a, id_model, save=False)
                                 if id_model is not None and id_distr is not None:
+                                    LOGGER.warn("!! MISSED NON-CLOSEDNESS !!")
                                     return event_str[:j]
-                        else:
+                        elif not_ambiguous:
                             for (s_i, s_word) in enumerate(S):
                                 old_row = table.get_upper_observations()[s_i] if s_i < len(S) else \
                                     table.get_lower_observations()[s_i - len(S)]
                                 if self.eqr_query(s_word, event_str[:j], old_row, new_row):
                                     for a in self.get_symbols():
-                                        id_model_1 = self.mi_query(s_word + a)
-                                        id_distr_1 = self.ht_query(s_word + a, id_model_1, save=False)
-                                        one_is_filled = id_model_1 is not None and id_distr_1 is not None
-                                        id_model_2 = self.mi_query(event_str[:j] + a)
-                                        id_distr_2 = self.ht_query(event_str[:j] + a, id_model_2, save=False)
-                                        two_is_filled = id_model_2 is not None and id_distr_2 is not None
-                                        if one_is_filled and two_is_filled and \
-                                                (id_model_1 != id_model_2 or id_distr_1 != id_distr_2):
+                                        if s_word + a in S:
+                                            old_row_a = table.get_upper_observations()[S.index(s_word + a)]
+                                        elif s_word + a in low_S:
+                                            old_row_a = table.get_lower_observations()[low_S.index(s_word + a)]
+                                        else:
+                                            continue
+                                        row_1_filled = old_row_a[0] != (None, None)
+                                        row_2 = []
+                                        for e in table.get_E():
+                                            id_model_2 = self.mi_query(event_str[:j] + a + e)
+                                            id_distr_2 = self.ht_query(event_str[:j] + a + e, id_model_2, save=False)
+                                            if id_model_2 is None or id_distr_2 is None:
+                                                row_2.append((None, None))
+                                            else:
+                                                row_2.append((id_model_2, id_distr_2))
+                                        row_2_filled = row_2[0] != (None, None)
+                                        discr_is_prefix = False
+                                        for e in table.get_E():
+                                            if e.startswith(a):
+                                                discr_is_prefix = True
+                                        if row_1_filled and row_2_filled and not discr_is_prefix and \
+                                                not self.eqr_query(event_str[:j] + a, s_word + a, row_2, old_row_a):
+                                            LOGGER.warn("!! MISSED NON-CONSISTENCY ({}, {}) !!".format(a, s_word))
                                             return event_str[:j]
                             else:
                                 not_counter.append(event_str[:j])

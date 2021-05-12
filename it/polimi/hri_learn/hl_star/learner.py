@@ -74,14 +74,19 @@ class ObsTable:
 
         print(SEPARATOR)
         for (i, s_word) in enumerate(self.get_S()):
-            ROW = s_word if s_word != '' else EMPTY_STRING
-            len_word = int(len(s_word) / 3) if s_word != '' else 1
-            ROW += '\t' * (max_tabs + 1 - len_word) + '|\t' if len_word < max_tabs - 1 or max_tabs <= 4 \
-                else '\t' * (max_tabs + 2 - len_word) + '|\t'
-            for (j, t_word) in enumerate(self.get_E()):
-                ROW += ObsTable.tuple_to_str(self.get_upper_observations()[i][j])
-                ROW += '\t|\t'
-            print(ROW)
+            row = self.get_upper_observations()[i]
+            row_is_populated = any([row[j][0] is not None and row[j][1] is not None for j in range(len(self.get_E()))])
+            if filter_empty and not row_is_populated:
+                pass
+            else:
+                ROW = s_word if s_word != '' else EMPTY_STRING
+                len_word = int(len(s_word) / 3) if s_word != '' else 1
+                ROW += '\t' * (max_tabs + 1 - len_word) + '|\t' if len_word < max_tabs - 1 or max_tabs <= 4 \
+                    else '\t' * (max_tabs + 2 - len_word) + '|\t'
+                for (j, t_word) in enumerate(self.get_E()):
+                    ROW += ObsTable.tuple_to_str(self.get_upper_observations()[i][j])
+                    ROW += '\t|\t'
+                print(ROW)
         print(SEPARATOR)
         for (i, s_word) in enumerate(self.get_low_S()):
             row = self.get_lower_observations()[i]
@@ -134,6 +139,8 @@ class Learner:
                         identified_distr = None
                     cell = (identified_model, identified_distr)
                     row[j] = cell
+                    if cell == (None, None) and j == 0:
+                        break
             upp_obs[i] = row.copy()
         self.get_table().set_upper_observations(upp_obs)
 
@@ -450,6 +457,7 @@ class Learner:
                 consistency_check, discriminating_symbol = self.is_consistent(self.get_symbols())
 
             self.TEACHER.ref_query(self.get_table())
+            self.fill_table()
             counterexample = self.TEACHER.get_counterexample(self.get_table())
 
         if debug_print:
