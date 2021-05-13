@@ -5,11 +5,13 @@ import sys
 import os
 from hl_star.logger import Logger
 
+# FIXME: should be relative paths, or passed as input args
 UPP_MODEL_PATH = '/Users/lestingi/Desktop/phd-workspace/hri-models/uppaal-models/thermostat.xml'
 UPP_QUERY_PATH = '/Users/lestingi/Desktop/phd-workspace/hri-models/uppaal-models/thermostat.q'
 UPP_EXE_PATH = '/Applications/Dev/uppaal64-4.1.24/bin-Darwin'
 UPP_OUT_PATH = '/Users/lestingi/PycharmProjects/hritoolchain/resources/uppaal_logs/rt_traces/{}.txt'
 SCRIPT_PATH = '/Users/lestingi/PycharmProjects/hritoolchain/resources/scripts/verify.sh'
+
 MAX_E = 15
 CS_VERSION = int(sys.argv[3])
 
@@ -32,6 +34,8 @@ class TraceGenerator:
             self.events.append(self.word[i:i + 3])
 
     def evts_to_ints(self):
+        # for thermo example: associates a specific value
+        # to variable open for each event in the requested trace
         for evt in self.events:
             if CS_VERSION < 8:
                 if evt in ['h_1', 'c_1']:
@@ -64,6 +68,7 @@ class TraceGenerator:
         return res
 
     def fix_model(self):
+        # customized uppaal model based on requested trace
         m_r = open(UPP_MODEL_PATH, 'r')
 
         new_line_1 = 'bool force_exe = true;\n'
@@ -95,6 +100,7 @@ class TraceGenerator:
         m_w.close()
 
     def get_traces(self):
+        # sample new traces through uppaal command line tool
         self.fix_model()
         random.seed()
         n = random.randint(0, 2 ** 32)
@@ -108,6 +114,7 @@ class TraceGenerator:
         p.wait()
         if p.returncode == 0:
             LOGGER.info('TRACES SAVED TO ' + s)
+            # returns out file where new traces are stored
             return UPP_OUT_PATH.format(s)
         else:
             return None

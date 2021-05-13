@@ -69,7 +69,7 @@ LOGGER.info("TRACES TO ANALYZE-> {}\n".format(len(ftg)))
 
 for trace in range(len(ftg)):
     LOGGER.msg("ANALYZING TRACE {}:\n".format(trace + 1))
-    TEACHER.clear()
+    TEACHER.reset()
 
     # TRACE PARSING
     entries = ftg[trace].split('\n')[1:]

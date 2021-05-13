@@ -76,7 +76,7 @@ LOGGER.info("TRACES TO ANALYZE-> {}\n".format(len(temp)))
 
 for trace in range(len(temp)):
     LOGGER.info("ANALYZING TRACE {}...\n".format(trace + 1))
-    TEACHER.clear()
+    TEACHER.reset()
 
     '''
     PARSE TRACES

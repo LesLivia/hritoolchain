@@ -14,14 +14,15 @@ WARNING!
 LOGGER = Logger()
 CASE_STUDY = sys.argv[1]
 CS_VERSION = sys.argv[2]
+MAIN_SIGNAL = None
 if CASE_STUDY == 'hri':
-    DRIVER_SIGNAL = 0
+    MAIN_SIGNAL = 0
     DEFAULT_MODEL = 0
     DEFAULT_DISTR = 0
     MODEL_TO_DISTR_MAP = {0: 0, 1: 1}  # <- HRI
 else:
     ON_R = 100.0
-    DRIVER_SIGNAL = 1
+    MAIN_SIGNAL = 1
     if CS_VERSION == 'a' or CS_VERSION == 'b':
         MODEL_TO_DISTR_MAP = {0: 0, 1: 1}  # <- THERMOSTAT
         DEFAULT_MODEL = 0

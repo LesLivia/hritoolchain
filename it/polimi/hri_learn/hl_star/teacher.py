@@ -9,7 +9,7 @@ import scipy.stats as stats
 from tqdm import tqdm
 
 from domain.sigfeatures import SignalPoint
-from hri_learn.hl_star.evt_id import EventFactory, DEFAULT_DISTR, DEFAULT_MODEL, DRIVER_SIGNAL, MODEL_TO_DISTR_MAP
+from hri_learn.hl_star.evt_id import EventFactory, DEFAULT_DISTR, DEFAULT_MODEL, MAIN_SIGNAL, MODEL_TO_DISTR_MAP
 from hri_learn.hl_star.learner import ObsTable
 from hri_learn.hl_star.logger import Logger
 from hri_learn.hl_star.trace_gen import TraceGenerator
@@ -31,7 +31,7 @@ class Teacher:
         self.events = []
         self.signals: List[List[List[SignalPoint]]] = []
 
-    def clear(self):
+    def reset(self):
         self.signals.append([])
         self.evt_factory.clear()
 
@@ -161,6 +161,7 @@ class Teacher:
 
     def get_segments(self, word: str):
         trace_events: List[str] = []
+        # converts all trace dicts ({time: evt}) to strings (e_1e_2...)
         for trace in range(len(self.get_events())):
             trace_events.append(reduce(lambda x, y: x + y, list(self.get_events()[trace].values())))
         traces = []
@@ -171,8 +172,9 @@ class Teacher:
             return []
 
         segments = []
+        # for all traces, get signal segment from last(word) to the following event
         for trace in traces:
-            main_sig = self.get_signals()[trace][DRIVER_SIGNAL]
+            main_sig = self.get_signals()[trace][MAIN_SIGNAL]
             events_in_word = []
             for i in range(0, len(word), 3):
                 events_in_word.append(word[i:i + 3])
@@ -190,6 +192,8 @@ class Teacher:
 
     @staticmethod
     def derivative(t: List[float], values: List[float]):
+        # returns point-to-point increments for a given time-series
+        # (derivative approximation)
         increments = []
         try:
             increments = [(v - values[i - 1]) / (t[i] - t[i - 1]) for (i, v) in enumerate(values) if i > 0]
@@ -199,6 +203,12 @@ class Teacher:
         finally:
             return increments
 
+    #############################################
+    # MODEL FITTING QUERY:
+    # for a given prefix (word), gets all corresponding segments
+    # and returns the flow condition that best fits such segments
+    # If not enough data are available to draw a conclusion, returns None
+    #############################################
     def mi_query(self, word: str):
         if word == '':
             return DEFAULT_MODEL
@@ -210,12 +220,14 @@ class Teacher:
                     if len(segment) < 10:
                         continue
                     interval = [pt.timestamp for pt in segment]
+                    # observed values and (approximate) derivative
                     real_behavior = [pt.value for pt in segment]
                     real_der = self.derivative(interval, real_behavior)
                     min_distance = 10000
                     min_der_distance = 10000
                     best_fit = None
 
+                    # for each model from the given input set
                     for (m_i, model) in enumerate(self.get_models()):
                         ideal_model = model(interval, segment[0].value)
                         distances = [abs(i - real_behavior[index]) for (index, i) in enumerate(ideal_model)]
@@ -229,6 +241,7 @@ class Teacher:
                         der_is_closer = avg_der_distance < min_der_distance
                         der_same_sign = sum([v * ideal_der[i] for (i, v) in enumerate(real_der)]) / len(real_der) > 0
 
+                        # compares the observed behavior with the ideal one (values and derivatives)
                         if dist_is_closer and der_is_closer and der_same_sign:
                             min_distance = avg_distance
                             min_der_distance = avg_der_distance
@@ -254,6 +267,7 @@ class Teacher:
 
     @staticmethod
     def get_theta_th(P_0: float, N: int, alpha: float = 0.05):
+        # returns the maximum number of failures allowed by conf. level alpha
         for theta in range(0, N, 1):
             alpha_th = 0
             for K in range(theta, N, 1):
@@ -263,6 +277,15 @@ class Teacher:
                 return theta
         return None
 
+    #############################################
+    # HYPOTHESIS TESTING QUERY:
+    # for a given prefix (word), gets all corresponding segments
+    # and returns the random variable that best fits the randomly
+    # generated model parameters.
+    # If none of the available rand. variables fits the set of segments,
+    # a new one is added
+    # If available data are not enough to draw a conclusion, returns None
+    #############################################
     def ht_query(self, word: str, model=DEFAULT_MODEL, save=True):
         if model is None:
             return None
@@ -286,20 +309,20 @@ class Teacher:
                     metrics.append(metric)
                     if metric is not None:
                         LOGGER.info('EST. RATE for {}: {}'.format(word, metric))
-                        # performs hyp. testing on all eligible distributions
+                        # checks empirical rule for all segments
                         for (i, d) in enumerate(eligible_distributions):
                             distr: tuple = distributions[d]
                             minus_sigma = max(distr[0] - 2 * distr[1], 0)
                             plus_sigma = distr[0] + 2 * distr[1]
                             successes[i].append(minus_sigma <= metric <= plus_sigma)
-
+                # count failures for each eligible distribution
                 p_value = [0] * len(eligible_distributions)
                 for (i, d) in enumerate(eligible_distributions):
                     for x in successes[i]:
                         if not x:
                             p_value[i] += 1
                     p_value[i] /= len(successes[i])
-
+                # find distr. with least failures
                 metrics = list(filter(lambda m: m is not None, metrics))
                 min_Y = None
                 best_D = None
@@ -307,7 +330,8 @@ class Teacher:
                     if min_Y is None or p_value[i] < min_Y:
                         best_D = d
                         min_Y = p_value[i]
-
+                # calculates maximum failures allowed by conf. level alpha
+                # given the number of samples in 'metrics'
                 theta_z = None
                 alpha = 0.00
                 while theta_z is None:
@@ -315,25 +339,28 @@ class Teacher:
                     theta_z = self.get_theta_th(0.05, len(metrics), alpha)
                     if alpha > 0.1:
                         return None
-
+                # performs hyp. testing:
+                # H0: Y <= theta_z
+                # H1: Y > theta_z
                 if min_Y is not None and min_Y * len(metrics) <= theta_z:
+                    # accepts H0
                     LOGGER.debug(
                         "Accepting N_{} with Y: {:.0f}({}), confidence: {}".format(best_D, min_Y * len(metrics),
                                                                                    len(metrics), 1 - alpha))
                     return best_D
                 else:
+                    # rejects H0
                     LOGGER.debug(
                         "Rejecting H_0 with Y: {:.0f}({}), confidence: {}".format(
                             min_Y * len(metrics) if min_Y is not None else 0,
                             len(metrics), 1 - alpha))
-                    # if no distribution is found that passes the hyp. test,
-                    # a new distribution is created...
+                    # if no distribution passes the hyp. test, a new one is created
                     avg_metrics = sum(metrics) / len(metrics)
                     for d in eligible_distributions:
                         old_avg: float = (self.get_distributions()[d])[0]
                         if abs(avg_metrics - old_avg) < old_avg / 10:
                             return d
-                    #FIXME
+                    # FIXME
                     if len(self.get_distributions()) >= 8:
                         return None
                     if save:
@@ -350,6 +377,11 @@ class Teacher:
             else:
                 return None
 
+    #############################################
+    # ROW EQUALITY QUERY:
+    # checks if two rows (row(s1), row(s2)) are weakly equal
+    # returns true/false
+    #############################################
     def eqr_query(self, s1: str, s2: str, row1: List[Tuple], row2: List[Tuple], strict=False):
         if strict:
             return row1 == row2
@@ -358,11 +390,11 @@ class Teacher:
             cell_is_filled = cell[0] is not None and cell[1] is not None
             cell2_is_filled = row2[c_i][0] is not None and row2[c_i][1] is not None
             # if both rows have filled cells which differ from each other,
-            # the two rows are not equivalent
+            # weak equality is violated
             if cell_is_filled and cell2_is_filled and cell != row2[c_i]:
                 return False
             # if one row has a filled cell and the other is undefined,
-            # they might be equivalent only if corresponding s_words
+            # they might be weakly equal only if corresponding s_words
             # are "compatible"
             # if (cell_is_filled and not cell2_is_filled) or (not cell_is_filled and cell2_is_filled):
             #     shortest_word = s1 if len(s1) < len(s2) else s2
@@ -383,6 +415,7 @@ class Teacher:
         return True
 
     def parse_traces(self, path: str):
+        # support method to parse traces sampled by ref query
         f = open(path, 'r')
         variables = ['t.ON', 'T_r', 'r.open']
         lines = f.readlines()
@@ -393,7 +426,7 @@ class Teacher:
         traces = len(split_lines[0])
         prev_traces = len(self.get_signals())
         for trace in range(traces):
-            self.clear()
+            self.reset()
             driver_t = []
             driver_v = []
             for (i, v) in enumerate(variables):
@@ -413,6 +446,12 @@ class Teacher:
             self.find_chg_pts(driver_t, driver_v)
             self.identify_events(trace + prev_traces)
 
+    #############################################
+    # KNOWLEDGE REFINEMENT QUERY:
+    # checks if there are ambiguous words in the observation table
+    # if so, it samples new traces (through the TraceGenerator)
+    # to gain more knowledge about the system under learning
+    #############################################
     def ref_query(self, table: ObsTable):
         S = table.get_S()
         upp_obs = table.get_upper_observations()
@@ -421,7 +460,7 @@ class Teacher:
 
         # find all words which are ambiguous
         # (equivalent to multiple rows)
-        unknown_words = []
+        amb_words = []
         for (i, row) in enumerate(upp_obs):
             eq_rows = []
             if row[0] == (None, None):
@@ -437,7 +476,7 @@ class Teacher:
                     uq.append(eq)
 
             if len(uq) > 1:
-                unknown_words.append(S[i])
+                amb_words.append(S[i])
 
         for (i, row) in enumerate(low_obs):
             eq_rows = []
@@ -454,12 +493,13 @@ class Teacher:
                     uq.append(eq)
 
             if len(uq) > 1:
-                unknown_words.append(lS[i])
-
+                amb_words.append(lS[i])
+        # sample new traces only for ambiguous words which
+        # are not prefixes of another ambiguous word
         uq = []
-        for (i, w) in enumerate(unknown_words):
+        for (i, w) in enumerate(amb_words):
             is_prefix = False
-            for (j, w2) in enumerate(unknown_words):
+            for (j, w2) in enumerate(amb_words):
                 if i != j and w2.startswith(w):
                     is_prefix = True
             if not is_prefix:
@@ -474,8 +514,15 @@ class Teacher:
                 else:
                     LOGGER.debug('!! An error occurred while generating traces !!')
 
+    #############################################
+    # COUNTEREXAMPLE QUERY:
+    # looks for a counterexample to current obs. table
+    # returns counterexample t if:
+    # -> t highlights non-closedness
+    # -> t highlights non-consistency
+    #############################################
     def get_counterexample(self, table: ObsTable):
-        #FIXME
+        # FIXME
         if len(self.get_signals()) > 1000:
             return None
 
@@ -485,20 +532,13 @@ class Teacher:
         trace_events: List[str] = []
         for trace in range(len(self.get_events())):
             trace_events.append(reduce(lambda x, y: x + y, list(self.get_events()[trace].values())))
-
         max_events = int(max([len(t) for t in trace_events]))
-
-        unique_seq = []
-        for (s_i, s_word) in enumerate(S):
-            row = table.get_upper_observations()[s_i]
-            row_is_filled = any([t[0] is not None and t[1] is not None for t in row])
-            if row_is_filled and row not in unique_seq:
-                unique_seq.append(row)
 
         not_counter = []
         for (i, event_str) in tqdm(enumerate(trace_events), total=len(trace_events)):
             for j in range(3, max_events + 1, 3):
                 if event_str[:j] not in S and event_str[:j] not in low_S and event_str[:j] not in not_counter:
+                    # fills hypothetical new row
                     new_row = []
                     for (e_i, e_word) in enumerate(table.get_E()):
                         word = event_str[:j] + e_word
@@ -509,33 +549,45 @@ class Teacher:
                         else:
                             new_row.append((None, None))
                     new_row_is_filled = any([t[0] is not None and t[1] is not None for t in new_row])
+                    # if there are sufficient data to fill the new row
                     if new_row_is_filled:
                         new_row_is_present = False
                         eq_rows = []
                         for (s_i, s_word) in enumerate(S):
                             row = table.get_upper_observations()[s_i]
+                            # checks if there are weakly equal rows (-> row is present)
                             if self.eqr_query(event_str[:j], s_word, new_row, row):
                                 new_row_is_present = True
                                 eq_rows.append(row)
                         uq = []
                         for e in eq_rows:
+                            # checks if new row would be ambiguous (-> not ambiguous)
                             if e not in uq:
                                 uq.append(e)
                         not_ambiguous = len(uq) <= 1
 
                         if new_row and not new_row_is_present:
-                            for a in self.get_symbols():
-                                id_model = self.mi_query(event_str[:j] + a)
-                                id_distr = self.ht_query(event_str[:j] + a, id_model, save=False)
-                                if id_model is not None and id_distr is not None:
-                                    LOGGER.warn("!! MISSED NON-CLOSEDNESS !!")
-                                    return event_str[:j]
+                            # found non-closedness
+                            # for a in self.get_symbols():
+                            #     id_model = self.mi_query(event_str[:j] + a)
+                            #     id_distr = self.ht_query(event_str[:j] + a, id_model, save=False)
+                            #     if id_model is not None and id_distr is not None:
+                                LOGGER.warn("!! MISSED NON-CLOSEDNESS !!")
+                                return event_str[:j]
                         elif not_ambiguous:
+                            # checks non-consistency only for rows that are not ambiguous
                             for (s_i, s_word) in enumerate(S):
                                 old_row = table.get_upper_observations()[s_i] if s_i < len(S) else \
                                     table.get_lower_observations()[s_i - len(S)]
+                                # finds weakly equal rows in S
                                 if self.eqr_query(s_word, event_str[:j], old_row, new_row):
                                     for a in self.get_symbols():
+                                        # if the hypothetical discrimating event is already in E
+                                        discr_is_prefix = False
+                                        for e in table.get_E():
+                                            if e.startswith(a):
+                                                continue
+                                        # else checks all 1-step distant rows
                                         if s_word + a in S:
                                             old_row_a = table.get_upper_observations()[S.index(s_word + a)]
                                         elif s_word + a in low_S:
@@ -552,10 +604,6 @@ class Teacher:
                                             else:
                                                 row_2.append((id_model_2, id_distr_2))
                                         row_2_filled = row_2[0] != (None, None)
-                                        discr_is_prefix = False
-                                        for e in table.get_E():
-                                            if e.startswith(a):
-                                                discr_is_prefix = True
                                         if row_1_filled and row_2_filled and not discr_is_prefix and \
                                                 not self.eqr_query(event_str[:j] + a, s_word + a, row_2, old_row_a):
                                             LOGGER.warn("!! MISSED NON-CONSISTENCY ({}, {}) !!".format(a, s_word))
