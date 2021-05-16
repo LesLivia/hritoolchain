@@ -295,6 +295,80 @@ class Teacher:
         else:
             segments = self.get_segments(word)
             if len(segments) > 0:
+                eligible_distributions = [k for k in MODEL_TO_DISTR_MAP.keys() if
+                                          MODEL_TO_DISTR_MAP[k] == model]
+
+                metrics = []
+                for segment in segments:
+                    metric = self.evt_factory.get_ht_metric(segment, model)
+                    metrics.append(metric)
+                    if metric is not None:
+                        LOGGER.info('EST. RATE for {}: {}'.format(word, metric))
+                        # checks empirical rule for all segments
+
+                alpha = 0.05
+                m = len(metrics)
+                max_scs = 0
+                D_min = 1000
+                best_fit = None
+                for (i, d) in enumerate(eligible_distributions):
+                    distr = self.get_distributions()[d]
+                    scs = 0
+                    sum_D = 0
+                    for i in range(100):
+                        y = list(np.random.normal(distr[0], distr[1], np.random.randint(m / 2, m + m / 2)))
+                        n = len(y)
+                        try:
+                            D_th = math.sqrt(-math.log(alpha / 2) * (1 + m / n) / (2 * m))
+                        except:
+                            return None
+                        res = stats.ks_2samp(metrics, y)
+                        sum_D += res.statistic
+                        if res.statistic < D_th:
+                            scs += 1
+                    avg_D = sum_D / 100
+                    if scs >= max_scs and avg_D < D_min:
+                        best_fit = d
+                        D_min = avg_D
+                        max_scs = scs
+
+                if max_scs > 80:
+                    LOGGER.debug("Accepting N_{} with Y: {}".format(best_fit, max_scs))
+                    return best_fit
+                else:
+                    # rejects H0
+                    # if no distribution passes the hyp. test, a new one is created
+                    avg_metrics = sum(metrics) / len(metrics)
+                    for d in eligible_distributions:
+                        old_avg: float = (self.get_distributions()[d])[0]
+                        if abs(avg_metrics - old_avg) < old_avg / 10:
+                            return d
+                    # FIXME
+                    if len(self.get_distributions()) >= 8:
+                        return None
+                    if save:
+                        var_metrics = sum([(m - avg_metrics) ** 2 for m in metrics]) / len(metrics)
+                        std_dev_metrics = math.sqrt(var_metrics) if var_metrics != 0 else avg_metrics / 10
+                        self.get_distributions().append((avg_metrics, std_dev_metrics, len(metrics)))
+                        # and added to the map of eligible distr. for the selected model
+                        new_distr_index = len(self.get_distributions()) - 1
+                        MODEL_TO_DISTR_MAP[new_distr_index] = model
+                    else:
+                        new_distr_index = len(self.get_distributions()) + 1
+
+                    return new_distr_index
+            else:
+                return None
+
+    def ht_query_leg(self, word: str, model=DEFAULT_MODEL, save=True):
+        if model is None:
+            return None
+
+        if word == '':
+            return DEFAULT_DISTR
+        else:
+            segments = self.get_segments(word)
+            if len(segments) > 0:
                 successes = []
 
                 distributions = self.get_distributions()
@@ -572,8 +646,8 @@ class Teacher:
                             #     id_model = self.mi_query(event_str[:j] + a)
                             #     id_distr = self.ht_query(event_str[:j] + a, id_model, save=False)
                             #     if id_model is not None and id_distr is not None:
-                                LOGGER.warn("!! MISSED NON-CLOSEDNESS !!")
-                                return event_str[:j]
+                            LOGGER.warn("!! MISSED NON-CLOSEDNESS !!")
+                            return event_str[:j]
                         elif not_ambiguous:
                             # checks non-consistency only for rows that are not ambiguous
                             for (s_i, s_word) in enumerate(S):
