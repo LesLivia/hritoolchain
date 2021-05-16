@@ -167,16 +167,15 @@ class Learner:
         upp_obs = self.get_table().get_upper_observations()
         low_obs = self.get_table().get_lower_observations()
         for (l_i, row) in enumerate(low_obs):
-            row_is_filled = False
-            for tup in row:
-                if tup[0] is not None and tup[1] is not None:
-                    row_is_filled = True
+            row_is_filled = row[0] != (None, None)
+            if not row_is_filled:
+                continue
             row_is_in_upper = False
             for (s_i, s_word) in enumerate(self.get_table().get_S()):
                 if self.TEACHER.eqr_query(self.get_table().get_low_S()[l_i], s_word, row, upp_obs[s_i]):
                     row_is_in_upper = True
                     break
-            if row_is_filled and not row_is_in_upper:
+            if not row_is_in_upper:
                 return False
         else:
             return True
@@ -428,6 +427,7 @@ class Learner:
         while counterexample is not None:
             LOGGER.warn('FOUND COUNTEREXAMPLE: {}'.format(counterexample))
             self.add_counterexample(counterexample)
+            self.TEACHER.ref_query(self.get_table())
             self.fill_table()
 
             if debug_print:
@@ -456,10 +456,10 @@ class Learner:
                 closedness_check = self.is_closed()
                 consistency_check, discriminating_symbol = self.is_consistent(self.get_symbols())
 
-            self.TEACHER.ref_query(self.get_table())
-            self.fill_table()
             counterexample = self.TEACHER.get_counterexample(self.get_table())
 
+        self.TEACHER.ref_query(self.get_table())
+        self.fill_table()
         if debug_print:
             LOGGER.msg('FINAL OBSERVATION TABLE')
             self.get_table().print(filter_empty)

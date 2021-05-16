@@ -523,7 +523,7 @@ class Teacher:
     #############################################
     def get_counterexample(self, table: ObsTable):
         # FIXME
-        if len(self.get_signals()) > 1000:
+        if len(self.get_signals()) > 500:
             return None
 
         S = table.get_S()

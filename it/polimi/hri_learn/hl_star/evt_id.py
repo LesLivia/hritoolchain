@@ -159,7 +159,7 @@ class EventFactory:
                 if CS_VERSION != 'c' or (CS_VERSION == 'c' and model == 1):
                     increments = []
                     for (i, pt) in enumerate(val):
-                        if i > 0:
+                        if i > 0 and pt != val[i - 1]:
                             increments.append(pt - val[i - 1] * math.exp(-1 / ON_R))
                     Ks = [delta_t / (ON_R * (1 - math.exp(-1 / ON_R))) for delta_t in increments if delta_t != 0]
 
@@ -174,25 +174,25 @@ class EventFactory:
                     LOGGER.info('Estimating rate with heat on ({})'.format(model))
                     est_rate = sum(increments) / len(increments) if len(increments) > 0 else None
             else:
-                if CS_VERSION != 'c' or (CS_VERSION == 'c' and model == 0):
-                    increments = []
-                    for (i, pt) in enumerate(val):
-                        if i > 0:
-                            increments.append(pt / val[i - 1])
+                # if CS_VERSION != 'c' or (CS_VERSION == 'c' and model == 0):
+                increments = []
+                for (i, pt) in enumerate(val):
+                    if i > 0:
+                        increments.append(pt / val[i - 1])
 
-                    Rs = [-1 / math.log(delta_t) for delta_t in increments if delta_t != 1]
+                Rs = [-1 / math.log(delta_t) for delta_t in increments if delta_t != 1]
 
-                    LOGGER.info('Estimating rate with heat off ({})'.format(model))
-                    est_rate = sum(Rs) / len(Rs) if len(Rs) > 0 else None
-                else:
-                    increments = []
-                    for (i, pt) in enumerate(val):
-                        if i > 0:
-                            increments.append(pt - val[i - 1])
-                    Rs = [-1 / i for i in increments if i != 0]
-
-                    LOGGER.info('Estimating rate with heat off ({})'.format(model))
-                    est_rate = sum(Rs) / len(Rs)
+                LOGGER.info('Estimating rate with heat off ({})'.format(model))
+                est_rate = sum(Rs) / len(Rs) if len(Rs) > 0 else None
+                # else:
+                #     increments = []
+                #     for (i, pt) in enumerate(val):
+                #         if i > 0:
+                #             increments.append(pt - val[i - 1])
+                #     Rs = [-1 / i for i in increments if i != 0]
+                #
+                #     LOGGER.info('Estimating rate with heat off ({})'.format(model))
+                #     est_rate = sum(Rs) / len(Rs)
 
             return est_rate
         except ValueError:
