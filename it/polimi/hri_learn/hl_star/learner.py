@@ -213,9 +213,12 @@ class Learner:
                     new_2_populated = all([new_row_2[i][0] is not None and new_row_2[i][1] is not None
                                            for i in range(len(self.get_table().get_E()))])
 
-                    if new_1_populated and new_2_populated and new_row_1 != new_row_2:
+                    rows_different = not self.TEACHER.eqr_query(pair[0] + symbol, pair[1] + symbol, new_row_1,
+                                                                new_row_2)
+                    if new_1_populated and new_2_populated and rows_different:
                         for (e_i, e_word) in enumerate(self.get_table().get_E()):
                             if new_row_1[e_i] != new_row_2[e_i]:
+                                LOGGER.warn('INCONSISTENCY: {}-{}'.format(pair[0] + symbol, pair[1] + symbol))
                                 return False, symbol + e_word
             else:
                 return True, None
@@ -423,10 +426,13 @@ class Learner:
     def run_hl_star(self, debug_print=True, filter_empty=False):
         # Fill Observation Table with Answers to Queries (from TEACHER)
         self.fill_table()
+        self.TEACHER.ref_query(self.get_table())
+        self.fill_table()
         counterexample = self.TEACHER.get_counterexample(self.get_table())
         while counterexample is not None:
             LOGGER.warn('FOUND COUNTEREXAMPLE: {}'.format(counterexample))
             self.add_counterexample(counterexample)
+            self.fill_table()
             self.TEACHER.ref_query(self.get_table())
             self.fill_table()
 
@@ -458,8 +464,6 @@ class Learner:
 
             counterexample = self.TEACHER.get_counterexample(self.get_table())
 
-        self.TEACHER.ref_query(self.get_table())
-        self.fill_table()
         if debug_print:
             LOGGER.msg('FINAL OBSERVATION TABLE')
             self.get_table().print(filter_empty)

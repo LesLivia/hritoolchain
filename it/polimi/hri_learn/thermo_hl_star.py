@@ -74,38 +74,38 @@ wOpen = [variables[i] for i in range(len(variables)) if variables[i - 1].__conta
 
 LOGGER.info("TRACES TO ANALYZE-> {}\n".format(len(temp)))
 
-for trace in range(len(temp)):
-    LOGGER.info("ANALYZING TRACE {}...\n".format(trace + 1))
-    TEACHER.reset()
-
-    '''
-    PARSE TRACES
-    '''
-    entries = hOn[trace].split('\n')[1:]
-    hOn_entries = [entry for (i, entry) in enumerate(entries) if i == 0 or entries[i - 1] != entry]  # DRIVER OVERLAY
-    timestamps = [float(x.split(' ')[0]) for x in hOn_entries if len(x.split(' ')) > 1]
-    values = [float(x.split(' ')[1]) for x in hOn_entries if len(x.split(' ')) > 1]
-    driver_t = timestamps
-    driver_v = values
-    TEACHER.add_signal([SignalPoint(timestamps[i], 1, values[i]) for i in range(len(timestamps))], trace)
-
-    entries = temp[trace].split('\n')[1:]
-    temp_entries = [entry for (i, entry) in enumerate(entries) if i == 0 or entries[i - 1] != entry]
-    timestamps = [float(x.split(' ')[0]) for x in temp_entries if len(x.split(' ')) > 1]
-    values = [float(x.split(' ')[1]) for x in temp_entries if len(x.split(' ')) > 1]
-    TEACHER.add_signal([SignalPoint(timestamps[i], 1, values[i]) for i in range(len(timestamps))], trace)
-
-    entries = wOpen[trace].split('\n')[1:]
-    wOpen_entries = [entry for (i, entry) in enumerate(entries) if i == 0 or entries[i - 1] != entry]
-    timestamps = [float(x.split(' ')[0]) for x in wOpen_entries if len(x.split(' ')) > 1]
-    values = [float(x.split(' ')[1]) for x in wOpen_entries if len(x.split(' ')) > 1]
-    TEACHER.add_signal([SignalPoint(timestamps[i], 1, values[i]) for i in range(len(timestamps))], trace)
-
-    # IDENTIFY EVENTS:
-    # (Updates Teacher's knowledge of system behavior)
-    TEACHER.find_chg_pts(driver_t, driver_v)
-    TEACHER.identify_events(trace)
-    # TEACHER.plot_trace(trace, 'TRACE {}'.format(trace + 1), 't [min]', 'T [°C]')
+# for trace in range(len(temp)):
+#     LOGGER.info("ANALYZING TRACE {}...\n".format(trace + 1))
+#     TEACHER.reset()
+#
+#     '''
+#     PARSE TRACES
+#     '''
+#     entries = hOn[trace].split('\n')[1:]
+#     hOn_entries = [entry for (i, entry) in enumerate(entries) if i == 0 or entries[i - 1] != entry]  # DRIVER OVERLAY
+#     timestamps = [float(x.split(' ')[0]) for x in hOn_entries if len(x.split(' ')) > 1]
+#     values = [float(x.split(' ')[1]) for x in hOn_entries if len(x.split(' ')) > 1]
+#     driver_t = timestamps
+#     driver_v = values
+#     TEACHER.add_signal([SignalPoint(timestamps[i], 1, values[i]) for i in range(len(timestamps))], trace)
+#
+#     entries = temp[trace].split('\n')[1:]
+#     temp_entries = [entry for (i, entry) in enumerate(entries) if i == 0 or entries[i - 1] != entry]
+#     timestamps = [float(x.split(' ')[0]) for x in temp_entries if len(x.split(' ')) > 1]
+#     values = [float(x.split(' ')[1]) for x in temp_entries if len(x.split(' ')) > 1]
+#     TEACHER.add_signal([SignalPoint(timestamps[i], 1, values[i]) for i in range(len(timestamps))], trace)
+#
+#     entries = wOpen[trace].split('\n')[1:]
+#     wOpen_entries = [entry for (i, entry) in enumerate(entries) if i == 0 or entries[i - 1] != entry]
+#     timestamps = [float(x.split(' ')[0]) for x in wOpen_entries if len(x.split(' ')) > 1]
+#     values = [float(x.split(' ')[1]) for x in wOpen_entries if len(x.split(' ')) > 1]
+#     TEACHER.add_signal([SignalPoint(timestamps[i], 1, values[i]) for i in range(len(timestamps))], trace)
+#
+#     # IDENTIFY EVENTS:
+#     # (Updates Teacher's knowledge of system behavior)
+#     TEACHER.find_chg_pts(driver_t, driver_v)
+#     TEACHER.identify_events(trace)
+#     # TEACHER.plot_trace(trace, 'TRACE {}'.format(trace + 1), 't [min]', 'T [°C]')
 
 # RUN LEARNING ALGORITHM:
 LEARNED_HA = LEARNER.run_hl_star(filter_empty=True)

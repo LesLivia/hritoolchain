@@ -12,7 +12,7 @@ from domain.sigfeatures import SignalPoint
 from hri_learn.hl_star.evt_id import EventFactory, DEFAULT_DISTR, DEFAULT_MODEL, MAIN_SIGNAL, MODEL_TO_DISTR_MAP
 from hri_learn.hl_star.learner import ObsTable
 from hri_learn.hl_star.logger import Logger
-from hri_learn.hl_star.trace_gen import TraceGenerator
+from hri_learn.hl_star.trace_gen import TraceGenerator, CS
 
 LOGGER = Logger()
 TG = TraceGenerator()
@@ -163,7 +163,10 @@ class Teacher:
         trace_events: List[str] = []
         # converts all trace dicts ({time: evt}) to strings (e_1e_2...)
         for trace in range(len(self.get_events())):
-            trace_events.append(reduce(lambda x, y: x + y, list(self.get_events()[trace].values())))
+            if len(list(self.get_events()[trace].values())) > 0:
+                trace_events.append(reduce(lambda x, y: x + y, list(self.get_events()[trace].values())))
+            else:
+                trace_events.append('')
         traces = []
         for (i, event_str) in enumerate(trace_events):
             if event_str.startswith(word):
@@ -306,45 +309,43 @@ class Teacher:
                         LOGGER.info('EST. RATE for {}: {}'.format(word, metric))
                         # checks empirical rule for all segments
 
-                alpha = 0.05
+                alpha = 0.1
+                metrics = [met for met in metrics if met is not None]
                 m = len(metrics)
                 max_scs = 0
                 D_min = 1000
                 best_fit = None
+                avg_metrics = sum(metrics) / len(metrics)
                 for (i, d) in enumerate(eligible_distributions):
                     distr = self.get_distributions()[d]
                     scs = 0
                     sum_D = 0
                     for i in range(100):
-                        y = list(np.random.normal(distr[0], distr[1], np.random.randint(m / 2, m + m / 2)))
+                        y = list(np.random.normal(distr[0], distr[1], m))
                         n = len(y)
-                        try:
-                            D_th = math.sqrt(-math.log(alpha / 2) * (1 + m / n) / (2 * m))
-                        except:
-                            return None
+                        # D_th = math.sqrt(-math.log(alpha / 2) * (1 + m / n) / (2 * m))
                         res = stats.ks_2samp(metrics, y)
                         sum_D += res.statistic
-                        if res.statistic < D_th:
+                        if res.pvalue > alpha:
                             scs += 1
                     avg_D = sum_D / 100
-                    if scs >= max_scs and avg_D < D_min:
+                    if abs(avg_metrics - distr[0]) < D_min and scs > 0:
                         best_fit = d
-                        D_min = avg_D
+                        D_min = abs(avg_metrics - distr[0])
                         max_scs = scs
 
-                if max_scs > 80:
+                if max_scs > 0:
                     LOGGER.debug("Accepting N_{} with Y: {}".format(best_fit, max_scs))
                     return best_fit
                 else:
                     # rejects H0
                     # if no distribution passes the hyp. test, a new one is created
-                    avg_metrics = sum(metrics) / len(metrics)
                     for d in eligible_distributions:
                         old_avg: float = (self.get_distributions()[d])[0]
                         if abs(avg_metrics - old_avg) < old_avg / 10:
                             return d
                     # FIXME
-                    if len(self.get_distributions()) >= 8:
+                    if len(self.get_distributions()) >= 7:
                         return None
                     if save:
                         var_metrics = sum([(m - avg_metrics) ** 2 for m in metrics]) / len(metrics)
@@ -467,31 +468,15 @@ class Teacher:
             # weak equality is violated
             if cell_is_filled and cell2_is_filled and cell != row2[c_i]:
                 return False
-            # if one row has a filled cell and the other is undefined,
-            # they might be weakly equal only if corresponding s_words
-            # are "compatible"
-            # if (cell_is_filled and not cell2_is_filled) or (not cell_is_filled and cell2_is_filled):
-            #     shortest_word = s1 if len(s1) < len(s2) else s2
-            #     longest_word = s1 if len(s1) >= len(s2) else s2
-            #     events_1 = [shortest_word[i:i + 3] for i in range(0, len(shortest_word), 3)]
-            #     events_1 = [events_1[0], events_1[-1]] if shortest_word!='' else []
-            #     events_2 = [longest_word[i:i + 3] for i in range(0, len(longest_word), 3)]
-            #     last = -1
-            #     for e1 in events_1:
-            #         found = False
-            #         for (i, e2) in enumerate(events_2):
-            #             if e1 == e2 and i >= last:
-            #                 last = i
-            #                 found = True
-            #         if not found:
-            #             return False
-
         return True
 
     def parse_traces(self, path: str):
         # support method to parse traces sampled by ref query
         f = open(path, 'r')
-        variables = ['t.ON', 'T_r', 'r.open']
+        if CS == 'hri':
+            variables = ['amy.F', 'humanPositionX[currH - 1]', 'amy.busy || amy.p_2 || amy.c3']
+        else:
+            variables = ['t.ON', 'T_r', 'r.open']
         lines = f.readlines()
         split_indexes = [lines.index(k + ':\n') for k in variables]
         split_lines = [lines[i + 1:split_indexes[ind + 1]] for (ind, i) in enumerate(split_indexes) if
@@ -527,6 +512,7 @@ class Teacher:
     # to gain more knowledge about the system under learning
     #############################################
     def ref_query(self, table: ObsTable):
+        n_resample = 10
         S = table.get_S()
         upp_obs = table.get_upper_observations()
         lS = table.get_low_S()
@@ -535,14 +521,19 @@ class Teacher:
         # find all words which are ambiguous
         # (equivalent to multiple rows)
         amb_words = []
-        for (i, row) in enumerate(upp_obs):
+        for (i, row) in enumerate(upp_obs + low_obs):
+            s = S[i] if i < len(upp_obs) else lS[i - len(upp_obs)]
+            for (e_i, e) in enumerate(table.get_E()):
+                if len(self.get_segments(s + e)) < n_resample:
+                    amb_words.append(s + e)
+
             eq_rows = []
             if row[0] == (None, None):
                 continue
 
             for (j, row_2) in enumerate(upp_obs):
                 row_2_populated = row_2[0] != (None, None)
-                if row_2_populated and i != j and self.eqr_query(S[i], S[j], row, row_2):
+                if row_2_populated and i != j and self.eqr_query(s, S[j], row, row_2):
                     eq_rows.append(row_2)
             uq = []
             for eq in eq_rows:
@@ -550,24 +541,8 @@ class Teacher:
                     uq.append(eq)
 
             if len(uq) > 1:
-                amb_words.append(S[i])
+                amb_words.append(s)
 
-        for (i, row) in enumerate(low_obs):
-            eq_rows = []
-            if row[0] == (None, None):
-                continue
-
-            for (j, row_2) in enumerate(upp_obs):
-                row_2_populated = row_2[0] != (None, None)
-                if row_2_populated and i != j and self.eqr_query(lS[i], S[j], row, row_2):
-                    eq_rows.append(row_2)
-            uq = []
-            for eq in eq_rows:
-                if eq not in uq:
-                    uq.append(eq)
-
-            if len(uq) > 1:
-                amb_words.append(lS[i])
         # sample new traces only for ambiguous words which
         # are not prefixes of another ambiguous word
         uq = []
@@ -597,7 +572,7 @@ class Teacher:
     #############################################
     def get_counterexample(self, table: ObsTable):
         # FIXME
-        if len(self.get_signals()) > 500:
+        if len(self.get_signals()) > 700:
             return None
 
         S = table.get_S()
@@ -605,12 +580,16 @@ class Teacher:
 
         trace_events: List[str] = []
         for trace in range(len(self.get_events())):
-            trace_events.append(reduce(lambda x, y: x + y, list(self.get_events()[trace].values())))
+            if len(list(self.get_events()[trace].values()))>0:
+                trace_events.append(reduce(lambda x, y: x + y, list(self.get_events()[trace].values())))
+            else:
+                trace_events.append('')
         max_events = int(max([len(t) for t in trace_events]))
 
         not_counter = []
         for (i, event_str) in tqdm(enumerate(trace_events), total=len(trace_events)):
             for j in range(3, max_events + 1, 3):
+                # event_str[:j] not in S and event_str[:j] not in low_S and
                 if event_str[:j] not in S and event_str[:j] not in low_S and event_str[:j] not in not_counter:
                     # fills hypothetical new row
                     new_row = []
@@ -642,10 +621,6 @@ class Teacher:
 
                         if new_row and not new_row_is_present:
                             # found non-closedness
-                            # for a in self.get_symbols():
-                            #     id_model = self.mi_query(event_str[:j] + a)
-                            #     id_distr = self.ht_query(event_str[:j] + a, id_model, save=False)
-                            #     if id_model is not None and id_distr is not None:
                             LOGGER.warn("!! MISSED NON-CLOSEDNESS !!")
                             return event_str[:j]
                         elif not_ambiguous:
