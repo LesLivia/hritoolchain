@@ -13,13 +13,20 @@ warnings.filterwarnings('ignore')
 
 CS_VERSION = sys.argv[2]
 UNCONTR_EVTS = {}  # 'e': 'in_waiting_room' , 'r': 'is_running', 'o': 'enter_office'}
-IDLE_DISTR = (0.003328, 0.001342, 100)
-BUSY_DISTR = (0.004538, 0.000469, 100)
+IDLE_DISTR = (0.003, 0.0001, 100)
+BUSY_DISTR = (0.004, 0.0004, 100)
 
 LOGGER = Logger()
+PROB_DISTR = [IDLE_DISTR, BUSY_DISTR]
+
+if CS_VERSION == 'a':
+    UNCONTR_EVTS = {}
+elif CS_VERSION == 'b':
+    UNCONTR_EVTS = {'w': 'in_waiting_room'}
+elif CS_VERSION == 'c':
+    UNCONTR_EVTS = {'w': 'in_waiting_room', 'r': 'is_running', 'o': 'in_office'}
 
 CONTR_EVTS = {'u': 'start_moving', 'd': 'stop_moving'}
-PROB_DISTR = [IDLE_DISTR, BUSY_DISTR]
 
 
 def idle_model(interval: List[float], F_0: float):

@@ -16,7 +16,7 @@ if CS == 'hri':
     LINE_1 = ['bool force_exe = true;\n', 'bool force_exe']
     LINE_2 = ['int force_act[MAX_E] = ', 'int force_act']
     LINE_3 = ['const int TAU = {};\n', 'const int TAU']
-    LINE_4 = ['r = Room_{}(15.2);\n', 'r = Room']
+    LINE_4 = ['amy = HFoll_{}(1, 48, 2, 3, -1);\n', 'amy = HFoll_']
     UPP_MODEL_PATH = '/Users/lestingi/Desktop/phd-workspace/hri-models/uppaal-models/hri-w_ref.xml'
     UPP_QUERY_PATH = '/Users/lestingi/Desktop/phd-workspace/hri-models/uppaal-models/hri-w_ref.q'
 else:

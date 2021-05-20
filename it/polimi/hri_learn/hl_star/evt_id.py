@@ -84,9 +84,10 @@ class EventFactory:
             '''
             Repeat for every guard in the system
             '''
-            if CS_VERSION == 'c':
+            if CS_VERSION in ['b', 'c']:
                 curr_posx = list(filter(lambda x: x.timestamp <= timestamp, posX))[-1]
-                identified_guard += self.get_guards()[0] if curr_posx.value >= 4000.0 else '!' + self.get_guards()[0]
+                identified_guard += self.get_guards()[0] if 2000.0 <= curr_posx.value <= 3000.0 else '!' + self.get_guards()[0]
+            if CS_VERSION in ['c']:
                 posY = self.get_signals()[trace][3]
                 curr_posy = list(filter(lambda x: x.timestamp <= timestamp, posY))[-1]
                 identified_guard += self.get_guards()[1] if curr_posy.value >= 375.0 else '!' + self.get_guards()[1]

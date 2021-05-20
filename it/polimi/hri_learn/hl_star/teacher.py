@@ -183,7 +183,7 @@ class Teacher:
             for i in range(0, len(word), 3):
                 events_in_word.append(word[i:i + 3])
 
-            start_timestamp = list(self.get_events()[trace].keys())[len(events_in_word) - 1]
+            start_timestamp = list(self.get_events()[trace].keys())[max(len(events_in_word) - 1, 0)]
             if len(events_in_word) < len(self.get_events()[trace]):
                 end_timestamp = list(self.get_events()[trace].keys())[len(events_in_word)]
             else:
