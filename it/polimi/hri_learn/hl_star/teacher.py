@@ -9,7 +9,8 @@ import scipy.stats as stats
 from tqdm import tqdm
 
 from domain.sigfeatures import SignalPoint
-from hri_learn.hl_star.evt_id import EventFactory, DEFAULT_DISTR, DEFAULT_MODEL, MAIN_SIGNAL, MODEL_TO_DISTR_MAP
+from hri_learn.hl_star.evt_id import EventFactory, DEFAULT_DISTR, DEFAULT_MODEL, MAIN_SIGNAL, MODEL_TO_DISTR_MAP, \
+    DRIVER_SIG
 from hri_learn.hl_star.learner import ObsTable
 from hri_learn.hl_star.logger import Logger
 from hri_learn.hl_star.trace_gen import TraceGenerator, CS
@@ -474,7 +475,7 @@ class Teacher:
         # support method to parse traces sampled by ref query
         f = open(path, 'r')
         if CS == 'hri':
-            variables = ['amy.F', 'humanPositionX[currH - 1]', 'amy.busy || amy.p_2 || amy.c3']
+            variables = ['humanFatigue[currH - 1]', 'humanPositionX[currH - 1]', 'amy.busy || amy.p_2']
         else:
             variables = ['t.ON', 'T_r', 'r.open']
         lines = f.readlines()
@@ -497,7 +498,7 @@ class Teacher:
                     entries[entries.index(e)] = new
                 t = [float(x.split(',')[0]) for x in entries]
                 v = [float(x.split(',')[1]) for x in entries]
-                if i == 0:
+                if i == DRIVER_SIG:
                     driver_t = t
                     driver_v = v
                 signal = [SignalPoint(t[i], 1, v[i]) for i in range(len(t))]
@@ -580,7 +581,7 @@ class Teacher:
 
         trace_events: List[str] = []
         for trace in range(len(self.get_events())):
-            if len(list(self.get_events()[trace].values()))>0:
+            if len(list(self.get_events()[trace].values())) > 0:
                 trace_events.append(reduce(lambda x, y: x + y, list(self.get_events()[trace].values())))
             else:
                 trace_events.append('')

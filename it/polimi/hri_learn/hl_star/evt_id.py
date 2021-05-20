@@ -17,12 +17,14 @@ CS_VERSION = sys.argv[2]
 MAIN_SIGNAL = None
 if CASE_STUDY == 'hri':
     MAIN_SIGNAL = 0
+    DRIVER_SIG = 2
     DEFAULT_MODEL = 0
     DEFAULT_DISTR = 0
     MODEL_TO_DISTR_MAP = {0: 0, 1: 1}  # <- HRI
 else:
     ON_R = 100.0
     MAIN_SIGNAL = 1
+    DRIVER_SIG = 0
     if CS_VERSION == 'a' or CS_VERSION == 'b':
         MODEL_TO_DISTR_MAP = {0: 0, 1: 1}  # <- THERMOSTAT
         DEFAULT_MODEL = 0
@@ -131,24 +133,29 @@ class EventFactory:
 
     def get_ht_metric(self, segment: List[SignalPoint], model=None):
         if CASE_STUDY == 'hri':
-            return self.get_ftg_metric(segment)
+            return self.get_ftg_metric(segment, model)
         else:
             return self.get_thermo_metric(segment, model)
 
-    def get_ftg_metric(self, segment: List[SignalPoint]):
+    def get_ftg_metric(self, segment: List[SignalPoint], model: int):
         try:
-            if len(segment) <= 100:
-                differences = [pt.value - segment[i - 1].value for (i, pt) in enumerate(segment) if i > 0]
-                est_rate = abs(sum(differences) / len(segment))
+            val = [pt.value for pt in segment]
+            # metric for walking
+            if model == 1:
+                lambdas = []
+                for (i, v) in enumerate(val):
+                    if i > 0 and v != val[i - 1]:
+                        lambdas.append(math.log((1 - v) / (1 - val[i - 1])))
+                est_rate = sum(lambdas) / len(lambdas) if len(lambdas) > 0 else None
+            # metric for standing/sitting
             else:
-                t = [pt.timestamp for pt in segment]
-                dts = [v - t[i - 1] for i, v in enumerate(t) if i > 0]
-                avg_dt = sum(dts) / len(dts)
+                mus = []
+                for (i, v) in enumerate(val):
+                    if i > 0 and v != val[i - 1] and val[i - 1] != 0:
+                        mus.append(math.log(v / val[i - 1]))
+                est_rate = sum(mus) / len(mus) if len(mus) > 0 else None
 
-                dt = TimeInterval(segment[0].timestamp, segment[-1].timestamp)
-                params, x_fore, fore = sig_mgr.n_predictions(segment, dt, 10, show_formula=False)
-                est_rate = math.fabs(math.log(params[1])) / avg_dt * 2 if params[1] != 0.0 else 0.0
-            return est_rate
+            return abs(est_rate) if est_rate is not None else None
         except ValueError:
             return None
 

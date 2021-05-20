@@ -425,14 +425,17 @@ class Learner:
 
     def run_hl_star(self, debug_print=True, filter_empty=False):
         # Fill Observation Table with Answers to Queries (from TEACHER)
+        step0 = True
         self.fill_table()
         self.TEACHER.ref_query(self.get_table())
         self.fill_table()
         counterexample = self.TEACHER.get_counterexample(self.get_table())
-        while counterexample is not None:
-            LOGGER.warn('FOUND COUNTEREXAMPLE: {}'.format(counterexample))
-            self.add_counterexample(counterexample)
-            self.fill_table()
+        while counterexample is not None or step0:
+            step0 = False
+            if counterexample is not None:
+                LOGGER.warn('FOUND COUNTEREXAMPLE: {}'.format(counterexample))
+                self.add_counterexample(counterexample)
+                self.fill_table()
             self.TEACHER.ref_query(self.get_table())
             self.fill_table()
 

@@ -50,7 +50,7 @@ class TraceGenerator:
     def evts_to_ints(self):
         for evt in self.events:
             if CS == 'hri':
-                if evt == 'u':
+                if evt in ['u_1']:
                     self.evt_int.append(1)
                 else:
                     self.evt_int.append(0)
@@ -94,7 +94,7 @@ class TraceGenerator:
         new_line_1 = LINE_1[0]
         values = self.get_evt_str()
         new_line_2 = LINE_2[0] + values
-        tau = max(len(self.evt_int) * 70, 500)
+        tau = max(len(self.evt_int) * 70, 200)
         new_line_3 = LINE_3[0].format(tau)
         new_line_4 = LINE_4[0].format(CS_VERSION)
 
@@ -129,8 +129,8 @@ class TraceGenerator:
         s = '{}_{}_{}'.format(case_study, version, n)
         FNULL = open(os.devnull, 'w')
         LOGGER.debug('!! GENERATING NEW TRACES FOR: {} !!'.format(self.word))
-        p = subprocess.Popen([SCRIPT_PATH, UPP_EXE_PATH, UPP_MODEL_PATH, UPP_QUERY_PATH, UPP_OUT_PATH.format(s)]) #,
-                             # stdout=FNULL)
+        p = subprocess.Popen([SCRIPT_PATH, UPP_EXE_PATH, UPP_MODEL_PATH, UPP_QUERY_PATH, UPP_OUT_PATH.format(s)],
+                             stdout=FNULL)
         p.wait()
         if p.returncode == 0:
             LOGGER.info('TRACES SAVED TO ' + s)
