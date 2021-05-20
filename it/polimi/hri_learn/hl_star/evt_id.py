@@ -2,8 +2,7 @@ import math
 import sys
 from typing import List
 
-import mgrs.sig_mgr as sig_mgr
-from domain.sigfeatures import SignalPoint, TimeInterval
+from domain.sigfeatures import SignalPoint
 from hl_star.logger import Logger
 
 '''
@@ -181,7 +180,6 @@ class EventFactory:
                     LOGGER.info('Estimating rate with heat on ({})'.format(model))
                     est_rate = sum(increments) / len(increments) if len(increments) > 0 else None
             else:
-                # if CS_VERSION != 'c' or (CS_VERSION == 'c' and model == 0):
                 increments = []
                 for (i, pt) in enumerate(val):
                     if i > 0:
@@ -191,15 +189,6 @@ class EventFactory:
 
                 LOGGER.info('Estimating rate with heat off ({})'.format(model))
                 est_rate = sum(Rs) / len(Rs) if len(Rs) > 0 else None
-                # else:
-                #     increments = []
-                #     for (i, pt) in enumerate(val):
-                #         if i > 0:
-                #             increments.append(pt - val[i - 1])
-                #     Rs = [-1 / i for i in increments if i != 0]
-                #
-                #     LOGGER.info('Estimating rate with heat off ({})'.format(model))
-                #     est_rate = sum(Rs) / len(Rs)
 
             return est_rate
         except ValueError:

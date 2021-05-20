@@ -4,7 +4,6 @@ import warnings
 from typing import List
 
 import pltr.ha_pltr as ha_pltr
-from domain.sigfeatures import SignalPoint
 from hri_learn.hl_star.learner import Learner
 from hri_learn.hl_star.logger import Logger
 from hri_learn.hl_star.teacher import Teacher

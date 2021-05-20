@@ -302,34 +302,22 @@ class Teacher:
                 eligible_distributions = [k for k in MODEL_TO_DISTR_MAP.keys() if
                                           MODEL_TO_DISTR_MAP[k] == model]
 
-                metrics = []
-                for segment in segments:
-                    metric = self.evt_factory.get_ht_metric(segment, model)
-                    metrics.append(metric)
-                    if metric is not None:
-                        LOGGER.info('EST. RATE for {}: {}'.format(word, metric))
-                        # checks empirical rule for all segments
-
-                alpha = 0.1
+                metrics = [self.evt_factory.get_ht_metric(segment, model) for segment in segments]
                 metrics = [met for met in metrics if met is not None]
+                alpha = 0.1
                 m = len(metrics)
                 max_scs = 0
                 D_min = 1000
                 best_fit = None
                 avg_metrics = sum(metrics) / len(metrics)
                 for (i, d) in enumerate(eligible_distributions):
-                    distr = self.get_distributions()[d]
+                    distr: Tuple[float, float, float] = self.get_distributions()[d]
                     scs = 0
-                    sum_D = 0
                     for i in range(100):
                         y = list(np.random.normal(distr[0], distr[1], m))
-                        n = len(y)
-                        # D_th = math.sqrt(-math.log(alpha / 2) * (1 + m / n) / (2 * m))
                         res = stats.ks_2samp(metrics, y)
-                        sum_D += res.statistic
                         if res.pvalue > alpha:
                             scs += 1
-                    avg_D = sum_D / 100
                     if abs(avg_metrics - distr[0]) < D_min and scs > 0:
                         best_fit = d
                         D_min = abs(avg_metrics - distr[0])
@@ -342,102 +330,12 @@ class Teacher:
                     # rejects H0
                     # if no distribution passes the hyp. test, a new one is created
                     for d in eligible_distributions:
-                        old_avg: float = (self.get_distributions()[d])[0]
+                        distr: Tuple[float, float, float] = self.get_distributions()[d]
+                        old_avg: float = distr[0]
                         if abs(avg_metrics - old_avg) < old_avg / 10:
                             return d
                     # FIXME
                     if len(self.get_distributions()) >= 7:
-                        return None
-                    if save:
-                        var_metrics = sum([(m - avg_metrics) ** 2 for m in metrics]) / len(metrics)
-                        std_dev_metrics = math.sqrt(var_metrics) if var_metrics != 0 else avg_metrics / 10
-                        self.get_distributions().append((avg_metrics, std_dev_metrics, len(metrics)))
-                        # and added to the map of eligible distr. for the selected model
-                        new_distr_index = len(self.get_distributions()) - 1
-                        MODEL_TO_DISTR_MAP[new_distr_index] = model
-                    else:
-                        new_distr_index = len(self.get_distributions()) + 1
-
-                    return new_distr_index
-            else:
-                return None
-
-    def ht_query_leg(self, word: str, model=DEFAULT_MODEL, save=True):
-        if model is None:
-            return None
-
-        if word == '':
-            return DEFAULT_DISTR
-        else:
-            segments = self.get_segments(word)
-            if len(segments) > 0:
-                successes = []
-
-                distributions = self.get_distributions()
-                eligible_distributions = [k for k in MODEL_TO_DISTR_MAP.keys() if
-                                          MODEL_TO_DISTR_MAP[k] == model]
-                for d in eligible_distributions:
-                    successes.append([])
-
-                metrics = []
-                for segment in segments:
-                    metric = self.evt_factory.get_ht_metric(segment, model)
-                    metrics.append(metric)
-                    if metric is not None:
-                        LOGGER.info('EST. RATE for {}: {}'.format(word, metric))
-                        # checks empirical rule for all segments
-                        for (i, d) in enumerate(eligible_distributions):
-                            distr: tuple = distributions[d]
-                            minus_sigma = max(distr[0] - 2 * distr[1], 0)
-                            plus_sigma = distr[0] + 2 * distr[1]
-                            successes[i].append(minus_sigma <= metric <= plus_sigma)
-                # count failures for each eligible distribution
-                p_value = [0] * len(eligible_distributions)
-                for (i, d) in enumerate(eligible_distributions):
-                    for x in successes[i]:
-                        if not x:
-                            p_value[i] += 1
-                    p_value[i] /= len(successes[i])
-                # find distr. with least failures
-                metrics = list(filter(lambda m: m is not None, metrics))
-                min_Y = None
-                best_D = None
-                for (i, d) in enumerate(eligible_distributions):
-                    if min_Y is None or p_value[i] < min_Y:
-                        best_D = d
-                        min_Y = p_value[i]
-                # calculates maximum failures allowed by conf. level alpha
-                # given the number of samples in 'metrics'
-                theta_z = None
-                alpha = 0.00
-                while theta_z is None:
-                    alpha += 0.05
-                    theta_z = self.get_theta_th(0.05, len(metrics), alpha)
-                    if alpha > 0.1:
-                        return None
-                # performs hyp. testing:
-                # H0: Y <= theta_z
-                # H1: Y > theta_z
-                if min_Y is not None and min_Y * len(metrics) <= theta_z:
-                    # accepts H0
-                    LOGGER.debug(
-                        "Accepting N_{} with Y: {:.0f}({}), confidence: {}".format(best_D, min_Y * len(metrics),
-                                                                                   len(metrics), 1 - alpha))
-                    return best_D
-                else:
-                    # rejects H0
-                    LOGGER.debug(
-                        "Rejecting H_0 with Y: {:.0f}({}), confidence: {}".format(
-                            min_Y * len(metrics) if min_Y is not None else 0,
-                            len(metrics), 1 - alpha))
-                    # if no distribution passes the hyp. test, a new one is created
-                    avg_metrics = sum(metrics) / len(metrics)
-                    for d in eligible_distributions:
-                        old_avg: float = (self.get_distributions()[d])[0]
-                        if abs(avg_metrics - old_avg) < old_avg / 10:
-                            return d
-                    # FIXME
-                    if len(self.get_distributions()) >= 8:
                         return None
                     if save:
                         var_metrics = sum([(m - avg_metrics) ** 2 for m in metrics]) / len(metrics)

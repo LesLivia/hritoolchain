@@ -1,8 +1,9 @@
-import subprocess
-from typing import List
-import random
-import sys
 import os
+import random
+import subprocess
+import sys
+from typing import List
+
 from hl_star.logger import Logger
 
 CS = sys.argv[1]
