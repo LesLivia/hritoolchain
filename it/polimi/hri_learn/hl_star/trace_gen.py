@@ -17,6 +17,8 @@ if CS == 'hri':
     LINE_2 = ['int force_act[MAX_E] = ', 'int force_act']
     LINE_3 = ['const int TAU = {};\n', 'const int TAU']
     LINE_4 = ['amy = HFoll_{}(1, 48, 2, 3, -1);\n', 'amy = HFoll_']
+    LINE_5 = ['const int VERSION = {};\n', 'const int VERSION']
+    LINES_TO_CHANGE = [LINE_1, LINE_2, LINE_3, LINE_4, LINE_5]
     UPP_MODEL_PATH = '/Users/lestingi/Desktop/phd-workspace/hri-models/uppaal-models/hri-w_ref.xml'
     UPP_QUERY_PATH = '/Users/lestingi/Desktop/phd-workspace/hri-models/uppaal-models/hri-w_ref.q'
 else:
@@ -24,6 +26,7 @@ else:
     LINE_2 = ['int force_open[MAX_E] = ', 'int force_open']
     LINE_3 = ['const int TAU = {};\n', 'const int TAU']
     LINE_4 = ['r = Room_{}(15.2);\n', 'r = Room']
+    LINES_TO_CHANGE = [LINE_1, LINE_2, LINE_3, LINE_4]
     UPP_MODEL_PATH = '/Users/lestingi/Desktop/phd-workspace/hri-models/uppaal-models/thermostat.xml'
     UPP_QUERY_PATH = '/Users/lestingi/Desktop/phd-workspace/hri-models/uppaal-models/thermostat.q'
 
@@ -98,22 +101,17 @@ class TraceGenerator:
         tau = max(len(self.evt_int) * 70, 200)
         new_line_3 = LINE_3[0].format(tau)
         new_line_4 = LINE_4[0].format(CS_VERSION)
+        new_line_5 = LINE_5[0].format(CS_VERSION + 1) if CS == 'hri' else None
+        new_lines = [new_line_1, new_line_2, new_line_3, new_line_4, new_line_5]
 
         lines = m_r.readlines()
-        found = [False, False, False]
+        found = [False] * len(new_lines)
         for line in lines:
-            if line.startswith(LINE_1[1]) and not found[0]:
-                lines[lines.index(line)] = new_line_1
-                found[0] = True
-            elif line.startswith(LINE_2[1]) and not found[1]:
-                lines[lines.index(line)] = new_line_2
-                found[1] = True
-            elif line.startswith(LINE_3[1]) and not found[2]:
-                lines[lines.index(line)] = new_line_3
-                found[2] = True
-            elif line.startswith(LINE_4[1]):
-                lines[lines.index(line)] = new_line_4
-                break
+            for (i, l) in enumerate(LINES_TO_CHANGE):
+                if line.startswith(LINES_TO_CHANGE[i][1]) and not found[i]:
+                    lines[lines.index(line)] = new_lines[i]
+                    found[i] = True
+                    break
 
         m_r.close()
         m_w = open(UPP_MODEL_PATH, 'w')
