@@ -54,10 +54,16 @@ class TraceGenerator:
     def evts_to_ints(self):
         for evt in self.events:
             if CS == 'hri':
-                if evt in ['u_1']:
+                if evt in ['u_2', 'u_4']:
                     self.evt_int.append(1)
-                else:
+                elif evt in ['u_3']:
+                    self.evt_int.append(3)
+                elif evt in ['d_3', 'd_4']:
                     self.evt_int.append(0)
+                elif evt in ['d_2']:
+                    self.evt_int.append(2)
+                else:
+                    self.evt_int.append(-1)
             else:
                 # for thermo example: associates a specific value
                 # to variable open for each event in the requested trace
@@ -98,10 +104,10 @@ class TraceGenerator:
         new_line_1 = LINE_1[0]
         values = self.get_evt_str()
         new_line_2 = LINE_2[0] + values
-        tau = max(len(self.evt_int) * 70, 200)
+        tau = max(len(self.evt_int) * 150, 200)
         new_line_3 = LINE_3[0].format(tau)
         new_line_4 = LINE_4[0].format(CS_VERSION)
-        new_line_5 = LINE_5[0].format(CS_VERSION + 1) if CS == 'hri' else None
+        new_line_5 = LINE_5[0].format(CS_VERSION - 1) if CS == 'hri' else None
         new_lines = [new_line_1, new_line_2, new_line_3, new_line_4, new_line_5]
 
         lines = m_r.readlines()

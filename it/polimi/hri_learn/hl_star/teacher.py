@@ -183,7 +183,10 @@ class Teacher:
             for i in range(0, len(word), 3):
                 events_in_word.append(word[i:i + 3])
 
-            start_timestamp = list(self.get_events()[trace].keys())[max(len(events_in_word) - 1, 0)]
+            if word != '':
+                start_timestamp = list(self.get_events()[trace].keys())[max(len(events_in_word) - 1, 0)]
+            else:
+                start_timestamp = 0
             if len(events_in_word) < len(self.get_events()[trace]):
                 end_timestamp = list(self.get_events()[trace].keys())[len(events_in_word)]
             else:
@@ -373,7 +376,8 @@ class Teacher:
         # support method to parse traces sampled by ref query
         f = open(path, 'r')
         if CS == 'hri':
-            variables = ['humanFatigue[currH - 1]', 'humanPositionX[currH - 1]', 'amy.busy || amy.p_2']
+            variables = ['humanFatigue[currH - 1]', 'humanPositionX[currH - 1]',
+                         'amy.busy || amy.p_2 || amy.run || amy.p_4', 'humanPositionY[currH - 1]']
         else:
             variables = ['t.ON', 'T_r', 'r.open']
         lines = f.readlines()

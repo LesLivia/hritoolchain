@@ -24,7 +24,7 @@ if CS_VERSION == 'a':
 elif CS_VERSION == 'b':
     UNCONTR_EVTS = {'w': 'in_waiting_room'}
 elif CS_VERSION == 'c':
-    UNCONTR_EVTS = {'w': 'in_waiting_room', 'r': 'is_running', 'o': 'in_office'}
+    UNCONTR_EVTS = {'w': 'in_waiting_room', 'o': 'in_office'}
 
 CONTR_EVTS = {'u': 'start_moving', 'd': 'stop_moving'}
 
@@ -47,5 +47,5 @@ LEARNER = Learner(TEACHER)
 
 # RUN LEARNING ALGORITHM:
 LEARNED_HA = LEARNER.run_hl_star(filter_empty=True)
-ha_pltr.plot_ha(LEARNED_HA, 'H_{}_{}'.format(sys.argv[1], CS_VERSION), view=True)
+ha_pltr.plot_ha(LEARNED_HA, 'H_{}_{}{}'.format(sys.argv[1], CS_VERSION, sys.argv[3]), view=True)
 TEACHER.plot_distributions()
