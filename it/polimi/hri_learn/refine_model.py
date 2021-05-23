@@ -39,6 +39,6 @@ print(TEACHER.get_symbols())
 LEARNER = Learner(TEACHER)
 
 # RUN LEARNING ALGORITHM:
-LEARNED_HA = LEARNER.run_hl_star(filter_empty=True)
+LEARNED_HA = LEARNER.run_hl_star(filter_empty=False)
 ha_pltr.plot_ha(LEARNED_HA, 'H_{}_{}{}'.format(sys.argv[1], CS_VERSION, sys.argv[3]), view=True)
 TEACHER.plot_distributions()

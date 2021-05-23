@@ -14,7 +14,7 @@ LOGGER = Logger()
 CASE_STUDY = sys.argv[1]
 CS_VERSION = sys.argv[2]
 MAIN_SIGNAL = None
-if CASE_STUDY == 'hri':
+if CASE_STUDY in ['hri', 'hri_sim']:
     MAIN_SIGNAL = 0
     DRIVER_SIG = 2
     DEFAULT_MODEL = 0
@@ -76,7 +76,7 @@ class EventFactory:
     '''
 
     def label_event(self, timestamp: float, trace):
-        if CASE_STUDY == 'hri':
+        if CASE_STUDY in ['hri', 'hri_sim']:
             posX = self.get_signals()[trace][1]
             moving = self.get_signals()[trace][2]
 
@@ -136,7 +136,7 @@ class EventFactory:
     '''
 
     def get_ht_metric(self, segment: List[SignalPoint], model=None):
-        if CASE_STUDY == 'hri':
+        if CASE_STUDY in ['hri', 'hri_sim']:
             return self.get_ftg_metric(segment, model)
         else:
             return self.get_thermo_metric(segment, model)
