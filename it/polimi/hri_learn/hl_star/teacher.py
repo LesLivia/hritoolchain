@@ -372,41 +372,20 @@ class Teacher:
                 return False
         return True
 
-    def parse_traces(self, path: str):
-        # support method to parse traces sampled by ref query
-        f = open(path, 'r')
-        if CS == 'hri':
-            variables = ['humanFatigue[currH - 1]', 'humanPositionX[currH - 1]',
-                         'amy.busy || amy.p_2 || amy.run || amy.p_4', 'humanPositionY[currH - 1]']
-        else:
-            variables = ['t.ON', 'T_r', 'r.open']
-        lines = f.readlines()
-        split_indexes = [lines.index(k + ':\n') for k in variables]
-        split_lines = [lines[i + 1:split_indexes[ind + 1]] for (ind, i) in enumerate(split_indexes) if
-                       i != split_indexes[-1]]
-        split_lines.append(lines[split_indexes[-1] + 1:len(lines)])
-        traces = len(split_lines[0])
+    def process_trace(self, path: str):
         prev_traces = len(self.get_signals())
-        for trace in range(traces):
+        new_traces = self.evt_factory.parse_traces(path)
+        for (t, trace) in enumerate(new_traces):
             self.reset()
             driver_t = []
             driver_v = []
-            for (i, v) in enumerate(variables):
-                entries = split_lines[i][trace].split(' ')
-                entries = entries[1:]
-                for e in entries:
-                    new = e.replace('(', '')
-                    new = new.replace(')', '')
-                    entries[entries.index(e)] = new
-                t = [float(x.split(',')[0]) for x in entries]
-                v = [float(x.split(',')[1]) for x in entries]
+            for (i, signal) in enumerate(trace):
+                self.add_signal(signal, t + prev_traces)
                 if i == DRIVER_SIG:
-                    driver_t = t
-                    driver_v = v
-                signal = [SignalPoint(t[i], 1, v[i]) for i in range(len(t))]
-                self.add_signal(signal, trace + prev_traces)
+                    driver_t = [pt.timestamp for pt in signal]
+                    driver_v = [pt.value for pt in signal]
             self.find_chg_pts(driver_t, driver_v)
-            self.identify_events(trace + prev_traces)
+            self.identify_events(t + prev_traces)
 
     #############################################
     # KNOWLEDGE REFINEMENT QUERY:
@@ -462,7 +441,7 @@ class Teacher:
                 TG.set_word(word + e)
                 path = TG.get_traces()
                 if path is not None:
-                    self.parse_traces(path)
+                    self.process_trace(path)
                 else:
                     LOGGER.debug('!! An error occurred while generating traces !!')
 

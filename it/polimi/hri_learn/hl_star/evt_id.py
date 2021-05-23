@@ -198,3 +198,34 @@ class EventFactory:
             return est_rate
         except ValueError:
             return None
+
+    def parse_traces(self, path: str):
+        # support method to parse traces sampled by ref query
+        f = open(path, 'r')
+        if CASE_STUDY == 'hri':
+            variables = ['humanFatigue[currH - 1]', 'humanPositionX[currH - 1]',
+                         'amy.busy || amy.p_2 || amy.run || amy.p_4', 'humanPositionY[currH - 1]']
+        else:
+            variables = ['t.ON', 'T_r', 'r.open']
+        lines = f.readlines()
+        split_indexes = [lines.index(k + ':\n') for k in variables]
+        split_lines = [lines[i + 1:split_indexes[ind + 1]] for (ind, i) in enumerate(split_indexes) if
+                       i != split_indexes[-1]]
+        split_lines.append(lines[split_indexes[-1] + 1:len(lines)])
+        traces = len(split_lines[0])
+        prev_traces = len(self.get_signals())
+        new_traces = []
+        for trace in range(traces):
+            new_traces.append([])
+            for (i, v) in enumerate(variables):
+                entries = split_lines[i][trace].split(' ')
+                entries = entries[1:]
+                for e in entries:
+                    new = e.replace('(', '')
+                    new = new.replace(')', '')
+                    entries[entries.index(e)] = new
+                t = [float(x.split(',')[0]) for x in entries]
+                v = [float(x.split(',')[1]) for x in entries]
+                signal = [SignalPoint(t[i], 1, v[i]) for i in range(len(t))]
+                new_traces[-1].append(signal)
+        return new_traces
