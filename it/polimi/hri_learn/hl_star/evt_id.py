@@ -200,6 +200,35 @@ class EventFactory:
             return None
 
     def parse_traces(self, path: str):
+        if CASE_STUDY == 'hri_sim':
+            return self.parse_traces_sim(path)
+        else:
+            return self.parse_traces_uppaal(path)
+
+    def parse_traces_sim(self, path: str):
+        logs = ['humanFatigue.log', 'humanPosition.log']
+        new_traces = [[]]
+        for (i, log) in enumerate(logs):
+            f = open(path + log)
+            lines = f.readlines()[1:]
+            lines = [line.replace('\n', '') for line in lines]
+            t = [float(line.split(':')[0]) for line in lines]
+            if i == 0:
+                v = [float(line.split(':')[2]) for line in lines]
+                signal = [SignalPoint(x, 0, v[j]) for (j, x) in enumerate(t)]
+                new_traces[0].append(signal)
+            else:
+                pos = [line.split(':')[2] for line in lines]
+                pos_x = [float(line.split('#')[0]) for line in pos]
+                new_traces[0].append([SignalPoint(x, 0, pos_x[j]) for (j, x) in enumerate(t)])
+                busy = [float(v != pos[j - 1]) for (j, v) in enumerate(pos) if j > 0]
+                busy = [0.0] + busy
+                new_traces[0].append([SignalPoint(x, 0, busy[j]) for (j, x) in enumerate(t)])
+                pos_y = [float(line.split('#')[1]) for line in pos]
+                new_traces[0].append([SignalPoint(x, 0, pos_y[j]) for (j, x) in enumerate(t)])
+        return new_traces
+
+    def parse_traces_uppaal(self, path: str):
         # support method to parse traces sampled by ref query
         f = open(path, 'r')
         if CASE_STUDY == 'hri':
@@ -213,7 +242,6 @@ class EventFactory:
                        i != split_indexes[-1]]
         split_lines.append(lines[split_indexes[-1] + 1:len(lines)])
         traces = len(split_lines[0])
-        prev_traces = len(self.get_signals())
         new_traces = []
         for trace in range(traces):
             new_traces.append([])

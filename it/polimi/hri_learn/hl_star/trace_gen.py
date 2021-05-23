@@ -11,6 +11,9 @@ UPP_EXE_PATH = '/Applications/Dev/uppaal64-4.1.24/bin-Darwin'
 UPP_OUT_PATH = '/Users/lestingi/PycharmProjects/hritoolchain/resources/uppaal_logs/rt_traces/{}.txt'
 SCRIPT_PATH = '/Users/lestingi/PycharmProjects/hritoolchain/resources/scripts/verify.sh'
 
+SIM_LOGS_PATH = '/Users/lestingi/PycharmProjects/hritoolchain/resources/sim_logs/refinement/'
+LOG_FILES = ['humanFatigue.log', 'humanPosition.log']
+
 # FIXME: should be relative paths, or passed as input args
 if CS == 'hri':
     LINE_1 = ['bool force_exe = true;\n', 'bool force_exe']
@@ -125,6 +128,15 @@ class TraceGenerator:
         m_w.close()
 
     def get_traces(self):
+        if CS == 'hri_sim':
+            return self.get_traces_sim()
+        else:
+            return self.get_traces_uppaal()
+
+    def get_traces_sim(self):
+        return SIM_LOGS_PATH
+
+    def get_traces_uppaal(self):
         # sample new traces through uppaal command line tool
         self.fix_model()
         random.seed()

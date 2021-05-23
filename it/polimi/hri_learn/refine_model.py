@@ -18,7 +18,7 @@ BUSY_DISTR = (0.004, 0.0004, 100)
 LOGGER = Logger()
 PROB_DISTR = [IDLE_DISTR, BUSY_DISTR]
 
-UNCONTR_EVTS = {'w': 'in_waiting_room', 'o': 'in_office'}
+UNCONTR_EVTS = {'w': 'in_waiting_room'} #, 'o': 'in_office'}
 CONTR_EVTS = {'u': 'start_moving', 'd': 'stop_moving'}
 
 
