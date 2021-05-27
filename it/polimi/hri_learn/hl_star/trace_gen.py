@@ -134,7 +134,18 @@ class TraceGenerator:
             return self.get_traces_uppaal()
 
     def get_traces_sim(self):
-        return SIM_LOGS_PATH
+        sims = []
+        index = 1
+        next = str(index) if index >= 10 else '0' + str(index)
+        while os.path.isdir(SIM_LOGS_PATH + next + '/'):
+            sims.append(next)
+            index += 1
+            next = str(index) if index >= 10 else '0' + str(index)
+
+        rand_sel = random.randint(0, 100)
+        rand_sel = rand_sel % len(sims)
+
+        return SIM_LOGS_PATH + sims[rand_sel] + '/'
 
     def get_traces_uppaal(self):
         # sample new traces through uppaal command line tool
