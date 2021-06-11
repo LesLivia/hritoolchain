@@ -61,7 +61,12 @@ class Teacher:
         # Combine all guards with channels
         for chn in syncs:
             for (index, g) in enumerate(guards_comb):
-                symbols[chn + '_' + str(index + 1)] = g + ' and ' + chn
+                identifier = ''
+                if index > 9:
+                    identifier = chr(index + 87)
+                else:
+                    identifier = str(index)
+                symbols[chn + '_' + identifier] = g + ' and ' + chn
 
         self.set_symbols(symbols)
         self.evt_factory.set_symbols(symbols)
