@@ -1,15 +1,19 @@
 import matplotlib.pyplot as plt
 from typing import List
 
-PLOT_TYPE = "upp_en"
+PLOT_TYPE = "upp_pos"
 
 # LOG CONSTANTS
 LOG_PATH = "resources/uppaal_logs/"
-EXP_ID = "exp2"
+EXP_ID = "exp1b"
 if PLOT_TYPE == 'upp_en':
-    VAR_ID = ["humanFatigue[ID]", "humanFatigue[ID]", "batteryCharge"]
+    # VAR_ID = ["humanFatigue[ID]", "humanFatigue[ID]", "batteryCharge"]
+    VAR_ID = ["internalFatigue[ID]", "internalFatigue[ID]", "batteryCharge"]
+    LABELS = ["Ftg. Hum.ID", "Ftg. Hum.ID", "Rob. Battery"]
 else:
-    VAR_ID = ["humanPositionD[ID]", "humanPositionD[ID]", "robPositionD"]
+    # VAR_ID = ["humanPositionD[ID]", "humanPositionD[ID]", "robPositionD"]
+    VAR_ID = ["internalHumD[ID]", "internalHumD[ID]", "robPositionD"]
+    LABELS = ["Coord.D Hum.ID", "Coord.D Hum.ID", "Coord.D Rob."]
 LOG_EXT = ".txt"
 
 SAVE_PATH = "resources/img/"
@@ -19,14 +23,19 @@ ID = ['0', '1', '']
 if PLOT_TYPE == 'upp_en':
     COLORS = ['limegreen', 'green', 'orangered']
 else:
-    COLORS = ['blue', 'navy', 'firebrick']
+    COLORS = ['blue', 'green', 'firebrick']
 
-fig = plt.figure(figsize=(15, 5))
+fig = plt.figure(figsize=(15, 7))
 plt.xlabel('t [s]', fontsize=24)
 if PLOT_TYPE == 'upp_en':
     plt.ylabel('[%]', fontsize=24)
+    # plt.xlim(0, 350)
+    # plt.ylim(0, 3)
 else:
     plt.ylabel('[m]', fontsize=24)
+    plt.xlim(0, 95)
+    plt.ylim(0, 27)
+
 plt.xticks(fontsize=23)
 plt.yticks(fontsize=24)
 plt.grid(linestyle="--")
@@ -88,9 +97,9 @@ for i in range(0, len(VAR_ID)):
     if PLOT_TYPE == 'upp_en':
         print(y)
         if VAR_ID[i].__contains__('ID'):
-            label = VAR_ID[i].replace('ID', str(int(ID[i]) + 1))
+            label = LABELS[i].replace('ID', str(int(ID[i]) + 1))
         else:
-            label = VAR_ID[i]
+            label = LABELS[i]
 
         plt.plot(x, y, color=COLORS[i], label=label)
     else:
@@ -106,14 +115,14 @@ for i in range(0, len(VAR_ID)):
             y_x = list(map(lambda v: max(13.0, v), y_x))
 
         if VAR_ID[i].__contains__('ID'):
-            label = VAR_ID[i].replace('ID', str(int(ID[i]) + 1))
+            label = LABELS[i].replace('ID', str(int(ID[i]) + 1))
         else:
-            label = VAR_ID[i]
+            label = LABELS[i]
 
         print(y_y)
         plt.plot(x_x, y_x, color=COLORS[i], label=label.replace('D', 'X'))
         plt.plot(x_y, y_y, linestyle='-.', color=COLORS[i], label=label.replace('D', 'Y'))
 
-#plt.legend(prop={'size': 20})
+plt.legend(prop={'size': 20})
 plt.savefig(SAVE_PATH + PLOT_TYPE + '.pdf', figsize=(15, 7))
 plt.show()

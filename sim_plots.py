@@ -14,12 +14,14 @@ def scale(v, max_v, min_v):
 PLOT_TYPE = "en"
 
 # LOG CONSTANTS
-LOG_PATH = "resources/sim_logs/"
-EXP_ID = "exp2/"
+LOG_PATH = "resources/sim_logs/deployment/"
+EXP_ID = "exp1a/"
 if PLOT_TYPE == 'en':
     VAR_ID = ["humanFatigue", "humanFatigue", "robotBattery"]
+    LABELS = ["Ftg. Hum.", "Ftg. Hum.", "Rob. Battery"]
 else:
     VAR_ID = ["humanPosition", "humanPosition", "robotPosition"]
+    LABELS = ["Coord.D Hum.ID", "Coord.D Hum.ID", "Coord.D Rob."]
 LINE_PREFIX = ['hum', 'hum', '']
 LOG_EXT = ".log"
 
@@ -30,20 +32,24 @@ ID = ['1', '2', '']
 if PLOT_TYPE == 'en':
     COLORS = ['limegreen', 'green', 'orangered']
     MULT_FACTOR = [13.75, 10, 0.1]
-    Tpoll = [2, 2, 2]
+    Tpoll = [4, 4, 4]
 else:
-    COLORS = ['blue', 'navy', 'firebrick']
+    COLORS = ['blue', 'green', 'firebrick']
     MULT_FACTOR = [1, 1, 1]
-    Tpoll = [1, 1, 1]
+    Tpoll = [2, 2, 2]
 VREP_X_OFFSET = +8.15
 VREP_Y_OFFSET = +3.425
 
-fig = plt.figure(figsize=(15, 5))
+fig = plt.figure(figsize=(15, 7))
 plt.xlabel('t [s]', fontsize=24)
 if PLOT_TYPE == 'en':
     plt.ylabel('[%]', fontsize=24)
+    plt.ylim(0, 4)
+    plt.xlim(0, 400)
 else:
     plt.ylabel('[m]', fontsize=24)
+    plt.ylim(0, 27)
+    plt.xlim(0, 400)
 plt.xticks(fontsize=23)
 plt.yticks(fontsize=24)
 plt.grid(linestyle="--")
@@ -87,16 +93,16 @@ for i in range(0, len(VAR_ID)):
     f.close()
     if PLOT_TYPE == 'en':
         print(y)
-        plt.plot(x, y, color=COLORS[i], label=VAR_ID[i] + ID[i])
+        plt.plot(x, y, color=COLORS[i], label=LABELS[i] + ID[i])
     else:
         print(y_x)
         max_y = max(y_y)
         min_y = min(y_y)
         y_y = list(map(lambda v: scale(v, max_y, min_y), y_y))
         print(y_y)
-        plt.plot(x, y_x, color=COLORS[i], label=VAR_ID[i] + 'X' + ID[i])
-        plt.plot(x, y_y, linestyle='-.', color=COLORS[i], label=VAR_ID[i] + 'Y' + ID[i])
+        plt.plot(x, y_x, color=COLORS[i], label=LABELS[i].replace('ID', ID[i]).replace('D', 'X'))
+        plt.plot(x, y_y, linestyle='-.', color=COLORS[i], label=LABELS[i].replace('ID', ID[i]).replace('D', 'Y'))
 
-#plt.legend(prop={'size': 20})
+plt.legend(prop={'size': 20})
 plt.savefig(SAVE_PATH + EXP_ID + PLOT_TYPE + '.pdf', figsize=(15, 5))
 plt.show()
