@@ -20,6 +20,7 @@ if CASE_STUDY in ['hri', 'hri_sim']:
     DEFAULT_MODEL = 0
     DEFAULT_DISTR = 0
     MODEL_TO_DISTR_MAP = {0: 0, 1: 1}  # <- HRI
+    # MODEL_TO_DISTR_MAP = {0: 0, 2: 0, 4: 0, 6: 0, 8: 0, 1: 1, 3: 1, 5: 1, 7: 1, 9: 1}
 else:
     ON_R = 100.0
     MAIN_SIGNAL = 1
@@ -88,14 +89,16 @@ class EventFactory:
                 posY = self.get_signals()[trace][3]
                 curr_posx = list(filter(lambda x: x.timestamp <= timestamp, posX))[-1]
                 curr_posy = list(filter(lambda x: x.timestamp <= timestamp, posY))[-1]
-                in_waiting = 16 <= curr_posx.value <= 23.0 and 1.0 <= curr_posy.value <= 10.0
+                in_waiting = curr_posx.value >= 2000.0 and curr_posy.value <= 3000.0
+                # in_waiting = 16 <= curr_posx.value <= 23.0 and 1.0 <= curr_posy.value <= 10.0
                 identified_guard += self.get_guards()[0] if in_waiting else '!' + self.get_guards()[0]
 
             if CS_VERSION in ['c']:
                 posY = self.get_signals()[trace][3]
                 curr_posx = list(filter(lambda x: x.timestamp <= timestamp, posX))[-1]
                 curr_posy = list(filter(lambda x: x.timestamp <= timestamp, posY))[-1]
-                in_office = 1.0 <= curr_posx.value <= 11.0 and 1.0 <= curr_posy.value <= 10.0
+                in_office = curr_posx.value >= 2000.0 and 1000.0 <= curr_posy.value <= 3000.0
+                # in_office = 1.0 <= curr_posx.value <= 11.0 and 1.0 <= curr_posy.value <= 10.0
                 identified_guard += self.get_guards()[1] if in_office else '!' + self.get_guards()[1]
 
             if CS_VERSION in ['x']:
@@ -118,7 +121,7 @@ class EventFactory:
                 curr_room_status = list(filter(lambda x: x.timestamp <= timestamp, room))[-1]
                 identified_guard += self.get_guards()[2] if curr_room_status else '!' + self.get_guards()[2]
 
-                identified_guard += self.get_guards()[3] if False else '!' + self.get_guards()[3]
+                identified_guard += self.get_guards()[3] if vel < 0.2 else '!' + self.get_guards()[3]
                 identified_guard += self.get_guards()[4] if False else '!' + self.get_guards()[4]
 
             '''
@@ -262,7 +265,7 @@ class EventFactory:
                 for pt in data:
                     temp = pt[0]
                     hum = pt[1]
-                    harsh.append(temp <= 12.0 or temp >= 30.0 or hum <= 30.0 or hum >= 50.0)
+                    harsh.append(temp <= 12.0 or temp >= 32.0 or hum <= 30.0 or hum >= 60.0)
                 new_traces[0].append([SignalPoint(x, 0, harsh[j]) for (j, x) in enumerate(t)])
 
         return new_traces

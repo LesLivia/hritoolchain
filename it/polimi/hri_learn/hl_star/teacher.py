@@ -161,7 +161,7 @@ class Teacher:
                 mu: float = distr[0]
                 sigma: float = distr[1]
                 x = np.linspace(mu - 3 * sigma, mu + 3 * sigma, 200)
-                plt.plot(x, stats.norm.pdf(x, mu, sigma), label='N_{}({:.3f}, {:.3f})'.format(d, mu, sigma))
+                plt.plot(x, stats.norm.pdf(x, mu, sigma), label='N_{}({:.4f}, {:.4f})'.format(d, mu, sigma))
             plt.legend()
             plt.show()
 
@@ -446,7 +446,8 @@ class Teacher:
                 TG.set_word(word + e)
                 path = TG.get_traces()
                 if path is not None:
-                    self.process_trace(path)
+                    for sim in path:
+                        self.process_trace(sim)
                 else:
                     LOGGER.debug('!! An error occurred while generating traces !!')
 

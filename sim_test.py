@@ -4,6 +4,8 @@ import scipy.special as sci
 import math
 import numpy as np
 import scipy.stats as stats
+import random
+import matplotlib.pyplot as plt
 
 
 def get_theta_th(P_0: float, N: int, alpha: float = 0.05):
@@ -84,3 +86,50 @@ for i in range(100):
     if res.pvalue > alpha:
         scs += 1
 print(scs)
+
+N_0 = (0.05, 0.00028, 100)
+N_1 = (0.059, 0.0037, 100)
+
+
+def idle_model(interval: List[float], F_0: float, rate=N_0[0]):
+    #return [F_0 * math.exp(-rate * (t - interval[0])) for t in interval]
+    return [F_0 for t in interval]
+
+
+def busy_model(interval: List[float], F_0: float, rate=N_1[0]):
+    #return [1 - (1 - F_0) * math.exp(-rate * (t - interval[0])) for t in interval]
+    return [F_0 + rate*math.cos(t) for t in interval]
+
+
+def der(X: List[float]):
+    return [((x - X[i - 1]) + (X[i + 1] - X[i - 1]) / 2) / 2 for (i, x) in enumerate(X) if 0 < i < len(X) - 1]
+
+
+models = [idle_model, busy_model]
+
+rate = np.random.normal(N_1[0], N_1[1])
+F_0 = 0.4
+t = list(np.arange(0, 10, 0.1))
+X = busy_model(t, F_0, rate)
+m_p_1 = busy_model(t, F_0/2)
+m_p_2 = idle_model(t, F_0)
+
+dist_1 = sum([(x - m_p_1[i]) ** 2 for i, x in enumerate(X)])/len(X)
+dist_2 = sum([(x - m_p_2[i]) ** 2 for i, x in enumerate(X)])/len(X)
+
+der_dist_1 = sum([(x - der(m_p_1)[i]) ** 2 for i, x in enumerate(der(X))])/len(X)
+der_dist_2 = sum([(x - der(m_p_2)[i]) ** 2 for i, x in enumerate(der(X))])/len(X)
+
+print('euclidean distance {:.6f}'.format(dist_1))
+print('euclidean distance {:.6f}'.format(dist_2))
+print('der distance {:.8f}'.format(der_dist_1))
+print('der distance {:.8f}'.format(der_dist_2))
+print('comb distance {:.8f}'.format(dist_1*der_dist_1))
+print('comb distance {:.8f}'.format(dist_2*der_dist_2))
+
+plt.figure(figsize=[10, 5])
+plt.plot(t, X, color='orange', label='sample')
+plt.plot(t, m_p_1, color='blue', label='ideal_1')
+plt.plot(t, m_p_2, color='green', label='ideal_2')
+plt.legend()
+plt.show()

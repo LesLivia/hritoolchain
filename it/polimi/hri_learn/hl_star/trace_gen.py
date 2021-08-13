@@ -45,6 +45,8 @@ class TraceGenerator:
         self.events: List[str] = []
         self.evt_int: List[int] = []
 
+        self.ONCE = False
+
     def set_word(self, w: str):
         self.events = []
         self.evt_int = []
@@ -134,13 +136,18 @@ class TraceGenerator:
             return self.get_traces_uppaal()
 
     def get_traces_sim(self):
+        if self.ONCE:
+            return []
+
         sims = os.listdir(SIM_LOGS_PATH)
         sims = list(filter(lambda s: s.startswith('SIM'), sims))
-
-        rand_sel = random.randint(0, 100)
-        rand_sel = rand_sel % len(sims)
-
-        return SIM_LOGS_PATH + sims[rand_sel] + '/'
+        paths = []
+        for i in range(len(sims)):
+            # rand_sel = random.randint(0, 100)
+            # rand_sel = rand_sel % len(sims)
+            paths.append(SIM_LOGS_PATH + sims[i] + '/')
+        self.ONCE = True
+        return paths
 
     def get_traces_uppaal(self):
         # sample new traces through uppaal command line tool
@@ -158,6 +165,6 @@ class TraceGenerator:
         if p.returncode == 0:
             LOGGER.info('TRACES SAVED TO ' + s)
             # returns out file where new traces are stored
-            return UPP_OUT_PATH.format(s)
+            return [UPP_OUT_PATH.format(s)]
         else:
             return None

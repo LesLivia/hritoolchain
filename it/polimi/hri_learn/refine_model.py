@@ -2,6 +2,8 @@ import math
 import sys
 import warnings
 from typing import List
+from datetime import datetime
+from graphviz import Source
 
 import pltr.ha_pltr as ha_pltr
 from hri_learn.hl_star.learner import Learner
@@ -10,13 +12,18 @@ from hri_learn.hl_star.teacher import Teacher
 
 # LEARNING PROCEDURE SETUP
 warnings.filterwarnings('ignore')
+startTime = datetime.now()
 
 CS_VERSION = sys.argv[2]
-IDLE_DISTR = (0.003, 0.0001, 100)
-BUSY_DISTR = (0.004, 0.0004, 100)
+N_0 = (0.003, 0.0001, 100)
+N_1 = (0.004, 0.0004, 100)
+
+#N_0 = (0.0005, 0.00028, 100)
+#N_1 = (0.00059, 0.00037, 100)
 
 LOGGER = Logger()
-PROB_DISTR = [IDLE_DISTR, BUSY_DISTR]
+# PROB_DISTR = [N_0, N_1, N_2, N_3, N_4, N_5, N_6, N_7, N_8, N_9]
+PROB_DISTR = [N_0, N_1]
 
 UNCONTR_EVTS = {}
 if CS_VERSION == 'b':
@@ -30,11 +37,11 @@ CONTR_EVTS = {'u': 'start_moving', 'd': 'stop_moving'}
 
 
 def idle_model(interval: List[float], F_0: float):
-    return [F_0 * math.exp(-IDLE_DISTR[0] * (t - interval[0])) for t in interval]
+    return [F_0 * math.exp(-N_0[0] * (t - interval[0])) for t in interval]
 
 
 def busy_model(interval: List[float], F_0: float):
-    return [1 - (1 - F_0) * math.exp(-BUSY_DISTR[0] * (t - interval[0])) for t in interval]
+    return [1 - (1 - F_0) * math.exp(-N_1[0] * (t - interval[0])) for t in interval]
 
 
 MODELS = [idle_model, busy_model]
@@ -50,6 +57,7 @@ LEARNER = Learner(TEACHER)
 LEARNED_HA = LEARNER.run_hl_star(filter_empty=True)
 ha_pltr.plot_ha(LEARNED_HA, 'H_{}_{}{}'.format(sys.argv[1], CS_VERSION, sys.argv[3]), view=True)
 TEACHER.plot_distributions()
+print(datetime.now() - startTime)
 
 # s = Source(temp, filename="test.gv", format="pdf")
 # s.view()
