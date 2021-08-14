@@ -274,8 +274,12 @@ class EventFactory:
         # support method to parse traces sampled by ref query
         f = open(path, 'r')
         if CASE_STUDY == 'hri':
-            variables = ['humanFatigue[currH - 1]', 'humanPositionX[currH - 1]',
-                         'amy.busy || amy.p_2 || amy.run || amy.p_4', 'humanPositionY[currH - 1]']
+            if CS_VERSION in ['a', 'b']:
+                variables = ['humanFatigue[currH - 1]', 'humanPositionX[currH - 1]',
+                             'amy.busy || amy.p_2', 'humanPositionY[currH - 1]']
+            else:
+                variables = ['humanFatigue[currH - 1]', 'humanPositionX[currH - 1]',
+                             'amy.busy || amy.p_2 || amy.run || amy.p_4', 'humanPositionY[currH - 1]']
         else:
             variables = ['t.ON', 'T_r', 'r.open']
         lines = f.readlines()

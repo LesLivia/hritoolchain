@@ -7,6 +7,8 @@ from typing import List
 from hl_star.logger import Logger
 
 CS = sys.argv[1]
+CS_VERSION = int(sys.argv[3])
+
 UPP_EXE_PATH = '/Applications/Dev/uppaal64-4.1.24/bin-Darwin'
 UPP_OUT_PATH = '/Users/lestingi/PycharmProjects/hritoolchain/resources/uppaal_logs/rt_traces/{}.txt'
 SCRIPT_PATH = '/Users/lestingi/PycharmProjects/hritoolchain/resources/scripts/verify.sh'
@@ -23,7 +25,12 @@ if CS == 'hri':
     LINE_5 = ['const int VERSION = {};\n', 'const int VERSION']
     LINES_TO_CHANGE = [LINE_1, LINE_2, LINE_3, LINE_4, LINE_5]
     UPP_MODEL_PATH = '/Users/lestingi/Desktop/phd-workspace/hri-models/uppaal-models/hri-w_ref.xml'
-    UPP_QUERY_PATH = '/Users/lestingi/Desktop/phd-workspace/hri-models/uppaal-models/hri-w_ref.q'
+    if CS_VERSION == 1:
+        UPP_QUERY_PATH = '/Users/lestingi/Desktop/phd-workspace/hri-models/uppaal-models/hri-w_ref1.q'
+    elif CS_VERSION == 2:
+        UPP_QUERY_PATH = '/Users/lestingi/Desktop/phd-workspace/hri-models/uppaal-models/hri-w_ref2.q'
+    else:
+        UPP_QUERY_PATH = '/Users/lestingi/Desktop/phd-workspace/hri-models/uppaal-models/hri-w_ref3.q'
 else:
     LINE_1 = ['bool force_exe = true;\n', 'bool force_exe']
     LINE_2 = ['int force_open[MAX_E] = ', 'int force_open']
@@ -34,10 +41,7 @@ else:
     UPP_QUERY_PATH = '/Users/lestingi/Desktop/phd-workspace/hri-models/uppaal-models/thermostat.q'
 
 MAX_E = 15
-CS_VERSION = int(sys.argv[3])
-
 LOGGER = Logger()
-
 
 class TraceGenerator:
     def __init__(self, word: str = None):
