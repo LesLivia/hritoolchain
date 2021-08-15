@@ -161,7 +161,7 @@ class Teacher:
                 mu: float = distr[0]
                 sigma: float = distr[1]
                 x = np.linspace(mu - 3 * sigma, mu + 3 * sigma, 200)
-                plt.plot(x, stats.norm.pdf(x, mu, sigma), label='N_{}({:.4f}, {:.4f})'.format(d, mu, sigma))
+                plt.plot(x, stats.norm.pdf(x, mu, sigma), label='N_{}({:.6f}, {:.6f})'.format(d, mu, sigma))
             plt.legend()
             plt.show()
 
@@ -343,7 +343,7 @@ class Teacher:
                         if abs(avg_metrics - old_avg) < old_avg / 10:
                             return d
                     # FIXME
-                    if len(self.get_distributions()) >= 7:
+                    if len(self.get_distributions()) >= 4:
                         return None
                     if save:
                         var_metrics = sum([(m - avg_metrics) ** 2 for m in metrics]) / len(metrics)
@@ -460,7 +460,7 @@ class Teacher:
     #############################################
     def get_counterexample(self, table: ObsTable):
         # FIXME
-        if len(self.get_signals()) > 700:
+        if len(self.get_signals()) >= 1200:
             return None
 
         S = table.get_S()

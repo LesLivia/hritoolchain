@@ -431,6 +431,7 @@ class Learner:
         self.fill_table()
         counterexample = self.TEACHER.get_counterexample(self.get_table())
         while counterexample is not None or step0:
+            self.TEACHER.plot_distributions()
             step0 = False
             if counterexample is not None:
                 LOGGER.warn('FOUND COUNTEREXAMPLE: {}'.format(counterexample))

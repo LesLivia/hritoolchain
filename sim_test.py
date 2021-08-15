@@ -92,13 +92,13 @@ N_1 = (0.059, 0.0037, 100)
 
 
 def idle_model(interval: List[float], F_0: float, rate=N_0[0]):
-    #return [F_0 * math.exp(-rate * (t - interval[0])) for t in interval]
+    # return [F_0 * math.exp(-rate * (t - interval[0])) for t in interval]
     return [F_0 for t in interval]
 
 
 def busy_model(interval: List[float], F_0: float, rate=N_1[0]):
-    #return [1 - (1 - F_0) * math.exp(-rate * (t - interval[0])) for t in interval]
-    return [F_0 + rate*math.cos(t) for t in interval]
+    # return [1 - (1 - F_0) * math.exp(-rate * (t - interval[0])) for t in interval]
+    return [F_0 + rate * math.cos(t) for t in interval]
 
 
 def der(X: List[float]):
@@ -111,21 +111,21 @@ rate = np.random.normal(N_1[0], N_1[1])
 F_0 = 0.4
 t = list(np.arange(0, 10, 0.1))
 X = busy_model(t, F_0, rate)
-m_p_1 = busy_model(t, F_0/2)
+m_p_1 = busy_model(t, F_0 / 2)
 m_p_2 = idle_model(t, F_0)
 
-dist_1 = sum([(x - m_p_1[i]) ** 2 for i, x in enumerate(X)])/len(X)
-dist_2 = sum([(x - m_p_2[i]) ** 2 for i, x in enumerate(X)])/len(X)
+dist_1 = sum([(x - m_p_1[i]) ** 2 for i, x in enumerate(X)]) / len(X)
+dist_2 = sum([(x - m_p_2[i]) ** 2 for i, x in enumerate(X)]) / len(X)
 
-der_dist_1 = sum([(x - der(m_p_1)[i]) ** 2 for i, x in enumerate(der(X))])/len(X)
-der_dist_2 = sum([(x - der(m_p_2)[i]) ** 2 for i, x in enumerate(der(X))])/len(X)
+der_dist_1 = sum([(x - der(m_p_1)[i]) ** 2 for i, x in enumerate(der(X))]) / len(X)
+der_dist_2 = sum([(x - der(m_p_2)[i]) ** 2 for i, x in enumerate(der(X))]) / len(X)
 
 print('euclidean distance {:.6f}'.format(dist_1))
 print('euclidean distance {:.6f}'.format(dist_2))
 print('der distance {:.8f}'.format(der_dist_1))
 print('der distance {:.8f}'.format(der_dist_2))
-print('comb distance {:.8f}'.format(dist_1*der_dist_1))
-print('comb distance {:.8f}'.format(dist_2*der_dist_2))
+print('comb distance {:.8f}'.format(dist_1 * der_dist_1))
+print('comb distance {:.8f}'.format(dist_2 * der_dist_2))
 
 plt.figure(figsize=[10, 5])
 plt.plot(t, X, color='orange', label='sample')
@@ -133,3 +133,30 @@ plt.plot(t, m_p_1, color='blue', label='ideal_1')
 plt.plot(t, m_p_2, color='green', label='ideal_2')
 plt.legend()
 plt.show()
+
+N_orig = [(0.003, 0.0001), (0.004, 0.0004), (0.005, 0.0001), (0.007, 0.0004)]
+N_learned = [[(0.00300, 0.000102), (0.00301, 0.000099), (0.003, 0.0001), (0.003012, 0.000096), (0.003029, 0.000088)],
+             [(0.00402, 0.000398), (0.004022, 0.000409), (0.004088, 0.0004), (0.00403, 0.000396), (0.003996, 0.000401)],
+             [(0.005019, 0.000121), (0.004983, 0.000096), (0.005009, 0.0001074), (0.005063, 0.0001087)],
+             [(0.006921, 0.000438), (0.006875, 0.000389), (0.006936, 0.00037)]]
+include = [1, 1, 1, 1]
+
+scs = 0
+total = 0
+plt.figure()
+for (i, N_o) in enumerate(N_orig):
+    if include[i]:
+        N_l = N_learned[i]
+        total += len(N_l)*1
+        for distr in N_l:
+            for x in range(1):
+                y_1 = list(np.random.normal(N_o[0], N_o[1], 20))
+                y_2 = list(np.random.normal(distr[0], distr[1], 20))
+                plt.plot([i]*len(y_2), y_2, 'k-', linewidth=0.25)
+                res = stats.ks_2samp(y_1, y_2)
+                if res.pvalue > 0.05:
+                    scs += 1
+
+plt.show()
+
+print('{:.2f}% successes'.format(scs / total))
