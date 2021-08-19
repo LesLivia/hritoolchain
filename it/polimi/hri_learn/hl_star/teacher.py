@@ -343,7 +343,7 @@ class Teacher:
                         if abs(avg_metrics - old_avg) < old_avg / 10:
                             return d
                     # FIXME
-                    if len(self.get_distributions()) >= 4:
+                    if len(self.get_distributions()) >= 10:
                         return None
                     if save:
                         var_metrics = sum([(m - avg_metrics) ** 2 for m in metrics]) / len(metrics)

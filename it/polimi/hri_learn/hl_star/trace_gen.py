@@ -13,7 +13,7 @@ UPP_EXE_PATH = '/Applications/Dev/uppaal64-4.1.24/bin-Darwin'
 UPP_OUT_PATH = '/Users/lestingi/PycharmProjects/hritoolchain/resources/uppaal_logs/rt_traces/{}.txt'
 SCRIPT_PATH = '/Users/lestingi/PycharmProjects/hritoolchain/resources/scripts/verify.sh'
 
-SIM_LOGS_PATH = '/Users/lestingi/PycharmProjects/hritoolchain/resources/sim_logs/refinement/'
+SIM_LOGS_PATH = '/Users/lestingi/PycharmProjects/hritoolchain/resources/sim_logs/refinement/full-exp/'
 LOG_FILES = ['humanFatigue.log', 'humanPosition.log']
 
 # FIXME: should be relative paths, or passed as input args

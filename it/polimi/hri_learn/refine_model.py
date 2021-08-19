@@ -54,10 +54,10 @@ for sym in TEACHER.get_symbols().keys():
 LEARNER = Learner(TEACHER)
 
 # RUN LEARNING ALGORITHM:
-# LEARNED_HA = LEARNER.run_hl_star(filter_empty=True)
-# ha_pltr.plot_ha(LEARNED_HA, 'H_{}_{}{}'.format(sys.argv[1], CS_VERSION, sys.argv[3]), view=True)
-# TEACHER.plot_distributions()
-# print(datetime.now() - startTime)
+LEARNED_HA = LEARNER.run_hl_star(filter_empty=True)
+ha_pltr.plot_ha(LEARNED_HA, 'H_{}_{}{}'.format(sys.argv[1], CS_VERSION, sys.argv[3]), view=True)
+TEACHER.plot_distributions()
+print(datetime.now() - startTime)
 
 temp = "/Users/lestingi/Desktop/phd-workspace/_papers/RA-L_IROS21/journal_version/IEEETransactions_LaTeX/IEEEtran/figs/exp/upp/"
 source = """
@@ -86,7 +86,5 @@ digraph hybrid_automaton {
     q_2 -> q_4 [label=<<FONT  POINT-SIZE="8" COLOR="#179900">F&gt;=1</FONT>>]
 }
 """
-s = Source(source,
-           filename=temp+"hri_c",
-           format="pdf")
-s.view()
+#s = Source(source, filename=temp+"hri_c", format="pdf")
+#s.view()

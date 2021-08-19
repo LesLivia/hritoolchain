@@ -20,10 +20,9 @@ def find_last_chg_pt(t: List[float], v: List[float]):
     else:
         return 0.0
 
-
-LOG_DIR = "/Users/lestingi/Desktop/logs/sim_logs/exp1a"
+LOG_DIR = "/Users/lestingi/PycharmProjects/hritoolchain/resources/sim_logs/refinement/sit-and-run"
 SIM_LOGS_DIRS = [x[0] for x in os.walk(LOG_DIR)]
-SIM_LOGS_DIRS = list(filter(lambda x: x.startswith(LOG_DIR + '/SIM_2021-07'), SIM_LOGS_DIRS))
+SIM_LOGS_DIRS = list(filter(lambda x: x.startswith(LOG_DIR + '/SIM_2021-06'), SIM_LOGS_DIRS))
 
 FTG_FILE = '/humanFatigue.log'
 CHG_FILE = '/robotBattery.log'
@@ -92,3 +91,12 @@ plt.show()
 MIN_CHG = [c[chg_t[i].index(80)] for (i, c) in enumerate(chg_pts) if len(chg_t[i]) >= 80]
 EXP_MIN_CHG = sum(MIN_CHG) / len(MIN_CHG)
 print('EXP. MINIMUM CHARGE: {}'.format(EXP_MIN_CHG + 30))
+
+
+
+
+
+
+
+
+
