@@ -54,12 +54,12 @@ for sym in TEACHER.get_symbols().keys():
 LEARNER = Learner(TEACHER)
 
 # RUN LEARNING ALGORITHM:
-LEARNED_HA = LEARNER.run_hl_star(filter_empty=True)
-ha_pltr.plot_ha(LEARNED_HA, 'H_{}_{}{}'.format(sys.argv[1], CS_VERSION, sys.argv[3]), view=True)
-TEACHER.plot_distributions()
-print(datetime.now() - startTime)
+#LEARNED_HA = LEARNER.run_hl_star(filter_empty=True)
+#ha_pltr.plot_ha(LEARNED_HA, 'H_{}_{}{}'.format(sys.argv[1], CS_VERSION, sys.argv[3]), view=True)
+#TEACHER.plot_distributions()
+#print(datetime.now() - startTime)
 
-temp = "/Users/lestingi/Desktop/phd-workspace/_papers/RA-L_IROS21/journal_version/IEEETransactions_LaTeX/IEEEtran/figs/exp/upp/"
+temp = "/Users/lestingi/Desktop/phd-workspace/_papers/RA-L_IROS21/journal_version/IEEETransactions_LaTeX/IEEEtran/figs/exp/sim/"
 source = """
 digraph hybrid_automaton {
 	edge [arrowsize=0.5]
@@ -71,20 +71,13 @@ digraph hybrid_automaton {
 	edge [penwidth=0.5]
 	q_0 [label=<<FONT  POINT-SIZE="8" COLOR="black">q_0</FONT><br/><FONT  POINT-SIZE="6" COLOR="#8b54a1"><br/><b>f_0, N_0</b></FONT>>]
 	q_1 [label=<<FONT  POINT-SIZE="8" COLOR="black">q_1</FONT><br/><FONT  POINT-SIZE="6" COLOR="#8b54a1"><br/><b>f_1, N_1</b></FONT>>]
-	q_2 [label=<<FONT  POINT-SIZE="8" COLOR="black">q_2</FONT><br/><FONT  POINT-SIZE="6" COLOR="#8b54a1"><br/><b>f_1, N_2</b></FONT>>]
-	q_3 [label=<<FONT  POINT-SIZE="8" COLOR="black">q_3</FONT><br/><FONT  POINT-SIZE="6" COLOR="#8b54a1"><br/><b>f_0, N_3</b></FONT>>]
-	q_4 [label=<<FONT  POINT-SIZE="8" COLOR="black">q_4</FONT>>]
-	q_0 -> q_0 [label=<<FONT  POINT-SIZE="8" COLOR="#cc2b23">ε</FONT>>]
-	q_0 -> q_1 [label=<<FONT  POINT-SIZE="8" COLOR="#179900">!run</FONT><br/><FONT  POINT-SIZE="8" COLOR="#cc2b23">start?</FONT>>]
-	q_1 -> q_0 [label=<<FONT  POINT-SIZE="8" COLOR="#179900">!sit</FONT><br/><FONT  POINT-SIZE="8" COLOR="#cc2b23">stop?</FONT>>]
-	q_1 -> q_3 [label=<<FONT  POINT-SIZE="8" COLOR="#179900">sit</FONT><br/><FONT  POINT-SIZE="8" COLOR="#cc2b23">stop?</FONT>>]
-	q_3 -> q_1 [label=<<FONT  POINT-SIZE="8" COLOR="#179900">!run</FONT><br/><FONT  POINT-SIZE="8" COLOR="#cc2b23">start?</FONT>>]
-	q_0 -> q_2 [label=<<FONT  POINT-SIZE="8" COLOR="#179900">run</FONT><br/><FONT  POINT-SIZE="8" COLOR="#cc2b23">start?</FONT>>]
-	q_2 -> q_0 [label=<<FONT  POINT-SIZE="8" COLOR="#179900">!sit</FONT><br/><FONT  POINT-SIZE="8" COLOR="#cc2b23">stop?</FONT>>]
-	q_2 -> q_3 [label=<<FONT  POINT-SIZE="8" COLOR="#179900">sit</FONT><br/><FONT  POINT-SIZE="8" COLOR="#cc2b23">stop?</FONT>>]
-	q_1 -> q_4 [label=<<FONT  POINT-SIZE="8" COLOR="#179900">F&gt;=1</FONT>>]
-    q_2 -> q_4 [label=<<FONT  POINT-SIZE="8" COLOR="#179900">F&gt;=1</FONT>>]
+	q_2 [label=<<FONT  POINT-SIZE="8" COLOR="black">q_2</FONT><br/><FONT  POINT-SIZE="6" COLOR="#8b54a1"><br/><b>f_0, N_2</b></FONT>>]
+	q_0 -> q_0 [label=<<FONT  POINT-SIZE="8" COLOR="#0067b0">ε</FONT>>]
+	q_0 -> q_1 [label=<<FONT  POINT-SIZE="8" COLOR="#0067b0">u_4</FONT>>]
+	q_1 -> q_0 [label=<<FONT  POINT-SIZE="8" COLOR="#0067b0">d_4</FONT>>]
+	q_1 -> q_2 [label=<<FONT  POINT-SIZE="8" COLOR="#0067b0">d_2</FONT>>]
+	q_2 -> q_1 [label=<<FONT  POINT-SIZE="8" COLOR="#0067b0">u_4</FONT>>]
 }
 """
-#s = Source(source, filename=temp+"hri_c", format="pdf")
-#s.view()
+s = Source(source, filename=temp+"hri_c", format="pdf")
+s.view()
