@@ -2,9 +2,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 LABELSIZE = 16
+path = '/Users/lestingi/Desktop/phd-workspace/_papers/hri_magazine-article/ieee-int-sys_submission/exp/'
 
 plt.figure()
-fig, ax = plt.subplots(2, 1, figsize=(10, 10), gridspec_kw={'height_ratios': [1, 1]})
+fig, ax = plt.subplots(2, 1, figsize=(8, 10), gridspec_kw={'height_ratios': [1, 1]})
 
 t_1 = [180, 200, 210, 215, 220, 240, 260, 280, 300, 320, 340]
 l_1 = [0.0, 0.134, 0.283, 0.476, 0.524, 0.662, 0.793, 0.866, 0.845, 0.902, 0.902]
@@ -34,9 +35,12 @@ ax[1].tick_params(labelsize=LABELSIZE)
 ax[1].set_ylabel('Success Pr. [0-1]', fontsize=LABELSIZE + 2)
 ax[1].set_xlabel('t [s]', fontsize=LABELSIZE + 2)
 
-plt.show()
+#plt.show()
+plt.tight_layout()
+plt.savefig(path + 'scspr.pdf', dpi=1600)
 
-path = '/Users/lestingi/Desktop/phd-workspace/_papers/hri_magazine-article/ieee-int-sys_submission/exp/'
+###########################
+
 h_logs = ['states', 'states2', 'states3', 'states4']
 ext = '.txt'
 
